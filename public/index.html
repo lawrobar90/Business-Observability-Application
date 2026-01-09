@@ -1771,6 +1771,9 @@
 
       saveCurrentPrompt() {
         const nameInput = document.getElementById('savePromptName');
+        const saveBtn = document.getElementById('saveCurrentPrompt');
+        const saveStatus = document.getElementById('saveStatus');
+        
         let name = nameInput ? nameInput.value.trim() : '';
         
         // If no name provided, generate one based on company and timestamp
@@ -1780,30 +1783,77 @@
           name = `${companyName} - ${timestamp}`;
         }
 
-        const promptState = this.getCurrentPromptState();
-        promptState.name = name;
-        promptState.id = Date.now().toString();
+        try {
+          // Show saving status
+          if (saveStatus) {
+            saveStatus.classList.remove('hidden');
+            saveStatus.innerHTML = '<span class="text-dtcyan">💾 Saving...</span>';
+          }
+          
+          // Disable button during save
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Saving...';
+            saveBtn.classList.add('opacity-75');
+          }
 
-        const savedPrompts = this.getSavedPrompts();
-        savedPrompts.push(promptState);
-        
-        localStorage.setItem(this.storageKey, JSON.stringify(savedPrompts));
-        if (nameInput) nameInput.value = '';
-        
-        this.renderSavedPrompts();
-        this.updatePromptsCounter();
-        
-        // Show success message
-        const saveButton = document.getElementById('saveCurrentPrompt');
-        if (saveButton) {
-          const originalText = saveButton.textContent;
-          saveButton.textContent = '✅ Saved!';
-          setTimeout(() => {
-            saveButton.textContent = originalText;
-          }, 2000);
+          const promptState = this.getCurrentPromptState();
+          promptState.name = name;
+          promptState.id = Date.now().toString();
+
+          const savedPrompts = this.getSavedPrompts();
+          savedPrompts.push(promptState);
+          
+          localStorage.setItem(this.storageKey, JSON.stringify(savedPrompts));
+          
+          // Only clear input after successful save
+          if (nameInput) nameInput.value = '';
+          
+          this.renderSavedPrompts();
+          this.updatePromptsCounter();
+          
+          // Show success message
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('opacity-75');
+            saveBtn.textContent = '✅ Saved!';
+            saveBtn.style.background = '#10b981';
+            
+            setTimeout(() => {
+              saveBtn.textContent = '💾 Save Current State';
+              saveBtn.style.background = '';
+            }, 2000);
+          }
+          
+          if (saveStatus) {
+            saveStatus.innerHTML = '<span class="text-dtgreen">✅ Saved successfully</span>';
+            setTimeout(() => saveStatus.classList.add('hidden'), 3000);
+          }
+
+          this.showNotification(`Saved "${name}" successfully!`);
+          
+        } catch (error) {
+          console.error('Error saving prompt:', error);
+          
+          // Re-enable button and show error
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('opacity-75');
+            saveBtn.textContent = '❌ Save Failed';
+            saveBtn.style.background = '#ef4444';
+            
+            setTimeout(() => {
+              saveBtn.textContent = '💾 Save Current State';
+              saveBtn.style.background = '';
+            }, 3000);
+          }
+          
+          if (saveStatus) {
+            saveStatus.innerHTML = '<span class="text-red-400">❌ Save failed</span>';
+          }
+          
+          this.showNotification(`Failed to save "${name}": ${error.message}`, 'error');
         }
-
-        this.showNotification(`Saved "${name}" successfully!`);
       }
 
       getSavedPrompts() {
@@ -2463,6 +2513,9 @@
       console.log('💾 Global save function called');
       
       const nameInput = document.getElementById('savePromptName');
+      const saveBtn = document.getElementById('saveCurrentPrompt');
+      const saveStatus = document.getElementById('saveStatus');
+      
       let name = nameInput ? nameInput.value.trim() : '';
       
       // If no name provided, generate one based on company and timestamp
@@ -2471,6 +2524,19 @@
         const timestamp = new Date().toLocaleString();
         name = `${companyName} - ${timestamp}`;
         console.log('Auto-generated name:', name);
+      }
+
+      // Show saving status immediately
+      if (saveStatus) {
+        saveStatus.classList.remove('hidden');
+        saveStatus.innerHTML = '<span class="text-dtcyan">☁️ Saving configuration...</span>';
+      }
+      
+      // Disable save button during process
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '💾 Saving...';
+        saveBtn.classList.add('opacity-75');
       }
 
       try {
@@ -2503,11 +2569,13 @@
         promptState.name = name;
         promptState.id = Date.now().toString();
 
-        // Save to both localStorage (as backup) and server
+        // Save to localStorage first (always works)
         const storageKey = 'bizobs-saved-prompts';
         const savedPrompts = JSON.parse(localStorage.getItem(storageKey) || '[]');
         savedPrompts.push(promptState);
         localStorage.setItem(storageKey, JSON.stringify(savedPrompts));
+        
+        let serverSaveSuccess = false;
         
         // Also save to server for persistence across app restarts
         try {
@@ -2520,43 +2588,54 @@
           
           if (serverResult.ok) {
             console.log('✅ Configuration saved to server:', serverResult.message);
-          } else {
-            console.warn('⚠️ Server save failed, using localStorage only:', serverResult.error);
-            alert('⚠️ Saved locally, but server storage failed. Configuration may not persist across app restarts.');
-          }
-        } catch (serverError) {
-          console.warn('⚠️ Server storage error, using localStorage only:', serverError.message);
-          alert('⚠️ Saved locally, but server storage failed. Configuration may not persist across app restarts.');
-        }
-        
-        // Clear name input
-        if (nameInput) nameInput.value = '';
-        
-        // Show success feedback
-        const saveBtn = document.getElementById('saveCurrentPrompt');
-        const saveStatus = document.getElementById('saveStatus');
-        
-        if (saveStatus) {
-          saveStatus.classList.remove('hidden');
-          saveStatus.innerHTML = '<span class="text-dtcyan">☁️ Saving to server...</span>';
-        }
-        
-        if (saveBtn) {
-          const originalText = saveBtn.textContent;
-          saveBtn.textContent = '✅ Saved!';
-          saveBtn.style.background = '#10b981';
-          setTimeout(() => {
-            saveBtn.textContent = originalText;
-            saveBtn.style.background = '';
+            serverSaveSuccess = true;
+            
             if (saveStatus) {
               saveStatus.innerHTML = '<span class="text-dtgreen">✅ Saved to server & browser</span>';
-              setTimeout(() => saveStatus.classList.add('hidden'), 3000);
             }
+          } else {
+            console.warn('⚠️ Server save failed:', serverResult.error);
+            if (saveStatus) {
+              saveStatus.innerHTML = '<span class="text-yellow-400">⚠️ Saved locally only (server failed)</span>';
+            }
+          }
+        } catch (serverError) {
+          console.warn('⚠️ Server storage error:', serverError.message);
+          if (saveStatus) {
+            saveStatus.innerHTML = '<span class="text-yellow-400">⚠️ Saved locally only (server error)</span>';
+          }
+        }
+        
+        // Only clear the input field after successful save
+        if (nameInput && serverSaveSuccess) {
+          nameInput.value = '';
+        }
+        
+        // Re-enable and update save button
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove('opacity-75');
+          saveBtn.textContent = '✅ Saved!';
+          saveBtn.style.background = '#10b981';
+          
+          // Reset button after delay
+          setTimeout(() => {
+            saveBtn.textContent = '💾 Save Current State';
+            saveBtn.style.background = '';
           }, 2000);
         }
         
+        // Hide status after delay if successful
+        if (saveStatus && serverSaveSuccess) {
+          setTimeout(() => {
+            saveStatus.classList.add('hidden');
+          }, 3000);
+        }
+        
         // Refresh the saved prompts list
-        refreshSavedPromptsList();
+        if (typeof refreshSavedPromptsList === 'function') {
+          refreshSavedPromptsList();
+        }
         
         // Update counter if element exists
         const counter = document.getElementById('promptsCounter');
@@ -2565,10 +2644,36 @@
         }
         
         console.log(`✅ Saved configuration "${name}" successfully!`);
-        alert(`✅ Configuration "${name}" saved successfully!`);
+        
+        // Show success alert only if server save worked, otherwise show warning
+        if (serverSaveSuccess) {
+          alert(`✅ Configuration "${name}" saved successfully!`);
+        } else {
+          alert(`⚠️ Configuration "${name}" saved locally but failed to save to server. It may not persist across app restarts.`);
+        }
         
       } catch (error) {
         console.error('❌ Error saving configuration:', error);
+        
+        // Re-enable button on error
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove('opacity-75');
+          saveBtn.textContent = '❌ Save Failed';
+          saveBtn.style.background = '#ef4444';
+          
+          setTimeout(() => {
+            saveBtn.textContent = '💾 Save Current State';
+            saveBtn.style.background = '';
+          }, 3000);
+        }
+        
+        // Show error status
+        if (saveStatus) {
+          saveStatus.classList.remove('hidden');
+          saveStatus.innerHTML = '<span class="text-red-400">❌ Save failed - please try again</span>';
+        }
+        
         alert('❌ Error saving configuration: ' + error.message);
       }
     };
