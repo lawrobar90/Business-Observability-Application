@@ -1946,7 +1946,7 @@
           const element = document.getElementById(id);
           if (element) {
             element.value = value || defaultValue;
-            console.log(`✅ Restored ${id}: ${value}`);
+            console.log(`✅ Restored ${id}: ${(value || '').substring(0, 100)}${value && value.length > 100 ? '...' : ''}`);
           } else {
             console.warn(`⚠️ Element ${id} not found when loading prompt state`);
           }
@@ -1976,27 +1976,83 @@
           }
         };
 
-        // 🔧 COMPREHENSIVE FIELD RESTORATION: Restore ALL fields across all steps
-        console.log('🎯 Restoring Step 1 fields...');
-        if (promptState.step1Fields) {
-          setElementValue('companyName', promptState.step1Fields.companyName);
-          setElementValue('domain', promptState.step1Fields.domain);
-          setElementValue('industryType', promptState.step1Fields.industryType);
-          setElementValue('journeyRequirements', promptState.step1Fields.journeyRequirements);
-          setElementValue('customSteps', promptState.step1Fields.customSteps);
-          setElementValue('journeyType', promptState.step1Fields.journeyType);
-          setElementValue('details', promptState.step1Fields.details);
-          setElementValue('generationMethod', promptState.step1Fields.generationMethod, 'copilot');
-        }
+        // 🔧 COMPREHENSIVE FIELD RESTORATION: Handle both structured prompts and sector configs
+        console.log('🎯 Detecting config type...', promptState.source || 'unknown');
         
-        console.log('🎯 Restoring Step 2 fields...');
-        if (promptState.step2Fields) {
-          setElementValue('promptText1', promptState.step2Fields.promptText1);
-          setElementValue('promptText2', promptState.step2Fields.promptText2);
-          setElementValue('promptText1-step2', promptState.step2Fields.promptText1Step2);
-          setElementValue('promptText2-step2', promptState.step2Fields.promptText2Step2);
-          setElementValue('copilotResponse', promptState.step2Fields.copilotResponse);
-          setElementValue('copilotResponse-step2', promptState.step2Fields.copilotResponseStep2);
+        // Handle sector configs (new format from JSON files)
+        if (promptState.source === 'sector-demo' || promptState.steps) {
+          console.log('📁 Loading sector config format...');
+          
+          // Basic company info
+          setElementValue('companyName', promptState.companyName);
+          setElementValue('domain', promptState.domain);
+          setElementValue('industryType', promptState.industryType);
+          setElementValue('journeyType', promptState.journeyType);
+          setElementValue('details', promptState.journeyDetail || promptState.journeyType);
+          
+          // Generate a summary for the journey requirements field
+          if (promptState.steps && promptState.steps.length > 0) {
+            const journeyDesc = `${promptState.journeyType || 'Business Process'} involving ${promptState.steps.length} main steps: ${promptState.steps.slice(0, 3).map(s => s.stepName).join(', ')}${promptState.steps.length > 3 ? '...' : ''}`;
+            setElementValue('journeyRequirements', journeyDesc);
+            
+            // Generate copilot response with step details
+            let copilotResponse = `Journey Configuration for ${promptState.companyName}\n\n`;
+            copilotResponse += `Industry: ${promptState.industryType}\n`;
+            copilotResponse += `Journey Type: ${promptState.journeyType}\n`;
+            copilotResponse += `Steps (${promptState.steps.length}):\n\n`;
+            
+            promptState.steps.forEach((step, index) => {
+              copilotResponse += `${index + 1}. ${step.stepName}\n`;
+              copilotResponse += `   - Category: ${step.category || 'General'}\n`;
+              copilotResponse += `   - Duration: ${step.estimatedDuration || 'N/A'} minutes\n`;
+              copilotResponse += `   - Description: ${step.description}\n`;
+              if (step.substeps && step.substeps.length > 0) {
+                copilotResponse += `   - Substeps: ${step.substeps.map(ss => ss.substepName).join(', ')}\n`;
+              }
+              copilotResponse += `\n`;
+            });
+            
+            setElementValue('copilotResponse', copilotResponse);
+            setElementValue('copilotResponse-step2', copilotResponse);
+          }
+          
+          // Store the journey data for simulation
+          if (promptState.steps) {
+            window.lastJourney = promptState;
+            window.currentJourneyData = promptState;
+          }
+        } 
+        // Handle original structured prompt format
+        else {
+          console.log('🎯 Restoring Step 1 fields...');
+          if (promptState.step1Fields) {
+            setElementValue('companyName', promptState.step1Fields.companyName);
+            setElementValue('domain', promptState.step1Fields.domain);
+            setElementValue('industryType', promptState.step1Fields.industryType);
+            setElementValue('journeyRequirements', promptState.step1Fields.journeyRequirements);
+            setElementValue('customSteps', promptState.step1Fields.customSteps);
+            setElementValue('journeyType', promptState.step1Fields.journeyType);
+            setElementValue('details', promptState.step1Fields.details);
+            setElementValue('generationMethod', promptState.step1Fields.generationMethod, 'copilot');
+          }
+          
+          console.log('🎯 Restoring Step 2 fields...');
+          if (promptState.step2Fields) {
+            setElementValue('promptText1', promptState.step2Fields.promptText1);
+            setElementValue('promptText2', promptState.step2Fields.promptText2);
+            setElementValue('promptText1-step2', promptState.step2Fields.promptText1Step2);
+            setElementValue('promptText2-step2', promptState.step2Fields.promptText2Step2);
+            setElementValue('copilotResponse', promptState.step2Fields.copilotResponse);
+            setElementValue('copilotResponse-step2', promptState.step2Fields.copilotResponseStep2);
+          }
+          
+          // Restore journey data from structured format
+          if (promptState.lastJourney) {
+            window.lastJourney = promptState.lastJourney;
+          }
+          if (promptState.currentJourneyData) {
+            window.currentJourneyData = promptState.currentJourneyData;
+          }
         }
         
         console.log('🎯 Restoring Step 3 fields...');
@@ -2743,31 +2799,76 @@
           return;
         }
         
-        // Load form values
+        // Load form values - handle both structured and sector config formats
         const setElementValue = (id, value) => {
           const el = document.getElementById(id);
-          if (el && value) el.value = value;
+          if (el && value !== undefined && value !== null) el.value = value;
         };
         
-        setElementValue('companyName', prompt.companyName);
-        setElementValue('domain', prompt.domain);
-        setElementValue('industryType', prompt.industryType);
-        setElementValue('journeyRequirements', prompt.journeyRequirements);
-        setElementValue('copilotResponse', prompt.copilotResponse);
-        setElementValue('copilotResponse-step2', prompt.copilotResponseStep2);
-        setElementValue('journeyType', prompt.journeyType);
-        setElementValue('details', prompt.details);
-        setElementValue('customSteps', prompt.customSteps);
-        
-        // Restore journey data
-        if (prompt.lastJourney) {
-          window.lastJourney = prompt.lastJourney;
+        // Handle sector configs (new format)
+        if (prompt.source === 'sector-demo' || prompt.steps) {
+          console.log('📁 Loading sector config format...');
+          
+          setElementValue('companyName', prompt.companyName);
+          setElementValue('domain', prompt.domain);
+          setElementValue('industryType', prompt.industryType);
+          setElementValue('journeyType', prompt.journeyType);
+          setElementValue('details', prompt.journeyDetail || prompt.journeyType);
+          
+          // Generate journey requirements from steps
+          if (prompt.steps && prompt.steps.length > 0) {
+            const journeyDesc = `${prompt.journeyType || 'Business Process'} involving ${prompt.steps.length} main steps: ${prompt.steps.slice(0, 3).map(s => s.stepName).join(', ')}${prompt.steps.length > 3 ? '...' : ''}`;
+            setElementValue('journeyRequirements', journeyDesc);
+            
+            // Generate copilot response with step details
+            let copilotResponse = `Journey Configuration for ${prompt.companyName}\n\n`;
+            copilotResponse += `Industry: ${prompt.industryType}\n`;
+            copilotResponse += `Journey Type: ${prompt.journeyType}\n`;
+            copilotResponse += `Steps (${prompt.steps.length}):\n\n`;
+            
+            prompt.steps.forEach((step, index) => {
+              copilotResponse += `${index + 1}. ${step.stepName}\n`;
+              copilotResponse += `   - Category: ${step.category || 'General'}\n`;
+              copilotResponse += `   - Duration: ${step.estimatedDuration || 'N/A'} minutes\n`;
+              copilotResponse += `   - Description: ${step.description}\n`;
+              if (step.substeps && step.substeps.length > 0) {
+                copilotResponse += `   - Substeps: ${step.substeps.map(ss => ss.substepName).join(', ')}\n`;
+              }
+              copilotResponse += `\n`;
+            });
+            
+            setElementValue('copilotResponse', copilotResponse);
+            setElementValue('copilotResponse-step2', copilotResponse);
+          }
+          
+          // Store the journey data for simulation
+          if (prompt.steps) {
+            window.lastJourney = prompt;
+            window.currentJourneyData = prompt;
+          }
+        } 
+        // Handle original structured format
+        else {
+          setElementValue('companyName', prompt.companyName);
+          setElementValue('domain', prompt.domain);
+          setElementValue('industryType', prompt.industryType);
+          setElementValue('journeyRequirements', prompt.journeyRequirements);
+          setElementValue('copilotResponse', prompt.copilotResponse);
+          setElementValue('copilotResponse-step2', prompt.copilotResponseStep2);
+          setElementValue('journeyType', prompt.journeyType);
+          setElementValue('details', prompt.details);
+          setElementValue('customSteps', prompt.customSteps);
+          
+          // Restore journey data
+          if (prompt.lastJourney) {
+            window.lastJourney = prompt.lastJourney;
+          }
+          if (prompt.currentJourneyData) {
+            window.currentJourneyData = prompt.currentJourneyData;
+          }
         }
-        if (prompt.currentJourneyData) {
-          window.currentJourneyData = prompt.currentJourneyData;
-        }
         
-          alert('✅ Loaded configuration "' + prompt.name + '"');
+        alert('✅ Loaded configuration "' + prompt.name + '"');
         console.log('✅ Loaded prompt: ' + prompt.name);
         
       } catch (error) {
