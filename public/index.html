@@ -2045,25 +2045,34 @@
             const journeyDesc = `${promptState.journeyType || 'Business Process'} involving ${promptState.steps.length} main steps: ${promptState.steps.slice(0, 3).map(s => s.stepName).join(', ')}${promptState.steps.length > 3 ? '...' : ''}`;
             setElementValue('journeyRequirements', journeyDesc);
             
-            // Generate copilot response with step details
-            let copilotResponse = `Journey Configuration for ${promptState.companyName}\n\n`;
-            copilotResponse += `Industry: ${promptState.industryType}\n`;
-            copilotResponse += `Journey Type: ${promptState.journeyType}\n`;
-            copilotResponse += `Steps (${promptState.steps.length}):\n\n`;
-            
-            promptState.steps.forEach((step, index) => {
-              copilotResponse += `${index + 1}. ${step.stepName}\n`;
-              copilotResponse += `   - Category: ${step.category || 'General'}\n`;
-              copilotResponse += `   - Duration: ${step.estimatedDuration || 'N/A'} minutes\n`;
-              copilotResponse += `   - Description: ${step.description}\n`;
-              if (step.substeps && step.substeps.length > 0) {
-                copilotResponse += `   - Substeps: ${step.substeps.map(ss => ss.substepName).join(', ')}\n`;
+            // Generate proper JSON structure for copilot response
+            const copilotJsonResponse = {
+              journey: {
+                companyName: promptState.companyName,
+                domain: promptState.domain,
+                industryType: promptState.industryType,
+                journeyType: promptState.journeyType,
+                journeyId: promptState.journeyId || `journey_${promptState.companyName.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}`,
+                steps: promptState.steps.map((step, index) => ({
+                  stepIndex: index + 1,
+                  action: step.stepName || step.action,
+                  description: step.description,
+                  category: step.category || 'General',
+                  timestamp: step.timestamp || new Date().toISOString(),
+                  estimatedDuration: step.estimatedDuration || 60,
+                  businessRationale: step.businessRationale,
+                  substeps: step.substeps || []
+                }))
+              },
+              additionalFields: {
+                journeyStartTime: promptState.journeyStartTime || new Date().toISOString(),
+                source: 'sector-demo'
               }
-              copilotResponse += `\n`;
-            });
+            };
             
-            setElementValue('copilotResponse', copilotResponse);
-            setElementValue('copilotResponse-step2', copilotResponse);
+            const jsonString = JSON.stringify(copilotJsonResponse, null, 2);
+            setElementValue('copilotResponse', jsonString);
+            setElementValue('copilotResponse-step2', jsonString);
           }
           
           // Store the journey data for simulation
@@ -2935,25 +2944,34 @@
             const journeyDesc = `${prompt.journeyType || 'Business Process'} involving ${prompt.steps.length} main steps: ${prompt.steps.slice(0, 3).map(s => s.stepName).join(', ')}${prompt.steps.length > 3 ? '...' : ''}`;
             setElementValue('journeyRequirements', journeyDesc);
             
-            // Generate copilot response with step details
-            let copilotResponse = `Journey Configuration for ${prompt.companyName}\n\n`;
-            copilotResponse += `Industry: ${prompt.industryType}\n`;
-            copilotResponse += `Journey Type: ${prompt.journeyType}\n`;
-            copilotResponse += `Steps (${prompt.steps.length}):\n\n`;
-            
-            prompt.steps.forEach((step, index) => {
-              copilotResponse += `${index + 1}. ${step.stepName}\n`;
-              copilotResponse += `   - Category: ${step.category || 'General'}\n`;
-              copilotResponse += `   - Duration: ${step.estimatedDuration || 'N/A'} minutes\n`;
-              copilotResponse += `   - Description: ${step.description}\n`;
-              if (step.substeps && step.substeps.length > 0) {
-                copilotResponse += `   - Substeps: ${step.substeps.map(ss => ss.substepName).join(', ')}\n`;
+            // Generate proper JSON structure for copilot response
+            const copilotJsonResponse = {
+              journey: {
+                companyName: prompt.companyName,
+                domain: prompt.domain,
+                industryType: prompt.industryType,
+                journeyType: prompt.journeyType,
+                journeyId: prompt.journeyId || `journey_${prompt.companyName.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}`,
+                steps: prompt.steps.map((step, index) => ({
+                  stepIndex: index + 1,
+                  action: step.stepName || step.action,
+                  description: step.description,
+                  category: step.category || 'General',
+                  timestamp: step.timestamp || new Date().toISOString(),
+                  estimatedDuration: step.estimatedDuration || 60,
+                  businessRationale: step.businessRationale,
+                  substeps: step.substeps || []
+                }))
+              },
+              additionalFields: {
+                journeyStartTime: prompt.journeyStartTime || new Date().toISOString(),
+                source: 'sector-demo'
               }
-              copilotResponse += `\n`;
-            });
+            };
             
-            setElementValue('copilotResponse', copilotResponse);
-            setElementValue('copilotResponse-step2', copilotResponse);
+            const jsonString = JSON.stringify(copilotJsonResponse, null, 2);
+            setElementValue('copilotResponse', jsonString);
+            setElementValue('copilotResponse-step2', jsonString);
           }
           
           // Store the journey data for simulation
