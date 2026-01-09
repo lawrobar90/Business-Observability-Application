@@ -143,6 +143,9 @@ int Action() {
     lr_output_message("Starting journey for customer: {customer_name} ({customer_segment}) - Journey: %s", correlation_id);
 `;
 
+  // Capture errorSimulationEnabled for use in template strings
+  const errorSimEnabled = errorSimulationEnabled;
+
   // Generate step-specific transactions using same format as single simulation
   const stepTransactions = steps.map((step, index) => {
     const stepName = step.stepName || step.name || `Step_${index + 1}`;
@@ -193,7 +196,7 @@ int Action() {
         "\\"traceId\\": \\"{trace_id}\\","
         "\\"chained\\": true,"
         "\\"thinkTimeMs\\": 250,"
-        "\\"errorSimulationEnabled\\": ${errorSimulationEnabled ? 'true' : 'false'},"
+        "\\"errorSimulationEnabled\\": ${errorSimEnabled ? 'true' : 'false'},"
         "\\"journey\\": {"
         "  \\"journeyId\\": \\"{correlation_id}\\","
         "  \\"companyName\\": \\"${companyName}\\","
@@ -245,7 +248,7 @@ int Action() {
     lr_output_message("Completed step: {TSN} - Response time: %d ms", lr_get_transaction_duration("{TSN}"));
     
     // Variable think time based on step complexity
-    lr_think_time(${Math.floor(delay / 1000)});
+    lr_think_time(${thinkTimeSeconds});
 `;
   }).join('\n');
 
@@ -328,7 +331,7 @@ MaxIterations=${totalJourneys}
 /**
  * Create curl-based simulation script for sequential load testing
  */
-function generateCurlSimulation(journeyConfig, testConfig, testDir) {
+function generateCurlSimulation(journeyConfig, testConfig, testDir, errorSimulationEnabled = true) {
   const { journeyInterval, duration } = testConfig;
   const { companyName, domain, steps = [] } = journeyConfig;
   const testId = crypto.randomUUID();
@@ -530,12 +533,12 @@ done
 echo "$(date): Waiting for remaining journeys to complete..."
 wait
 
-echo "🏁 Sequential load test completed. Results in: $RESULTS_DIR"
+echo "🏁 Sequential load test completed. Results in: \"$RESULTS_DIR\""
 echo "📊 Total journeys executed: $((journey_number - 1))"
 
 # Generate summary report
 echo "📊 Generating test summary..."
-cat > "$RESULTS_DIR/test_summary.html" << EOF
+cat > "\"$RESULTS_DIR/test_summary.html\"" << EOF
 <!DOCTYPE html>
 <html>
 <head>
@@ -564,15 +567,15 @@ cat > "$RESULTS_DIR/test_summary.html" << EOF
     <div class="metrics">
         <div class="metric">
             <h3>Total Requests</h3>
-            <div class="value">$(grep -h "executing" $RESULTS_DIR/user_*.log | wc -l)</div>
+            <div class="value">$(find "\"$RESULTS_DIR\"" -name "journey_*.log" -exec grep -h "executing" {} \; 2>/dev/null | wc -l)</div>
         </div>
         <div class="metric">
             <h3>Successful Requests</h3>
-            <div class="value">$(grep -h "HTTP: 200" $RESULTS_DIR/user_*.log | wc -l)</div>
+            <div class="value">$(find "\"$RESULTS_DIR\"" -name "journey_*.log" -exec grep -h "HTTP: 200" {} \; 2>/dev/null | wc -l)</div>
         </div>
         <div class="metric">
             <h3>Failed Requests</h3>
-            <div class="value">$(grep -hv "HTTP: 200" $RESULTS_DIR/user_*.log | grep "HTTP:" | wc -l)</div>
+            <div class="value">$(find "\"$RESULTS_DIR\"" -name "journey_*.log" -exec grep -hv "HTTP: 200" {} \; 2>/dev/null | grep "HTTP:" | wc -l)</div>
         </div>
         <div class="metric">
             <h3>Journey Steps</h3>
@@ -582,7 +585,7 @@ cat > "$RESULTS_DIR/test_summary.html" << EOF
     
     <h2>Test Execution Logs</h2>
     <div class="logs">
-        <pre>$(head -100 $RESULTS_DIR/user_*.log)</pre>
+        <pre>$(find "\"$RESULTS_DIR\"" -name "journey_*.log" -exec head -50 {} \; 2>/dev/null | head -100)</pre>
     </div>
     
     <h2>Dynatrace Analysis</h2>
@@ -596,7 +599,7 @@ cat > "$RESULTS_DIR/test_summary.html" << EOF
 </html>
 EOF
 
-echo "✅ Test summary generated: $RESULTS_DIR/test_summary.html"
+echo "✅ Test summary generated: \"$RESULTS_DIR/test_summary.html\""
 `;
 
   return curlScript;
@@ -646,7 +649,7 @@ router.post('/start-test', async (req, res) => {
     await fs.writeFile(scenarioPath, scenarioContent);
 
     // Generate curl simulation as fallback
-    const curlScript = generateCurlSimulation(journeyConfig, testConfig, testDir);
+    const curlScript = generateCurlSimulation(journeyConfig, testConfig, testDir, errorSimulationEnabled);
     const curlScriptPath = path.join(testDir, 'run_simulation.sh');
     await fs.writeFile(curlScriptPath, curlScript);
     await fs.chmod(curlScriptPath, '755');

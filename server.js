@@ -859,6 +859,44 @@ app.post('/api/admin/configs', async (req, res) => {
   }
 });
 
+// List saved configurations (simplified for CLI/automation access)
+app.get('/api/admin/configs/list', async (req, res) => {
+  try {
+    await ensureConfigDir();
+    const files = await fs.readdir(configDir);
+    const configs = [];
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        try {
+          const filePath = path.join(configDir, file);
+          const data = await fs.readFile(filePath, 'utf8');
+          const config = JSON.parse(data);
+          configs.push({
+            id: config.id,
+            name: config.name,
+            companyName: config.companyName,
+            stepsCount: config.steps?.length || 0,
+            timestamp: config.timestamp
+          });
+        } catch (error) {
+          console.warn(`⚠️ Error reading config file ${file}:`, error.message);
+        }
+      }
+    }
+    
+    res.json({
+      ok: true,
+      configs: configs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+      count: configs.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error listing configs:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Get a specific configuration
 app.get('/api/admin/configs/:id', async (req, res) => {
   try {
@@ -937,6 +975,128 @@ app.delete('/api/admin/configs/:id', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error deleting config:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Run a saved configuration (programmatic access for LoadRunner/automation)
+app.post('/api/admin/configs/:id/run', async (req, res) => {
+  try {
+    const configId = req.params.id;
+    const { 
+      testProfile = 'medium', 
+      durationMinutes = 5, 
+      errorSimulationEnabled = true,
+      useLoadRunner = false
+    } = req.body;
+    
+    // Load the configuration
+    const filename = `config-${configId}.json`;
+    const filePath = path.join(configDir, filename);
+    
+    if (!existsSync(filePath)) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Configuration not found',
+        id: configId,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const data = await fs.readFile(filePath, 'utf8');
+    const config = JSON.parse(data);
+    
+    console.log(`🚀 Running configuration "${config.name}" programmatically`);
+    
+    if (useLoadRunner) {
+      // Forward to LoadRunner integration
+      try {
+        const loadrunnerPayload = {
+          journeyConfig: config,
+          testProfile,
+          durationMinutes,
+          errorSimulationEnabled
+        };
+        
+        // Make internal request to LoadRunner endpoint
+        const fetch = (await import('node-fetch')).default;
+        const loadrunnerResponse = await fetch(`http://localhost:${PORT || 8080}/api/loadrunner/start-test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(loadrunnerPayload)
+        });
+        
+        const loadrunnerResult = await loadrunnerResponse.json();
+        
+        res.json({
+          ok: true,
+          message: `LoadRunner test started for configuration "${config.name}"`,
+          configId: configId,
+          configName: config.name,
+          loadrunnerResult: loadrunnerResult,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (loadrunnerError) {
+        console.error('❌ LoadRunner execution error:', loadrunnerError);
+        res.status(500).json({
+          ok: false,
+          error: 'Failed to start LoadRunner test: ' + loadrunnerError.message,
+          configId: configId,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } else {
+      // Run as a regular journey simulation
+      try {
+        // Execute the journey steps programmatically
+        let journeyResults = [];
+        
+        for (const step of config.steps) {
+          const stepResult = {
+            stepName: step.stepName,
+            timestamp: new Date().toISOString(),
+            status: 'completed'
+          };
+          
+          journeyResults.push(stepResult);
+          
+          // Ensure the service is running for this step
+          if (step.stepName) {
+            ensureServiceRunning(step.stepName, { 
+              companyName: config.companyName,
+              domain: config.domain 
+            });
+          }
+        }
+        
+        res.json({
+          ok: true,
+          message: `Configuration "${config.name}" executed successfully`,
+          configId: configId,
+          configName: config.name,
+          executionType: 'journey-simulation',
+          results: journeyResults,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (executionError) {
+        console.error('❌ Journey execution error:', executionError);
+        res.status(500).json({
+          ok: false,
+          error: 'Failed to execute journey: ' + executionError.message,
+          configId: configId,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error running config:', error);
     res.status(500).json({
       ok: false,
       error: error.message,

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BizObs LoadRunner Test Results - Roche</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 15px; border-radius: 5px; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .metric { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 5px; text-align: center; }
+        .metric h3 { margin: 0 0 10px 0; color: #333; }
+        .metric .value { font-size: 24px; font-weight: bold; color: #007acc; }
+        .logs { background: #f9f9f9; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>BizObs LoadRunner Test Results</h1>
+        <p><strong>Company:</strong> Roche</p>
+        <p><strong>Domain:</strong> https://www.roche.com/</p>
+        <p><strong>Test ID:</strong> a10835e2-a52c-4521-a9bf-705633274fd2</p>
+        <p><strong>Duration:</strong> 300 seconds</p>
+        <p><strong>Virtual Users:</strong> </p>
+        <p><strong>Generated:</strong> Fri Jan  9 14:01:30 UTC 2026</p>
+    </div>
+    
+    <div class="metrics">
+        <div class="metric">
+            <h3>Total Requests</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="metric">
+            <h3>Successful Requests</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="metric">
+            <h3>Failed Requests</h3>
+            <div class="value">0</div>
+        </div>
+        <div class="metric">
+            <h3>Journey Steps</h3>
+            <div class="value">6</div>
+        </div>
+    </div>
+    
+    <h2>Test Execution Logs</h2>
+    <div class="logs">
+        <pre></pre>
+    </div>
+    
+    <h2>Dynatrace Analysis</h2>
+    <p>Filter your Dynatrace analysis using:</p>
+    <ul>
+        <li><strong>Test Name:</strong> a10835e2-a52c-4521-a9bf-705633274fd2</li>
+        <li><strong>Service:</strong> bizobs-main-server</li>
+        <li><strong>Request Attribute:</strong> x-dynatrace-test contains "BizObs-Journey-Test"</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,177 @@
+{
+  "companyName": "Manufacturing Ltd",
+  "domain": "https://www.manufacturing.com",
+  "industryType": "Industrial Automation",
+  "journeyType": "Upgrade Project",
+  "journeyDetail": "Upgrade Project",
+  "journeyId": "journey_manufacturingltd_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "id": "manufacturing-factory-automation-upgrade",
+  "name": "Manufacturing - Factory Automation Upgrade",
+  "timestamp": "2026-01-09T14:25:00.000Z",
+  "source": "sector-demo",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "AssessmentWorkshop",
+      "serviceName": "AssessmentWorkshopService",
+      "description": "Onsite or virtual assessment workshop where engineers evaluate existing factory automation (e.g., legacy systems), capture KPIs, and define upgrade scope.",
+      "category": "Discovery",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 240,
+      "businessRationale": "A 4-hour workshop is standard for enterprise factory assessments to gather technical constraints and business requirements; faster workshops risk missing critical integration details and reduce conversion probability.",
+      "substeps": [
+        {
+          "substepName": "WorkshopSetupAndStakeholderAlignment",
+          "duration": 30
+        },
+        {
+          "substepName": "TechnicalAssetSurveyAndDataCapture",
+          "duration": 150
+        },
+        {
+          "substepName": "AssessmentReportDraftAndNextSteps",
+          "duration": 60
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "SolutionDesign",
+      "serviceName": "SolutionDesignService",
+      "description": "Engineering team produces a detailed upgrade design including target PLC/SCADA, drives, network topology, digital twin mapping and BOM for hardware/software.",
+      "category": "Design",
+      "estimatedDuration": 480,
+      "businessRationale": "Comprehensive solution design for industrial automation typically requires multiple engineering hours to ensure compatibility and minimize field rework; accurate design reduces installation time and cost overruns.",
+      "substeps": [
+        {
+          "substepName": "ArchitectureAndDigitalTwinDesign",
+          "duration": 240
+        },
+        {
+          "substepName": "BOMAndSKUSelection",
+          "duration": 120
+        },
+        {
+          "substepName": "SolutionDocumentationAndQuoting",
+          "duration": 120
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "ContractNegotiation",
+      "serviceName": "ContractNegotiationService",
+      "description": "Contract negotiations including pricing, delivery timelines, support terms, and acceptance criteria; may involve multiple rounds with technical and commercial teams.",
+      "category": "Commercial",
+      "estimatedDuration": 240,
+      "businessRationale": "Industrial automation contracts are complex due to custom engineering and long-term support requirements; typical negotiation cycles are 4-8 weeks for enterprise accounts to secure optimal terms and minimize project risks.",
+      "substeps": [
+        {
+          "substepName": "CommercialTermsAndPricingDiscussion",
+          "duration": 120
+        },
+        {
+          "substepName": "TechnicalRequirementsAndAcceptanceCriteria",
+          "duration": 60
+        },
+        {
+          "substepName": "ContractFinalizationAndApprovalWorkflow",
+          "duration": 60
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "ProjectKickoff",
+      "serviceName": "ProjectKickoffService",
+      "description": "Formal project initiation including team assignments, project charter, milestone planning, risk assessment, and communication protocols setup.",
+      "category": "Project Management",
+      "estimatedDuration": 120,
+      "businessRationale": "Proper project kickoff reduces scope creep and delivery delays; industrial automation projects benefit from clear governance due to technical complexity and multi-stakeholder coordination requirements.",
+      "substeps": [
+        {
+          "substepName": "ProjectCharterAndGovernanceSetup",
+          "duration": 60
+        },
+        {
+          "substepName": "TeamIntroductionsAndCommunicationProtocols",
+          "duration": 30
+        },
+        {
+          "substepName": "MilestoneSchedulingAndRiskAssessment",
+          "duration": 30
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "FactoryAcceptanceTesting",
+      "serviceName": "FactoryAcceptanceTestingService",
+      "description": "Pre-delivery testing of automation components at manufacturing facility to validate functionality, integration points, and performance against specifications.",
+      "category": "Quality Assurance",
+      "estimatedDuration": 480,
+      "businessRationale": "Factory Acceptance Testing (FAT) is critical for industrial automation to identify issues before site installation; 8-hour FAT sessions are standard for complex systems to minimize costly field modifications.",
+      "substeps": [
+        {
+          "substepName": "TestEnvironmentSetupAndSystemIntegration",
+          "duration": 180
+        },
+        {
+          "substepName": "FunctionalAndPerformanceTestExecution",
+          "duration": 240
+        },
+        {
+          "substepName": "DefectResolutionAndFATReportGeneration",
+          "duration": 60
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "SiteInstallation",
+      "serviceName": "SiteInstallationService",
+      "description": "On-site installation of automation equipment including hardware mounting, cable routing, network configuration, and initial system commissioning.",
+      "category": "Installation",
+      "estimatedDuration": 960,
+      "businessRationale": "Site installation for factory automation typically requires 2-3 days (16-24 hours) depending on system complexity; proper installation reduces startup time and ensures optimal system performance.",
+      "substeps": [
+        {
+          "substepName": "HardwareInstallationAndCableRouting",
+          "duration": 480
+        },
+        {
+          "substepName": "NetworkConfigurationAndSystemIntegration",
+          "duration": 240
+        },
+        {
+          "substepName": "InitialCommissioningAndSystemValidation",
+          "duration": 240
+        }
+      ]
+    },
+    {
+      "stepIndex": 7,
+      "stepName": "SystemCommissioning",
+      "serviceName": "SystemCommissioningService",
+      "description": "Complete system commissioning including process validation, operator training, performance optimization, and handover documentation.",
+      "category": "Commissioning",
+      "estimatedDuration": 480,
+      "businessRationale": "Thorough commissioning ensures system meets performance specifications and operators are competent; 8-hour commissioning is standard for complex automation systems to achieve optimal ROI.",
+      "substeps": [
+        {
+          "substepName": "ProcessValidationAndOptimization",
+          "duration": 240
+        },
+        {
+          "substepName": "OperatorTrainingAndCertification",
+          "duration": 180
+        },
+        {
+          "substepName": "HandoverDocumentationAndSystemAcceptance",
+          "duration": 60
+        }
+      ]
+    }
+  ]
+}

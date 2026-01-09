@@ -19,6 +19,41 @@ const DEFAULT_JOURNEY_STEPS = [
     return `${name}.com`;
 }
 
+// Generate a concise journey detail name for Dynatrace tags
+function generateJourneyDetail(payload, stepData) {
+  // Try to extract from journey requirements or journey type
+  if (payload.journey?.journeyType) {
+    return payload.journey.journeyType.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+  }
+  
+  // Try to infer from step names - create a meaningful summary
+  if (stepData && stepData.length > 0) {
+    const firstStep = stepData[0]?.stepName || '';
+    const lastStep = stepData.length > 1 ? stepData[stepData.length - 1]?.stepName : '';
+    
+    // Common journey patterns
+    if (firstStep.toLowerCase().includes('discovery') || firstStep.toLowerCase().includes('landing')) {
+      if (lastStep.toLowerCase().includes('purchase') || lastStep.toLowerCase().includes('checkout')) {
+        return 'Purchase Journey';
+      } else if (lastStep.toLowerCase().includes('trial') || lastStep.toLowerCase().includes('signup')) {
+        return 'Trial Signup';
+      } else if (lastStep.toLowerCase().includes('subscription') || lastStep.toLowerCase().includes('upgrade')) {
+        return 'Subscription Journey';
+      } else if (lastStep.toLowerCase().includes('support') || lastStep.toLowerCase().includes('service')) {
+        return 'Support Journey';
+      }
+    }
+    
+    // Fallback to first step + flow
+    if (firstStep) {
+      return `${firstStep.replace(/([a-z])([A-Z])/g, '$1 $2')} Flow`;
+    }
+  }
+  
+  // Final fallback
+  return 'Customer Journey';
+}
+
 // Extract Dynatrace tracing headers from incoming request
 function extractTracingHeaders(req) {
   const tracingHeaders = {};
@@ -799,11 +834,13 @@ router.post('/simulate-journey', async (req, res) => {
     console.log(`[journey-sim] Simplified additionalFields:`, currentPayload.additionalFields);
     console.log(`[journey-sim] Company: ${currentPayload.companyName}, Domain: ${currentPayload.domain}`);
     
-    // Start services with company context
+    // Start services with company context including journey detail
+    const journeyDetail = generateJourneyDetail(currentPayload, stepData);
     const companyContext = {
       companyName: currentPayload.companyName,
       domain: currentPayload.domain,
-      industryType: currentPayload.industryType
+      industryType: currentPayload.industryType,
+      journeyDetail: journeyDetail
     };
     
     // Compute per-step error plans based on customer profile, with optional hints from the journey JSON

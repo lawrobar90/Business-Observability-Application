@@ -82,25 +82,36 @@ export function getServiceNameFromStep(stepName, context = {}) {
     serviceSuffix = category.charAt(0).toUpperCase() + category.slice(1) + 'Service';
   }
   
-  // Normalize: handle spaces, underscores, hyphens, and existing CamelCase
-  const cleaned = String(stepName).replace(/[^a-zA-Z0-9_\-\s]/g, '').trim();
-  // Insert spaces between camelCase boundaries to preserve capitalization
+  // Clean service naming: remove redundant words and normalize format
+  const cleaned = String(stepName)
+    .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+    .replace(/\b(service|step|process|handler)\b/gi, '') // Remove redundant service-related words
+    .trim();
+    
+  // Split camelCase and normalize spacing
   const spaced = cleaned
-    // Replace underscores/hyphens with space
     .replace(/[\-_]+/g, ' ')
-    // Split CamelCase: FooBar -> Foo Bar
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    // Collapse multiple spaces
     .replace(/\s+/g, ' ')
     .trim();
+    
+  // Create clean service base name
   const serviceBase = spaced
     .split(' ')
     .filter(Boolean)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join('');
   
-  const serviceName = `${serviceBase}${serviceSuffix}`;
-  console.log(`[service-manager] Converting step "${stepName}" to dynamic service "${serviceName}" (context: ${JSON.stringify(context)})`);
+  // Avoid double "Service" suffix and keep names concise  
+  const baseName = serviceBase.replace(/Service$/, '');
+  let serviceName = `${baseName}${serviceSuffix}`;
+  
+  // Additional cleanup: remove redundant words that make names too long
+  serviceName = serviceName.replace(/ProcessService$/, 'Service');
+  serviceName = serviceName.replace(/HandlerService$/, 'Service'); 
+  serviceName = serviceName.replace(/StepService$/, 'Service');
+  
+  console.log(`[service-manager] Converting step "${stepName}" to clean service "${serviceName}"`);
   return serviceName;
 }
 
@@ -205,8 +216,8 @@ export async function startChildService(internalServiceName, scriptPath, env = {
         DT_APPLICATION_NAME: 'BizObs-CustomerJourney',
         DT_CLUSTER_ID: dynatraceServiceName,
         DT_NODE_ID: `${dynatraceServiceName}-node`,
-        // Dynatrace tags - space separated format like old working version
-        DT_TAGS: `company=${companyName.replace(/ /g, '_')} app=BizObs-CustomerJourney service=${dynatraceServiceName}`,
+        // Dynatrace tags - comprehensive metadata for business observability (all lowercase, clean format)
+        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} app=bizobs-journey service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} release-stage=production owner=ace-box-demo customer-id=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}-demo environment=ace-box product=dynatrace domain=${domain.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} industry-type=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
         // Release information
         DT_RELEASE_PRODUCT: 'BizObs-Engine',
         DT_RELEASE_STAGE: 'production',
@@ -252,10 +263,10 @@ export async function startChildService(internalServiceName, scriptPath, env = {
     return child;
     
   } catch (error) {
-    console.error(`[service-manager] Failed to start service ${serviceName}: ${error.message}`);
+    console.error(`[service-manager] Failed to start service ${dynatraceServiceName}: ${error.message}`);
     // Release port if allocation succeeded but service start failed
     if (port) {
-      portManager.releasePort(port, serviceName);
+      portManager.releasePort(port, internalServiceName);
     }
     throw error;
   }
@@ -386,8 +397,8 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DT_APPLICATION_NAME = 'BizObs-CustomerJourney';\n` +
 `process.env.DT_CLUSTER_ID = process.env.SERVICE_NAME;\n` +
 `process.env.DT_NODE_ID = process.env.SERVICE_NAME + '-node';\n` +
-`// Dynatrace simplified tags - space separated for proper parsing\n` +
-`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/ /g, '_') + ' app=BizObs-CustomerJourney service=' + process.env.SERVICE_NAME;\n` +
+`// Dynatrace comprehensive tags for business observability (all lowercase, clean format)\n` +
+`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' app=bizobs-journey service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' release-stage=production owner=ace-box-demo customer-id=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + '-demo environment=ace-box product=dynatrace domain=' + process.env.DOMAIN.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' industry-type=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.JOURNEY_DETAIL || process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
 `// Node.js web application override (prevents package.json name from being used)\n` +
 `process.env.DT_WEB_APPLICATION_ID = process.env.SERVICE_NAME;\n` +
 `process.env.DT_APPLICATION_BUILD_VERSION = process.env.SERVICE_NAME;\n` +
@@ -405,7 +416,8 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
           INDUSTRY_TYPE: industryType,
           CATEGORY: category,
           BASE_SERVICE_NAME: baseServiceName,
-          DYNATRACE_SERVICE_NAME: dynatraceServiceName
+          DYNATRACE_SERVICE_NAME: dynatraceServiceName,
+          JOURNEY_DETAIL: companyContext.journeyDetail || stepName || 'Unknown_Journey'
         });
         const meta = childServiceMeta[internalServiceName];
         const allocatedPort = meta?.port;

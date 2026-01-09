@@ -4,7 +4,6 @@
 1. *Filter by* "**Business**"
 1. Enable the following:
    - Node.js Business Events [Opt-in]
-   - .Net Business Events [Opt-in]
 1. Restart the node.js server on the BizObs Application
 
 
@@ -50,7 +49,15 @@ This guide will show you how to *create* and *validate* **business rules**.
       stepName
       ```
 
-##### Configure additional data (price)
+##### Configure metadata (category)
+
+1.	For "**Event Category data source**", make sure that "**Fixed Value**" is *selected*
+1.	*Copy* and *paste*:
+      ```
+      BizObs App
+      ```
+
+##### Configure additional data (rqBody)
 
 1.	*Click* on "**Add data field**"
 1.	For "**Data source**", make sure that "**Request - Body**" is *selected*
@@ -146,7 +153,7 @@ This guide will show you how to *create* and *validate* **business rules**.
 1. For "**Matching condition**", *copy* and *paste*:
 
       ```
-      isNotNull(event.provider)
+      matchesValue(event.category, "BizObs App")
       ```
 
 1. For "**Pipeline**", *select* "**BizObs Template Pipeline**"

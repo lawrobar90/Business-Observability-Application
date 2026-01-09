@@ -89,22 +89,11 @@ function createService(serviceName, mountFn) {
     const dynatraceServiceName = process.env.SERVICE_NAME || serviceName;
     const stepName = payload.stepName || process.env.STEP_NAME || serviceName.replace('Service', '').replace('-service', '');
 
-    // Set response headers for OneAgent service detection
+    // Essential headers only (company/service info now in DT_TAGS)
     res.setHeader('X-Service-Name', dynatraceServiceName);
     res.setHeader('x-journey-step', stepName);
-
-    // Custom journey tracking headers for business context
     if (payload.journeyId) {
       res.setHeader('x-journey-id', payload.journeyId);
-    }
-    if (stepName) {
-      res.setHeader('x-journey-step', stepName);
-    }
-    if (payload.domain) {
-      res.setHeader('x-customer-segment', payload.domain);
-    }
-    if (payload.companyName) {
-      res.setHeader('x-company', payload.companyName);
     }
 
     // Add/propagate correlation ID
@@ -114,10 +103,9 @@ function createService(serviceName, mountFn) {
     if (inboundTracestate) req.dynatraceHeaders.tracestate = inboundTracestate;
     req.serviceName = dynatraceServiceName; // Use the actual service name
 
-  // Add company context headers for visibility
-  res.setHeader('x-company-name', process.env.COMPANY_NAME || 'DefaultCompany');
-  res.setHeader('x-company-domain', process.env.DOMAIN || 'default.com');
-  res.setHeader('x-industry-type', process.env.INDUSTRY_TYPE || 'general');
+  // Add minimal context headers (company context now in DT_TAGS to avoid duplicates)
+  res.setHeader('x-service-type', 'bizobs-microservice');
+  res.setHeader('x-version', '1.0.0');
 
   // Log service identification for debugging
     console.log(`[${dynatraceServiceName}] Service identified with PID ${process.pid}, handling ${req.method} ${req.path}`);

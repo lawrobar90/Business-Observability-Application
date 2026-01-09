@@ -227,14 +227,9 @@
 </head>
 <body class="bg-dtdark text-white min-h-screen">
   <!-- Saved Prompts Sidebar -->
-  <div id="savedPromptsSidebar" class="fixed left-0 top-0 h-full w-80 bg-dtcard border-r border-dtborder shadow-xl z-50 transform -translate-x-full transition-transform duration-300">
-    <div class="flex items-center justify-between p-4 border-b border-dtborder">
+  <div id="savedPromptsSidebar" class="fixed left-0 top-0 h-full w-80 bg-dtcard border-r border-dtborder shadow-xl z-50">
+    <div class="p-4 border-b border-dtborder">
       <h2 class="text-lg font-bold text-dtcyan">💾 Saved Prompts</h2>
-      <button id="closeSidebar" class="text-gray-400 hover:text-dtcyan hover:bg-dtgray rounded-lg p-2 transition-all duration-200 transform hover:scale-110" title="Close saved prompts panel">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-      </button>
     </div>
     
     <div class="p-4">
@@ -278,15 +273,10 @@
     </div>
   </div>
 
-  <!-- Sidebar Toggle Button -->
-  <button id="toggleSidebar" class="fixed left-4 top-4 z-40 bg-dtcard border border-dtcyan rounded-lg p-3 shadow-lg hover:bg-dtgray transition-all">
-    <svg class="w-6 h-6 text-dtcyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-    </svg>
-  </button>
+
 
   <!-- Main Content -->
-  <div id="mainContent" class="transition-all duration-300">
+  <div id="mainContent" class="ml-80 transition-all duration-300">
     <div class="max-w-[2000px] mx-auto px-6 py-4 font-sans">
       <header class="flex items-center justify-between mb-6 p-4 rounded-xl bg-gradient-to-r from-dtpurple/10 to-dtcyan/10 border border-dtcyan/20">
         <div class="flex items-center space-x-4">
@@ -1603,7 +1593,9 @@
         
         if (closeBtn) {
           console.log('Close button found, adding event listener...');
-          closeBtn.addEventListener('click', () => {
+          closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('Close button clicked!');
             this.closeSidebar();
           });
@@ -1823,7 +1815,60 @@
         }
       }
 
-      loadSavedPrompts() {
+      async loadSavedPrompts() {
+        console.log('🔄 Loading saved prompts from both server and localStorage...');
+        
+        // Load from server first, then merge with localStorage
+        let serverPrompts = [];
+        let localPrompts = [];
+        
+        // Try to load from server
+        try {
+          const serverResponse = await fetch('/api/admin/configs');
+          if (serverResponse.ok) {
+            const serverData = await serverResponse.json();
+            if (serverData.ok && serverData.configs) {
+              // Get full config data for each server config
+              for (const configMeta of serverData.configs) {
+                try {
+                  const configResponse = await fetch(`/api/admin/configs/${configMeta.id}`);
+                  if (configResponse.ok) {
+                    const configData = await configResponse.json();
+                    if (configData.ok) {
+                      configData.config.source = 'server';
+                      serverPrompts.push(configData.config);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Error loading config ${configMeta.id}:`, error);
+                }
+              }
+              console.log(`📡 Loaded ${serverPrompts.length} configurations from server`);
+            }
+          }
+        } catch (error) {
+          console.log('📡 Server load failed, using localStorage only:', error.message);
+        }
+        
+        // Load from localStorage as backup/additional source
+        const storageKey = 'bizobs-saved-prompts';
+        localPrompts = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        localPrompts.forEach(p => {
+          if (!p.source) p.source = 'local';
+        });
+        console.log(`💾 Loaded ${localPrompts.length} configurations from localStorage`);
+        
+        // Merge and deduplicate (server takes priority over localStorage for same IDs)
+        const allPrompts = [...serverPrompts];
+        localPrompts.forEach(localPrompt => {
+          const existsOnServer = serverPrompts.some(serverPrompt => serverPrompt.id === localPrompt.id);
+          if (!existsOnServer) {
+            allPrompts.push(localPrompt);
+          }
+        });
+        
+        console.log(`🎯 Total configurations available: ${allPrompts.length} (${serverPrompts.length} from server, ${localPrompts.length} from localStorage)`);
+        
         this.renderSavedPrompts();
         this.updatePromptsCounter();
       }
@@ -2513,33 +2558,51 @@
         // Show loading state
         listContainer.innerHTML = '<div class="text-gray-400 text-sm text-center py-4">Loading saved configurations...</div>';
         
-        // 🔧 FIX: Use localStorage as primary source with full prompt data
-        const storageKey = 'bizobs-saved-prompts';
-        let allPrompts = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        // 🔧 FIX: Load from server first, then merge with localStorage
+        let allPrompts = [];
         
-        // Add source indicator for localStorage prompts
-        allPrompts.forEach(p => {
-          if (!p.source) p.source = 'local';
-        });
-        
-        console.log(`✅ Loaded ${allPrompts.length} configurations from localStorage`);
-        
-        // Optional: Try to load from server as backup (but don't override localStorage)
+        // Load from server
         try {
           const serverResponse = await fetch('/api/admin/configs');
           if (serverResponse.ok) {
             const serverData = await serverResponse.json();
             if (serverData.ok && serverData.configs) {
-              console.log(`📡 Server has ${serverData.configs.length} configurations available as backup`);
-              // Note: We prioritize localStorage to maintain full prompt data
+              // Get full config data for each server config
+              for (const configMeta of serverData.configs) {
+                try {
+                  const configResponse = await fetch(`/api/admin/configs/${configMeta.id}`);
+                  if (configResponse.ok) {
+                    const configData = await configResponse.json();
+                    if (configData.ok) {
+                      configData.config.source = 'server';
+                      allPrompts.push(configData.config);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Error loading server config ${configMeta.id}:`, error);
+                }
+              }
+              console.log(`📡 Loaded ${allPrompts.length} configurations from server`);
             }
           }
-        } catch (serverError) {
-          console.log('📡 Server check skipped:', serverError.message);
+        } catch (error) {
+          console.log('📡 Server load failed, checking localStorage:', error.message);
         }
         
-        // Sort by timestamp (newest first)
-        allPrompts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // Load from localStorage as backup (only if not already on server)
+        const storageKey = 'bizobs-saved-prompts';
+        const localPrompts = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        localPrompts.forEach(localPrompt => {
+          const existsOnServer = allPrompts.some(serverPrompt => serverPrompt.id === localPrompt.id);
+          if (!existsOnServer) {
+            localPrompt.source = 'local';
+            allPrompts.push(localPrompt);
+          }
+        });
+        
+        console.log(`✅ Total configurations loaded: ${allPrompts.length}`);
+        
+        // Add source indicator for localStorage prompts
         
         if (allPrompts.length === 0) {
           listContainer.innerHTML = '<div class="text-gray-400 text-sm text-center py-4">No saved configurations yet.<br>Save your current configuration to get started!</div>';
@@ -3775,6 +3838,11 @@
     let currentTestId = null;
     let testPollingInterval = null;
 
+    // Add delay utility function for LoadRunner testing
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     window.startLoadRunnerTest = async function() {
       const startBtn = document.getElementById('start-loadrunner-test');
       const statusEl = document.getElementById('loadrunner-status');
@@ -4177,37 +4245,48 @@
 
 
 
-        // Generate Copilot Prompt 1: C-suite Analysis
+        // Generate Copilot Prompt 1: Business Observability Context Analysis
         const csuitePrompt = `${companyName} at ${domain} is the focus for this chat.
 
-You are a business analyst conducting research to understand this company's strategic priorities and technology needs for creating realistic customer journey simulations.
+You are a Business Observability specialist creating realistic customer journey simulations for application monitoring and business analytics platforms.
 
-Build a structured summary of the top three business objectives and operational priorities of ${companyName}, with supporting details, using public sources and 2025 insights, to understand their customer journey context and business metrics.
+Your goal is to analyze ${companyName}'s digital business model to create accurate observability scenarios with proper business events, revenue tracking, and customer experience metrics that would be monitored in production.
 
-Gather the top three critical business objectives of the company's leadership team, focusing on recent 2024 or 2025 insights. For each objective, collect and present:
+Focus on ${companyName}'s digital touchpoints and business-critical user flows that generate measurable business outcomes. Analyze their:
 
-1. Objective Name & Description: Clearly state the objective and explain its relevance to the company. Each objective 6 words, no fluff
+**DIGITAL BUSINESS ARCHITECTURE:**
+1. **Primary Revenue Streams**: What are their main monetization methods and typical transaction values?
+2. **Critical User Journeys**: What are the 3 most important customer flows that drive revenue?
+3. **Journey Classification**: What specific industry type and concise journey names describe their flows (e.g. "Trial Signup", "Purchase Journey")?
+4. **Technology Stack**: What platforms, APIs, and services likely power their digital experience?
 
-2. Organizational Initiatives: Identify what the company is doing to address this objective, focusing on IT-related initiatives, programs, partnerships, or investments. 16 words, no fluff
+**OBSERVABILITY REQUIREMENTS:**
+1. **Business Events**: What key business moments should be tracked (purchases, signups, upgrades, cancellations)?
+2. **Revenue Attribution**: How do customer actions translate to measurable business value?
+3. **Experience Metrics**: What user experience indicators impact their business outcomes?
 
-3. KPIs: Suggest one KPI that is the focus of this objective and describe it in 5 words, no fluff.
+**MONITORING PRIORITIES:**
+1. **Performance Impact**: Which slow services would hurt their revenue most?
+2. **Error Consequences**: What failures would cause immediate business loss?
+3. **Conversion Tracking**: What steps in their funnel need observability data?
 
-4. Challenges or Risks: Detail any challenges or risks that make this objective difficult to achieve. Make this a list of three bullet points with maximum 6 words, no fluff
+Return a structured analysis focusing on:
+- Specific business events that need monitoring
+- Revenue impact of different user actions
+- Technology dependencies that affect customer experience
+- Realistic conversion rates and transaction values for their industry
+- Key performance indicators that matter for their business model
 
-5. Technology Dependencies: Identify the key technology systems, digital platforms, or IT infrastructure that support each objective, focusing on customer-facing systems and operational processes.
+Base your analysis on publicly available information about ${companyName}'s business model, but focus on practical observability scenarios rather than generic business strategy.`;
 
-6. Success Metrics: Define the primary business metrics, KPIs, or performance indicators that would measure progress toward each objective, including revenue, efficiency, customer satisfaction, or operational metrics.
-
-Format the response as a structured analysis suitable for understanding the company's business context and customer journey requirements. Use only publicly available information and cite sources where applicable. Focus on insights relevant as of 2024 or 2025. If the company is a public company with an investor relations web page, prioritize results from these pages.`;
-
-        // Generate Copilot Prompt 2: Customer Journey with reference to business analysis
-        const journeyPrompt = `Create a customer journey JSON for ${companyName} (${domain}) based on your previous analysis.
+        // Generate Copilot Prompt 2: Business Observability Journey Simulation
+        const journeyPrompt = `Create a business observability customer journey JSON for ${companyName} (${domain}) based on your previous analysis.
 
 🎯 SPECIFIC JOURNEY REQUIREMENTS: "${journeyRequirements}"
 
-The customer journey MUST specifically model and simulate the scenario described in the journey requirements above. Design the journey steps, durations, and business logic to directly address this specific use case while maintaining industry best practices and realistic durations.
+The customer journey MUST model the exact observability scenario described above. Design realistic business events, user interactions, and measurable outcomes that would appear in application monitoring dashboards and business analytics platforms.
 
-⚠️ CRITICAL: Must include duration fields or response will be rejected ⚠️
+⚠️ CRITICAL: Must include duration fields and business value tracking or response will be rejected ⚠️
 
 Return JSON with this structure:
 {
@@ -4215,6 +4294,8 @@ Return JSON with this structure:
     "companyName": "${companyName}",
     "domain": "${domain}",
     "industryType": "[Use industry from C-suite analysis]",
+    "journeyType": "[Concise journey name like 'Trial Signup', 'Purchase Journey', 'Subscription Flow']",
+    "journeyDetail": "[Same as journeyType - concise 2-3 word description]",
     "journeyId": "journey_${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}_2025",
     "journeyStartTime": "2025-11-21T00:00:00.000Z",
     "steps": [
@@ -4236,10 +4317,13 @@ Return JSON with this structure:
   },
   "customerProfile": {
     "userId": "user_${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}_001",
-    "email": "customer@${domain.replace(/^https?:\/\//, '').replace(/^www\./, '')}",
-    "demographic": "[Industry-based demographics]",
-    "painPoints": ["[From business analysis]", "[From objectives]"],
-    "goals": ["[From business objectives]", "[From success metrics]"]
+    "email": "testuser@${domain.replace(/^https?:\/\//, '').replace(/^www\./, '')}",
+    "userSegment": "[High-value|Standard|New - based on ${companyName}'s segmentation]",
+    "digitalBehaviorPattern": "[How they typically interact with ${companyName}]",
+    "businessValueTier": "[Revenue potential of this user type]",
+    "experienceExpectations": "[Performance and UX standards they expect]",
+    "conversionLikelihood": "[Probability of completing business goal]",
+    "technologyProfile": "[Device preferences, browser, connectivity affecting UX]"
   },
   "traceMetadata": {
     "correlationId": "trace_${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}_2025",
@@ -4253,61 +4337,65 @@ Return JSON with this structure:
     }
   },
   "additionalFields": {
-    "deviceType": "[Mobile|Desktop|Tablet]",
-    "entryChannel": "[Organic Search|Paid Search|Social|Email|Direct]",
-    "customerIntent": "[Purchase|Research|Comparison|Support]",
-    "loyaltyStatus": "[New|Returning|VIP|Lapsed]",
-    "businessPriority": "[Map to top C-suite objective]",
-    "transactionValue": "[e.g. £75.50]",
-    "currency": "[GBP|USD|EUR]",
-    "customerSegment": "[premium|standard|basic|enterprise]",
-    "customerLifetimeValue": "[e.g. £650.00]",
-    "acquisitionCost": "[e.g. £28.50]",
-    "retentionProbability": "[e.g. 72%]",
-    "profitMargin": "[e.g. 18.5%]",
-    "productSKUs": ["[e.g. SKU-001]", "[e.g. SKU-002]"],
-    "productCategories": ["[e.g. Electronics: £2.3M]"],
-    "inventoryLevels": "[e.g. 1,250 units]",
-    "discountPercentage": "[e.g. 15%]",
-    "shippingCost": "[e.g. £4.99 or Free]",
-    "taxRate": "[e.g. 20% VAT]",
-    "primaryBusinessOutcome": "[From business analysis]",
-    "expectedROI": "[e.g. 125%]",
-    "revenueGrowthPotential": "[e.g. 12.5%]",
-    "averageOrderValue": "[e.g. £67.25]",
-    "conversionRate": "[e.g. 3.2%]",
-    "customerRetentionRate": "[e.g. 78%]",
-    "marketSegment": "[Enterprise|Mid-market|SMB]",
-    "competitivePosition": "[Leader|Challenger|Follower]",
-    "digitalTransformationPhase": "[Planning|Implementing|Optimizing]",
-    "operationalMetrics": {
-      "responseTime": "[e.g. 1.2s]",
-      "errorRate": "[e.g. 0.08%]",
-      "systemUptime": "[e.g. 99.87%]",
-      "dailyTransactionVolume": "[e.g. 2,847]"
+    "deviceType": "[Mobile|Desktop|Tablet - based on their target audience]",
+    "entryChannel": "[Primary traffic source for ${companyName}]",
+    "customerIntent": "[Most common user goal on ${domain}]",
+    "loyaltyStatus": "[Realistic for their customer base]",
+    "sessionId": "session_${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}_\${timestamp}",
+    "transactionValue": "[Realistic transaction size for ${companyName}]",
+    "currency": "[Local currency for ${companyName}'s primary market]",
+    "businessEventType": "[e.g. purchase_completed, trial_started, subscription_upgraded]",
+    "revenueImpact": "[Direct revenue from this journey type]",
+    "conversionFunnelStage": "[Discovery|Interest|Consideration|Purchase|Retention]",
+    "customerLifetimeValue": "[Realistic CLV for their industry]",
+    "acquisitionChannel": "[Most effective channel for ${companyName}]",
+    "businessCriticalityScore": "[1-10 based on revenue impact]",
+    "performanceThresholds": {
+      "maxAcceptableLatency": "[e.g. 2.5s for checkout, 800ms for search]",
+      "minConversionRate": "[Industry benchmark for ${companyName}'s sector]",
+      "targetErrorRate": "[e.g. <0.1% for payment flows]"
     },
-    "customField_BusinessObjective1": "[Value from first C-suite objective]",
-    "customField_BusinessObjective2": "[Value from second C-suite objective]",
-    "customField_BusinessObjective3": "[Value from third C-suite objective]"
+    "businessMetrics": {
+      "expectedConversionRate": "[Realistic for their funnel step]",
+      "averageOrderValue": "[Typical transaction size]",
+      "customerRetentionImpact": "[How this journey affects retention]",
+      "revenueAttribution": "[Revenue directly tied to this experience]"
+    },
+    "observabilityRequirements": {
+      "businessEventTracking": "[Key events to monitor in this journey]",
+      "performanceKPIs": "[Response time, error rate, conversion impact]",
+      "alertingPriority": "[Critical|High|Medium based on business impact]",
+      "dashboardMetrics": "[Metrics needed for business visibility]"
+    },
+    "realUserMonitoring": {
+      "coreWebVitals": "[LCP, FID, CLS expectations for their UX]",
+      "businessImpactOfSlowness": "[Revenue lost per 100ms delay]",
+      "errorBusinessConsequences": "[Cost of failures in this journey]"
+    }
   }
 }
 
 Requirements:
-- Create exactly 6 industry-specific steps based on C-suite analysis
-- Every step needs estimatedDuration (minutes) and businessRationale
+- Create exactly 6 business-critical steps that generate measurable business events
+- Every step needs estimatedDuration (minutes) and businessRationale explaining revenue/experience impact
 - Every substep needs duration (minutes) - substeps must add up to step duration
-- ServiceName = StepName + 'Service' in PascalCase format
-- Use realistic durations for the identified industry
+- ServiceName = StepName + 'Service' in PascalCase format (for microservice architecture)
+- Use realistic durations that match industry performance expectations
 - Only step 1 needs timestamp field
-- Replace ALL bracketed placeholders with actual values
-- Use industry-appropriate terminology and realistic metrics
-- Custom fields must derive from the three business objectives identified
-- ProductSKUs should be realistic format (e.g. "TOY-LEGO-001", "GAM-XBOX-045")
-- ProductCategories should include specific revenue/volume data
+- Replace ALL bracketed placeholders with actual values based on ${companyName}'s business model
+- **CRITICAL: Set industryType to specific industry (e.g. "Cloud Software", "Streaming Media", "E-commerce")**
+- **CRITICAL: Set journeyType and journeyDetail to concise 2-3 word journey name (e.g. "Trial Signup", "Purchase Journey", "Support Request")**
+- Focus on user actions that create business value and generate observable events
+- Include realistic business metrics: conversion rates, transaction values, performance thresholds
+- ProductSKUs should match their actual product format if identifiable from public data
+- All business values should be realistic for their industry and market position
 - All percentage values should be numeric (e.g. 0.72 not "72%")
 - Durations must be numeric integers, not strings
+- Focus on scenarios that would appear in business observability dashboards
 
-⚠️ NO TIMESTAMPS = REJECTED RESPONSE ⚠️`;
+Return the response in JSON code format that can be copied from this UI
+
+⚠️ BUSINESS EVENT TRACKING REQUIRED: Each step must produce measurable business outcomes ⚠️`;
 
         console.log('Setting prompt text 1:', csuitePrompt.substring(0, 100) + '...');
         console.log('Setting prompt text 2:', journeyPrompt.substring(0, 100) + '...');
@@ -5343,13 +5431,25 @@ Requirements:
           const customerId = `customer_${Date.now()}`;
           const journeyId = `journey_${Date.now()}`;
           
+          // Get company data from form fields (PRIORITY) or fallback to lastJourney data
+          const formCompanyName = document.getElementById('companyName')?.value?.trim() || '';
+          const formDomain = document.getElementById('domain')?.value?.trim() || '';
+          const formIndustryType = document.getElementById('industryType')?.value?.trim() || '';
+          
+          console.log('🏢 Form company data:', { formCompanyName, formDomain, formIndustryType });
+          console.log('📊 LastJourney company data:', { 
+            companyName: lastJourney?.companyName, 
+            domain: lastJourney?.domain, 
+            industryType: lastJourney?.industryType 
+          });
+          
           // Build comprehensive journey data with all available fields (consistent with main function)
           const journeyData = {
             steps: lastJourney.steps || [],
             journeyId: lastJourney.id || journeyId,
-            companyName: lastJourney.companyName || 'DefaultCompany',
-            domain: lastJourney.domain || 'default.com',
-            industryType: lastJourney.industryType || 'general',
+            companyName: formCompanyName || lastJourney.companyName || 'DefaultCompany',
+            domain: formDomain || lastJourney.domain || 'default.com',
+            industryType: formIndustryType || lastJourney.industryType || 'general',
             journeyType: lastJourney.journeyType || 'customer_journey',
             description: lastJourney.description || `${lastJourney.companyName || 'Customer'} journey`,
             
@@ -5723,6 +5823,16 @@ Requirements:
         console.error('❌ Backup: Process button not found!');
       }
     }, 1000);
+
+    // Add delay function to prevent 'delay is not defined' errors
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    // Make delay available globally for any scripts that might need it
+    window.delay = delay;
+    
+    // Sidebar is now permanently pinned - no toggle functionality needed
 
   </script>
 </body>

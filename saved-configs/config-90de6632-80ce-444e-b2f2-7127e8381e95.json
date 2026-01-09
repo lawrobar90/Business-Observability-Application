@@ -1,0 +1,130 @@
+{
+  "companyName": "Finance Solutions",
+  "domain": "https://www.finance.com",
+  "industryType": "Wealth Management & Retail Investment Platform",
+  "journeyType": "Account Opening",
+  "journeyDetail": "Account Opening",
+  "journeyId": "journey_financesolutions_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "UserRegistration",
+      "serviceName": "UserRegistrationService",
+      "description": "Customer registers for an HL account, providing email, password, and initial personal details.",
+      "category": "Registration",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Registration is typically fast but must include secure validation. A smooth experience increases onboarding conversion and reduces abandonment.",
+      "substeps": [
+        {
+          "substepName": "EmailEntryAndValidation",
+          "duration": 2
+        },
+        {
+          "substepName": "PasswordCreationAndSecurityChecks",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "IdentityVerification",
+      "serviceName": "IdentityVerificationService",
+      "description": "Customer completes KYC/AML checks using document verification and personal data validation.",
+      "category": "Compliance",
+      "estimatedDuration": 10,
+      "businessRationale": "KYC is mandatory for regulated investment platforms. Automated checks typically take 5–10 minutes depending on provider response times.",
+      "substeps": [
+        {
+          "substepName": "DocumentUpload",
+          "duration": 4
+        },
+        {
+          "substepName": "AutomatedKYCCheck",
+          "duration": 6
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "AccountCreation",
+      "serviceName": "AccountCreationService",
+      "description": "HL creates the investment account (ISA, SIPP, or General Investment Account) and links it to the user profile.",
+      "category": "AccountSetup",
+      "estimatedDuration": 4,
+      "businessRationale": "Account provisioning involves backend orchestration, eligibility checks, and account number assignment.",
+      "substeps": [
+        {
+          "substepName": "AccountTypeSelection",
+          "duration": 1
+        },
+        {
+          "substepName": "BackendProvisioning",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "InitialFunding",
+      "serviceName": "InitialFundingService",
+      "description": "Customer deposits funds via debit card or bank transfer to enable first investment.",
+      "category": "Payments",
+      "estimatedDuration": 8,
+      "businessRationale": "Funding is a revenue-critical step. Payment provider latency and bank authentication influence duration.",
+      "substeps": [
+        {
+          "substepName": "PaymentMethodSelection",
+          "duration": 2
+        },
+        {
+          "substepName": "PaymentProcessing",
+          "duration": 6
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "FundPurchase",
+      "serviceName": "FundPurchaseService",
+      "description": "Customer selects a fund and executes their first investment order.",
+      "category": "Trading",
+      "estimatedDuration": 6,
+      "businessRationale": "Fund purchase involves price retrieval, order validation, and execution routing. This step directly generates trading fees and future AUM-based revenue.",
+      "substeps": [
+        {
+          "substepName": "FundSelectionAndQuote",
+          "duration": 3
+        },
+        {
+          "substepName": "OrderSubmissionAndExecution",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "PortfolioSetup",
+      "serviceName": "PortfolioSetupService",
+      "description": "Customer reviews holdings, configures recurring investments, and sets portfolio preferences.",
+      "category": "PortfolioManagement",
+      "estimatedDuration": 7,
+      "businessRationale": "Portfolio setup increases long-term retention and recurring investment revenue. UX clarity is essential to reduce drop-off.",
+      "substeps": [
+        {
+          "substepName": "PortfolioReview",
+          "duration": 3
+        },
+        {
+          "substepName": "RecurringInvestmentSetup",
+          "duration": 4
+        }
+      ]
+    }
+  ],
+  "id": "90de6632-80ce-444e-b2f2-7127e8381e95",
+  "name": "Finance - Investment Account Opening",
+  "timestamp": "2026-01-09T15:12:43.525Z",
+  "source": "sector-demo"
+}
