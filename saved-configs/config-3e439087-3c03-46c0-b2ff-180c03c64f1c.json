@@ -1,10 +1,10 @@
 {
-  "companyName": "Telecom Services",
+  "companyName": "Telecommunications",
   "domain": "https://www.telecom.com",
   "industryType": "Telecommunications",
   "journeyType": "Purchase Journey",
   "journeyDetail": "Purchase Journey",
-  "journeyId": "journey_telecomservices_2026",
+  "journeyId": "journey_telecommunications_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

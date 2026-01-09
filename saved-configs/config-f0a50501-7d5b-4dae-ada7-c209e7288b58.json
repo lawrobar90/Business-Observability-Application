@@ -1,10 +1,10 @@
 {
-  "companyName": "Insurance Company",
+  "companyName": "Insurance",
   "domain": "https://www.insurance.com",
   "industryType": "Retail Insurance",
   "journeyType": "Purchase Journey",
   "journeyDetail": "Car Quote Purchase",
-  "journeyId": "journey_insurancecompany_2026",
+  "journeyId": "journey_insurance_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

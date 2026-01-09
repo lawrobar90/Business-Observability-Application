@@ -1,10 +1,10 @@
 {
-  "companyName": "Media Corp",
+  "companyName": "Media",
   "domain": "https://www.media.com",
   "industryType": "Telecommunications",
   "journeyType": "Upgrade Journey",
   "journeyDetail": "Upgrade Journey",
-  "journeyId": "journey_mediacorp_2026",
+  "journeyId": "journey_media_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

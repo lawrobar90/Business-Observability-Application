@@ -1,10 +1,10 @@
 {
-  "companyName": "Finance Solutions",
+  "companyName": "Financial Services",
   "domain": "https://www.finance.com",
   "industryType": "Wealth Management & Retail Investment Platform",
   "journeyType": "Account Opening",
   "journeyDetail": "Account Opening",
-  "journeyId": "journey_financesolutions_2026",
+  "journeyId": "journey_financialservices_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

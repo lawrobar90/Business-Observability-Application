@@ -1,10 +1,10 @@
 {
-  "companyName": "Hospitality Group",
+  "companyName": "Travel & Hospitality",
   "domain": "https://www.hospitality.com",
   "industryType": "Hospitality E-commerce",
   "journeyType": "Booking Journey",
   "journeyDetail": "Booking Journey",
-  "journeyId": "journey_hospitalitygroup_2026",
+  "journeyId": "journey_travel&hospitality_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

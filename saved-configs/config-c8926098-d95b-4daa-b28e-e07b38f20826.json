@@ -1,10 +1,10 @@
 {
-  "companyName": "Manufacturing Ltd",
+  "companyName": "Manufacturing",
   "domain": "https://www.manufacturing.com",
   "industryType": "Industrial Manufacturing",
   "journeyType": "Procurement Journey",
   "journeyDetail": "Procurement Journey",
-  "journeyId": "journey_manufacturingltd_2026",
+  "journeyId": "journey_manufacturing_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

@@ -1,10 +1,10 @@
 {
-  "companyName": "Banking Corp",
+  "companyName": "Banking",
   "domain": "https://www.banking.com",
   "industryType": "Retail Banking",
   "journeyType": "Loan Application",
   "journeyDetail": "Loan Application",
-  "journeyId": "journey_bankingcorp_2026",
+  "journeyId": "journey_banking_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {

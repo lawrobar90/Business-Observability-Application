@@ -1,10 +1,10 @@
 {
-  "companyName": "Retail Group",
+  "companyName": "Retail",
   "domain": "https://www.retail.com",
   "industryType": "E-commerce",
   "journeyType": "Loyalty Signup",
   "journeyDetail": "Loyalty Signup",
-  "journeyId": "journey_retailgroup_2026",
+  "journeyId": "journey_retail_2026",
   "journeyStartTime": "2025-11-21T00:00:00.000Z",
   "steps": [
     {
