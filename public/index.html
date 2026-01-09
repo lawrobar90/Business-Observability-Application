@@ -2021,6 +2021,11 @@
             window.lastJourney = promptState;
             window.currentJourneyData = promptState;
           }
+          
+          // Enable the Process Response button after loading copilot response
+          if (typeof checkResponseInput === 'function') {
+            setTimeout(checkResponseInput, 100);
+          }
         } 
         // Handle original structured prompt format
         else {
@@ -2052,6 +2057,11 @@
           }
           if (promptState.currentJourneyData) {
             window.currentJourneyData = promptState.currentJourneyData;
+          }
+          
+          // Enable the Process Response button after loading copilot response
+          if (typeof checkResponseInput === 'function') {
+            setTimeout(checkResponseInput, 100);
           }
         }
         
@@ -2846,6 +2856,11 @@
             window.lastJourney = prompt;
             window.currentJourneyData = prompt;
           }
+          
+          // Enable the Process Response button after loading copilot response
+          if (typeof checkResponseInput === 'function') {
+            setTimeout(checkResponseInput, 100);
+          }
         } 
         // Handle original structured format
         else {
@@ -2865,6 +2880,11 @@
           }
           if (prompt.currentJourneyData) {
             window.currentJourneyData = prompt.currentJourneyData;
+          }
+          
+          // Enable the Process Response button after loading copilot response
+          if (typeof checkResponseInput === 'function') {
+            setTimeout(checkResponseInput, 100);
           }
         }
         
