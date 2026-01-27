@@ -1,5 +1,9 @@
 # 🚀 Partner PowerUp BizObs - Business Observability Engine
 
+<p align="center">
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://github.com/lawrobar90/Business-Observability-Application" alt="QR code linking to the Business Observability Application repository on GitHub" />
+</p>
+
 A comprehensive business observability application optimized for Dynatrace ACE-Box demo environments.
 
 ## ⚡ Quick Start
