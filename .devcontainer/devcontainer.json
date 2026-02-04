@@ -21,10 +21,12 @@
   },
   "secrets": {
     "DYNATRACE_URL": {
-      "description": "Your Dynatrace environment URL (e.g., https://abc12345.sprint.apps.dynatracelabs.com)"
+      "description": "Your Dynatrace environment URL (e.g., https://abc12345.sprint.apps.dynatracelabs.com)",
+      "documentationUrl": "https://docs.dynatrace.com/"
     },
     "DYNATRACE_TOKEN": {
-      "description": "Dynatrace PaaS token for OneAgent installation (scope: PaaS integration - Installer download)"
+      "description": "Dynatrace PaaS token for OneAgent installation (scope: PaaS integration - Installer download)",
+      "documentationUrl": "https://docs.dynatrace.com/docs/manage/access-control/access-tokens"
     }
   },
   "customizations": {

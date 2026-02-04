@@ -10,17 +10,26 @@ A comprehensive business observability application with integrated Dynatrace das
 
 ### 🚀 GitHub Codespaces (Recommended - Auto-Start)
 
-#### 1️⃣ **Set Up Codespace Secrets (One-Time)**
-Before creating your codespace, configure these secrets for automatic OneAgent installation:
+#### 1️⃣ **Configure Secrets (Choose Your Approach)**
 
-**Go to**: Your GitHub repo → **Settings** → **Secrets and variables** → **Codespaces** → **New repository secret**
+**Option A: Input Values Each Time** ⚡ (Recommended for security)
+1. Click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
+2. You'll be prompted to enter:
+   - `DYNATRACE_URL`: Your tenant URL (e.g., `https://abc12345.sprint.apps.dynatracelabs.com`)
+   - `DYNATRACE_TOKEN`: PaaS token (scope: `PaaS integration - Installer download`)
+3. **Uncheck** "Associated with repository" to avoid saving them
+4. Click "Create codespace"
 
-Add these two secrets:
+**Option B: Save as Repository Secrets** 🔐 (One-time setup)
+1. **Go to**: Your GitHub repo → **Settings** → **Secrets and variables** → **Codespaces**
+2. Click **"New repository secret"** and add:
 
-| Secret Name | Description | Example | Required |
-|------------|-------------|---------|----------|
-| `DYNATRACE_URL` | Your Dynatrace tenant URL | `https://abc12345.sprint.apps.dynatracelabs.com` | ✅ Yes |
-| `DYNATRACE_TOKEN` | **PaaS token** (scope: `PaaS integration - Installer download`) | `dt0c01.ABC123...` | ✅ For OneAgent |
+| Secret Name | Description | Example |
+|------------|-------------|---------|
+| `DYNATRACE_URL` | Your Dynatrace tenant URL | `https://abc12345.sprint.apps.dynatracelabs.com` |
+| `DYNATRACE_TOKEN` | **PaaS token** (scope: `PaaS integration - Installer download`) | `dt0c01.ABC123...` |
+
+3. Future Codespaces will use these automatically
 
 > 💡 **How to create a PaaS token:**
 > 1. Go to your Dynatrace tenant → **Settings** → **Access tokens** → **Generate new token**
@@ -29,7 +38,7 @@ Add these two secrets:
 > 4. Copy the token (starts with `dt0c01.`)
 
 #### 2️⃣ **Create Codespace**
-1. Click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
+1. If not already done, click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
 2. Wait for environment to build (~2-3 minutes):
    - ✅ OneAgent installs automatically (if secrets configured)
    - ✅ Dependencies install via `npm install`
