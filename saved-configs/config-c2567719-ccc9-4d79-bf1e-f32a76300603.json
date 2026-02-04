@@ -1,0 +1,130 @@
+{
+  "companyName": "Financial Services",
+  "domain": "https://www.finance.com",
+  "industryType": "Wealth Management & Retail Investment Platform",
+  "journeyType": "Support Request",
+  "journeyDetail": "Support Request",
+  "journeyId": "journey_financialservices_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "TradeErrorNotification",
+      "serviceName": "TradeErrorNotificationService",
+      "description": "Customer receives an in‑app and email notification that their trade has failed, including error code and next steps.",
+      "category": "ErrorHandling",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 4,
+      "businessRationale": "Immediate error visibility reduces customer frustration and prevents repeated failed attempts, protecting revenue and trust.",
+      "substeps": [
+        {
+          "substepName": "ErrorMessageDisplay",
+          "duration": 2
+        },
+        {
+          "substepName": "GuidedSupportPrompt",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "SupportChannelSelection",
+      "serviceName": "SupportChannelSelectionService",
+      "description": "Customer chooses a support channel (live chat, secure message, or phone) to resolve the failed trade.",
+      "category": "SupportEngagement",
+      "estimatedDuration": 5,
+      "businessRationale": "Providing multiple support channels increases resolution likelihood and reduces abandonment of high‑value trades.",
+      "substeps": [
+        {
+          "substepName": "ChannelOptionsDisplay",
+          "duration": 2
+        },
+        {
+          "substepName": "ChannelSelection",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "IssueDiagnosis",
+      "serviceName": "IssueDiagnosisService",
+      "description": "Support agent or automated assistant reviews the failed trade details, error logs, and market conditions.",
+      "category": "Investigation",
+      "estimatedDuration": 12,
+      "businessRationale": "Trade failures require cross‑system checks (order routing, market data, account balance). Accurate diagnosis prevents repeat failures.",
+      "substeps": [
+        {
+          "substepName": "TradeLogRetrieval",
+          "duration": 5
+        },
+        {
+          "substepName": "RootCauseAnalysis",
+          "duration": 7
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "ResolutionAction",
+      "serviceName": "ResolutionActionService",
+      "description": "Support resolves the issue by retrying the trade, correcting account data, or advising the customer on next steps.",
+      "category": "Resolution",
+      "estimatedDuration": 10,
+      "businessRationale": "Timely resolution directly impacts revenue because failed trades represent lost dealing fees and potential customer churn.",
+      "substeps": [
+        {
+          "substepName": "CustomerConfirmation",
+          "duration": 3
+        },
+        {
+          "substepName": "TradeRetryOrFix",
+          "duration": 7
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "TradeExecutionConfirmation",
+      "serviceName": "TradeExecutionConfirmationService",
+      "description": "Customer receives confirmation that the trade has been successfully executed or alternative actions have been completed.",
+      "category": "Notification",
+      "estimatedDuration": 3,
+      "businessRationale": "Clear confirmation reduces anxiety and reinforces trust in the platform after a failure event.",
+      "substeps": [
+        {
+          "substepName": "ExecutionStatusUpdate",
+          "duration": 1
+        },
+        {
+          "substepName": "CustomerNotification",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "PostResolutionFollowUp",
+      "serviceName": "PostResolutionFollowUpService",
+      "description": "HL sends a follow‑up message with a summary of the issue, resolution details, and optional feedback survey.",
+      "category": "Retention",
+      "estimatedDuration": 6,
+      "businessRationale": "Follow‑up reduces churn risk and provides insights into systemic issues affecting trade reliability.",
+      "substeps": [
+        {
+          "substepName": "SummaryGeneration",
+          "duration": 3
+        },
+        {
+          "substepName": "FeedbackSurveyDelivery",
+          "duration": 3
+        }
+      ]
+    }
+  ],
+  "id": "c2567719-ccc9-4d79-bf1e-f32a76300603",
+  "name": "Finance - Customer Support Journey",
+  "timestamp": "2026-01-09T15:12:43.519Z",
+  "source": "sector-demo"
+}

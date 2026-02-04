@@ -1,0 +1,174 @@
+{
+  "companyName": "Media",
+  "domain": "https://www.media.com",
+  "industryType": "Telecommunications",
+  "journeyType": "Upgrade Journey",
+  "journeyDetail": "Upgrade Journey",
+  "journeyId": "journey_media_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "EligibilityAndLogin",
+      "serviceName": "EligibilityAndLoginService",
+      "description": "Existing customer logs into their the provider Media account and checks mobile upgrade eligibility.",
+      "category": "Qualification",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Returning customers typically log in and check eligibility within a few minutes; friction here directly impacts upgrade conversion and ARPU growth.",
+      "substeps": [
+        {
+          "substepName": "MyAccountLogin",
+          "duration": 2
+        },
+        {
+          "substepName": "EligibilityCheckAPI",
+          "duration": 1
+        },
+        {
+          "substepName": "UpgradeOptionsDisplay",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "DeviceSelection",
+      "serviceName": "DeviceSelectionService",
+      "description": "Customer browses eligible mobile devices, compares specs and prices, and selects a new handset.",
+      "category": "Consideration",
+      "estimatedDuration": 10,
+      "businessRationale": "Device comparison for high-value smartphones typically takes 8–12 minutes; this step drives upsell to higher-margin devices and larger monthly commitments.",
+      "substeps": [
+        {
+          "substepName": "DeviceCatalogueBrowse",
+          "duration": 4
+        },
+        {
+          "substepName": "DeviceDetailsView",
+          "duration": 3
+        },
+        {
+          "substepName": "ColourAndStorageSelection",
+          "duration": 2
+        },
+        {
+          "substepName": "AddDeviceToBasket",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "PlanAndContractConfirmation",
+      "serviceName": "PlanAndContractConfirmationService",
+      "description": "Customer selects airtime plan, reviews contract terms, confirms upgrade, and completes checkout.",
+      "category": "Purchase",
+      "estimatedDuration": 12,
+      "businessRationale": "Telecom contract upgrades require reviewing monthly costs, term length, and credit checks; this is the most sensitive step for revenue and compliance.",
+      "substeps": [
+        {
+          "substepName": "PlanSelection",
+          "duration": 3
+        },
+        {
+          "substepName": "ContractSummaryReview",
+          "duration": 3
+        },
+        {
+          "substepName": "CreditCheckAndApproval",
+          "duration": 4
+        },
+        {
+          "substepName": "OrderConfirmationAndPaymentDetails",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "OrderFulfilmentAndShipping",
+      "serviceName": "OrderFulfilmentAndShippingService",
+      "description": "Order is processed, device is picked, packed, and shipped with tracking details sent to the customer.",
+      "category": "Fulfilment",
+      "estimatedDuration": 4320,
+      "businessRationale": "Typical UK handset delivery for upgrades is 2–3 days (2880–4320 minutes); delays increase cancellation risk and support contacts.",
+      "substeps": [
+        {
+          "substepName": "WarehouseOrderProcessing",
+          "duration": 240
+        },
+        {
+          "substepName": "CourierPickup",
+          "duration": 240
+        },
+        {
+          "substepName": "InTransitToCustomer",
+          "duration": 3600
+        },
+        {
+          "substepName": "OutForDeliveryNotification",
+          "duration": 240
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "DeliveryAndDeviceActivation",
+      "serviceName": "DeliveryAndDeviceActivationService",
+      "description": "Customer receives the device, inserts SIM or eSIM, activates service, and completes initial setup.",
+      "category": "Activation",
+      "estimatedDuration": 30,
+      "businessRationale": "Device unboxing, SIM/eSIM activation, and initial setup typically take 20–30 minutes; activation success is critical to realizing new-plan revenue.",
+      "substeps": [
+        {
+          "substepName": "DeviceUnboxing",
+          "duration": 5
+        },
+        {
+          "substepName": "SIMOrESIMActivation",
+          "duration": 10
+        },
+        {
+          "substepName": "NetworkRegistration",
+          "duration": 5
+        },
+        {
+          "substepName": "InitialDeviceConfiguration",
+          "duration": 10
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "DataTransferAndWelcomeConfirmation",
+      "serviceName": "DataTransferAndWelcomeConfirmationService",
+      "description": "Customer transfers data from old device, receives welcome message, and confirms new plan is active.",
+      "category": "Retention",
+      "estimatedDuration": 40,
+      "businessRationale": "Data transfer and welcome communications typically take 30–45 minutes; a smooth experience reduces early churn and support calls.",
+      "substeps": [
+        {
+          "substepName": "DataTransferSetup",
+          "duration": 10
+        },
+        {
+          "substepName": "DataMigrationProcess",
+          "duration": 20
+        },
+        {
+          "substepName": "WelcomeMessageDelivery",
+          "duration": 5
+        },
+        {
+          "substepName": "PlanActivationConfirmation",
+          "duration": 5
+        }
+      ]
+    }
+  ],
+  "id": "86a6abd8-308f-4973-897f-d768fdb5ea26",
+  "name": "Media - Mobile Phone Upgrade",
+  "timestamp": "2026-01-09T15:12:43.552Z",
+  "source": "sector-demo"
+}

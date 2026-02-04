@@ -1,0 +1,130 @@
+{
+  "companyName": "Insurance",
+  "domain": "https://www.insurance.com",
+  "industryType": "Retail Insurance",
+  "journeyType": "Claims Journey",
+  "journeyDetail": "Claims Process",
+  "journeyId": "journey_insurance_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "IncidentReporting",
+      "serviceName": "IncidentReportingService",
+      "description": "Customer reports an incident via web portal, mobile app, or call centre; captures policy number, incident type (e.g., Home-Buildings, Home-Contents, Car-Comprehensive), date/time, photos, and initial estimate; creates claim record and returns claim reference.",
+      "category": "Intake",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 10,
+      "businessRationale": "Fast, low-friction reporting increases claim capture and reduces call centre load; immediate creation of claim record enables downstream workflows and SLA timers that affect customer satisfaction and regulatory reporting.",
+      "substeps": [
+        {
+          "substepName": "ReportFormCompletionAndPhotoUpload",
+          "duration": 6
+        },
+        {
+          "substepName": "ClaimRecordCreationAndReferenceReturn",
+          "duration": 4
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "TriageAndValidation",
+      "serviceName": "TriageAndValidationService",
+      "description": "Automated triage evaluates incident severity, policy cover, and immediate assistance needs; identity and fraud checks run; urgent claims flagged for fast-track; initial reserve estimated and supplier (repairer/assessor) selection started.",
+      "category": "Triage",
+      "estimatedDuration": 30,
+      "businessRationale": "Automated triage reduces manual handling costs and speeds time-to-first-response; accurate validation prevents fraudulent payouts and ensures correct reserving which impacts loss ratio and capital planning.",
+      "substeps": [
+        {
+          "substepName": "AutomatedPolicyCoverCheckAndSeverityScore",
+          "duration": 10
+        },
+        {
+          "substepName": "IdentityFraudChecksAndReserveEstimate",
+          "duration": 20
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "AssessmentAndEstimate",
+      "serviceName": "AssessmentAndEstimateService",
+      "description": "Claims assessor (remote or on-site) reviews evidence, inspects damage (if required), obtains repair quotes or supplier estimates, and finalises recommended settlement amount; updates claim record with estimate and expected timeline.",
+      "category": "Assessment",
+      "estimatedDuration": 480,
+      "businessRationale": "Assessment is the most resource-intensive step; timely assessments reduce cycle time and supplier costs. Long assessment delays increase customer dissatisfaction and raise churn risk, while rushed assessments increase overpayment risk.",
+      "substeps": [
+        {
+          "substepName": "AssessorSchedulingAndInspection",
+          "duration": 240
+        },
+        {
+          "substepName": "SupplierQuotesAndEstimateFinalisation",
+          "duration": 240
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "ApprovalAndSettlementDecision",
+      "serviceName": "ApprovalAndSettlementDecisionService",
+      "description": "Underwriting/claims authority reviews assessment, approves settlement or requests additional information; if approved, settlement type chosen (repair via approved supplier or cash payout); reserve updated and approval event recorded.",
+      "category": "Decision",
+      "estimatedDuration": 60,
+      "businessRationale": "Clear, auditable approval reduces regulatory risk and ensures correct financial controls. Delays here block payouts and repairs, increasing customer dissatisfaction and potential legal exposure.",
+      "substeps": [
+        {
+          "substepName": "ClaimsAuthorityReviewAndApproval",
+          "duration": 30
+        },
+        {
+          "substepName": "SettlementTypeSelectionAndReserveAdjustment",
+          "duration": 30
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "RepairOrPayoutExecution",
+      "serviceName": "RepairOrPayoutExecutionService",
+      "description": "If repair chosen, supplier is booked and repair progress tracked; if payout chosen, payment instruction created and executed via payments gateway; supplier invoices reconciled and ledger updated; customer notified of progress and expected completion.",
+      "category": "Fulfilment",
+      "estimatedDuration": 720,
+      "businessRationale": "Execution is where cash flows and supplier relationships are realised. Efficient supplier orchestration and reliable payments reduce claim costs and speed resolution, improving NPS and lowering churn risk.",
+      "substeps": [
+        {
+          "substepName": "SupplierBookingAndRepairTracking",
+          "duration": 480
+        },
+        {
+          "substepName": "PaymentExecutionAndInvoiceReconciliation",
+          "duration": 240
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "ClosureAndFeedback",
+      "serviceName": "ClosureAndFeedbackService",
+      "description": "Claim closed after repair completion or payout; final reserve released; customer receives closure notification, e-receipt, and NPS survey; claim data archived for analytics and fraud scoring updates.",
+      "category": "Closure",
+      "estimatedDuration": 15,
+      "businessRationale": "Timely closure and feedback collection drive retention and provide data for continuous improvement. Closure events feed analytics for loss ratio, supplier performance, and customer lifetime value calculations.",
+      "substeps": [
+        {
+          "substepName": "FinalReserveReleaseAndClaimClose",
+          "duration": 5
+        },
+        {
+          "substepName": "CustomerNotificationAndNPSSurvey",
+          "duration": 10
+        }
+      ]
+    }
+  ],
+  "id": "b037b0a1-28b0-49ac-b990-394fc48bf4b1",
+  "name": "Insurance - Claims Journey",
+  "timestamp": "2026-01-09T15:12:43.535Z",
+  "source": "sector-demo"
+}

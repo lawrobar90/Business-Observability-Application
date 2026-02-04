@@ -1,0 +1,146 @@
+{
+  "companyName": "Retail",
+  "domain": "https://www.retail.com",
+  "industryType": "E-commerce",
+  "journeyType": "Loyalty Signup",
+  "journeyDetail": "Loyalty Signup",
+  "journeyId": "journey_retail_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "ClubcardSignUp",
+      "serviceName": "ClubcardSignUpService",
+      "description": "User initiates Clubcard registration via web or mobile app, provides email/phone, and accepts T&Cs. Business events: clubcard_signup_started, clubcard_signup_submitted with user_id and source attributes.",
+      "category": "Acquisition",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 3,
+      "businessRationale": "Sign-up is a short form flow; low friction increases activation and expands the Clubcard base which drives personalization and future revenue uplift.",
+      "substeps": [
+        {
+          "substepName": "OpenSignUpForm",
+          "duration": 1
+        },
+        {
+          "substepName": "EnterDetailsAndAcceptTnC",
+          "duration": 1
+        },
+        {
+          "substepName": "SubmitRegistration",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "AccountVerification",
+      "serviceName": "AccountVerificationService",
+      "description": "System sends verification code via email/SMS and user confirms account. Business events: verification_sent, verification_completed, verification_failed with channel and latency metrics.",
+      "category": "Onboarding",
+      "estimatedDuration": 2,
+      "businessRationale": "Fast verification reduces drop-off; delays or failed messages reduce activation rate and delay points earning and personalization.",
+      "substeps": [
+        {
+          "substepName": "SendVerificationCode",
+          "duration": 1
+        },
+        {
+          "substepName": "EnterCodeAndConfirm",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "ClubcardLinking",
+      "serviceName": "ClubcardLinkingService",
+      "description": "User links physical Clubcard or virtual card to account, or imports existing Clubcard number. Business events: clubcard_link_requested, clubcard_linked, clubcard_link_failed with clubcard_id and user_id.",
+      "category": "Onboarding",
+      "estimatedDuration": 4,
+      "businessRationale": "Linking enables immediate points attribution and personalized offers; friction here reduces ability to attribute purchases and lowers campaign ROI.",
+      "substeps": [
+        {
+          "substepName": "EnterOrScanClubcardNumber",
+          "duration": 2
+        },
+        {
+          "substepName": "ValidateClubcardAndConfirmLink",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "PointsEarning",
+      "serviceName": "PointsEarningService",
+      "description": "Customer makes qualifying purchases; transaction is matched to Clubcard and points are calculated and posted. Business events: purchase_matched_to_clubcard, points_calculated, points_posted with order_id, SKU list (e.g., TESCO_1L_MILK, TESCO_500G_PASTA), and points_value.",
+      "category": "Engagement",
+      "estimatedDuration": 10,
+      "businessRationale": "Points posting involves real-time and batch processes (transaction matching, fraud checks, ledger update). Timely points visibility increases perceived value and encourages repeat purchases.",
+      "substeps": [
+        {
+          "substepName": "MatchTransactionToClubcard",
+          "duration": 2
+        },
+        {
+          "substepName": "CalculatePointsAndPromotions",
+          "duration": 2
+        },
+        {
+          "substepName": "PostPointsToAccount",
+          "duration": 6
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "RewardRedemption",
+      "serviceName": "RewardRedemptionService",
+      "description": "User views available rewards, redeems vouchers or applies points at checkout. Business events: reward_viewed, reward_redeemed, voucher_issued, voucher_applied with reward_id and monetary_value (e.g., TESCO_£5_VOUCHER).",
+      "category": "Monetization",
+      "estimatedDuration": 5,
+      "businessRationale": "Redemption is a direct monetization touchpoint; smooth redemption increases perceived loyalty value and can drive incremental spend when vouchers are used.",
+      "substeps": [
+        {
+          "substepName": "ListAvailableRewards",
+          "duration": 2
+        },
+        {
+          "substepName": "SelectAndRedeemReward",
+          "duration": 1
+        },
+        {
+          "substepName": "ApplyVoucherAtCheckout",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "PersonalisedOffersDelivery",
+      "serviceName": "PersonalisedOffersDeliveryService",
+      "description": "Personalization engine generates targeted offers based on Clubcard history; offers are delivered via app push, email, or on-site banners. Business events: offer_generated, offer_sent, offer_clicked, offer_redeemed with campaign_id and expected_uplift.",
+      "category": "Retention",
+      "estimatedDuration": 60,
+      "businessRationale": "Personalization pipelines include model scoring and campaign delivery; timely, relevant offers increase conversion and AOV. Latency in offer delivery reduces campaign effectiveness.",
+      "substeps": [
+        {
+          "substepName": "ModelScoringAndOfferGeneration",
+          "duration": 10
+        },
+        {
+          "substepName": "CampaignDeliveryToChannels",
+          "duration": 20
+        },
+        {
+          "substepName": "TrackOfferEngagementAndRedemption",
+          "duration": 30
+        }
+      ]
+    }
+  ],
+  "id": "deb39d56-f01e-406c-a7c8-4f52cea6c3d4",
+  "name": "Retail - Cludbard Loyalty Journey",
+  "timestamp": "2026-01-09T15:12:43.553Z",
+  "source": "sector-demo"
+}

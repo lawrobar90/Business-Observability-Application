@@ -1,0 +1,130 @@
+{
+  "companyName": "Insurance",
+  "domain": "https://www.insurance.com",
+  "industryType": "Retail Insurance",
+  "journeyType": "Purchase Journey",
+  "journeyDetail": "Car Quote Purchase",
+  "journeyId": "journey_insurance_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "ComparisonSiteEntry",
+      "serviceName": "ComparisonSiteEntryService",
+      "description": "User arrives from a comparison site (e.g., CompareTheMarket) and is redirected to Direct Line landing page with prefilled vehicle and postcode parameters. UTM and referral data captured for attribution.",
+      "category": "Acquisition",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 1,
+      "businessRationale": "Short redirect and landing load must be fast to avoid bounce; each second of delay reduces quote starts and therefore potential premium revenue.",
+      "substeps": [
+        {
+          "substepName": "ReferralRedirectAndUTMCapture",
+          "duration": 0
+        },
+        {
+          "substepName": "LandingPageRenderAndPrefill",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "QuoteInitiationAndDataEntry",
+      "serviceName": "QuoteInitiationAndDataEntryService",
+      "description": "Customer enters vehicle, driver, and address details or confirms prefilled data; account creation or guest flow; identity checks (basic) and eligibility checks initiated.",
+      "category": "Quote",
+      "estimatedDuration": 6,
+      "businessRationale": "Data entry is the primary friction point; realistic time accounts for form completion and identity checks. Faster completion increases quote throughput and conversion to bind.",
+      "substeps": [
+        {
+          "substepName": "FormCompletionVehicleDriverDetails",
+          "duration": 4
+        },
+        {
+          "substepName": "AccountChoiceAndIdentityCheck",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "QuoteCalculationAndPriceDisplay",
+      "serviceName": "QuoteCalculationAndPriceDisplayService",
+      "description": "Real-time rating engine calculates premiums using underwriting rules, telematics/third-party data lookups (vehicle history, claims), and displays price options (Comprehensive, Third Party Fire & Theft).",
+      "category": "Pricing",
+      "estimatedDuration": 2,
+      "businessRationale": "Quote engine must respond within seconds; slow or failed pricing directly reduces conversion and increases abandonment. This step produces the 'price shown' business event tied to potential revenue.",
+      "substeps": [
+        {
+          "substepName": "ThirdPartyDataLookups",
+          "duration": 1
+        },
+        {
+          "substepName": "RatingEngineCalculationAndDisplay",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "PolicySelectionAndCustomization",
+      "serviceName": "PolicySelectionAndCustomizationService",
+      "description": "Customer selects product SKU (e.g., Car-Comprehensive, Car-ThirdParty) and optional add-ons (LegalCover, BreakdownCover, ExcessProtection); endorsements and cover limits adjusted; final premium recalculated.",
+      "category": "Selection",
+      "estimatedDuration": 3,
+      "businessRationale": "Upsell and cross-sell opportunities occur here; average order value increases with add-ons. Time reflects decision and recalculation latency which must be low to avoid drop-off.",
+      "substeps": [
+        {
+          "substepName": "ProductAndAddonSelection",
+          "duration": 2
+        },
+        {
+          "substepName": "EndorsementRecalculation",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "PaymentAndPolicyBind",
+      "serviceName": "PaymentAndPolicyBindService",
+      "description": "Customer enters payment details or uses saved payment method; payment gateway authorization; policy issuance transaction to Policy Administration System (PAS); confirmation and invoice generated.",
+      "category": "Checkout",
+      "estimatedDuration": 4,
+      "businessRationale": "Payment success is the critical revenue event. Failures or latency here cause immediate lost revenue. Policy bind must be atomic to avoid charging without issuance.",
+      "substeps": [
+        {
+          "substepName": "PaymentAuthorization",
+          "duration": 2
+        },
+        {
+          "substepName": "PolicyIssuanceAndInvoiceGeneration",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "DocumentGenerationAndDelivery",
+      "serviceName": "DocumentGenerationAndDeliveryService",
+      "description": "Generate policy documents, e-policy PDF, and welcome email/SMS; store policy in customer portal; trigger post-purchase cross-sell and onboarding workflows.",
+      "category": "Fulfillment",
+      "estimatedDuration": 2,
+      "businessRationale": "Timely document delivery reduces support contacts and increases trust; document delivery event closes the purchase funnel and enables retention and cross-sell tracking.",
+      "substeps": [
+        {
+          "substepName": "PolicyDocumentRender",
+          "duration": 1
+        },
+        {
+          "substepName": "EmailSMSDeliveryAndPortalUpdate",
+          "duration": 1
+        }
+      ]
+    }
+  ],
+  "id": "f0a50501-7d5b-4dae-ada7-c209e7288b58",
+  "name": "Insurance - Car Insurance Quote Journey",
+  "timestamp": "2026-01-09T15:12:43.533Z",
+  "source": "sector-demo"
+}

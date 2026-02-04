@@ -1,0 +1,146 @@
+{
+  "companyName": "Travel & Hospitality",
+  "domain": "https://www.hospitality.com",
+  "industryType": "Hospitality E-commerce",
+  "journeyType": "Complaint Resolution",
+  "journeyDetail": "Complaint Resolution",
+  "journeyId": "journey_travel&hospitality_2026",
+  "journeyStartTime": "2025-11-21T00:00:00.000Z",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "ReportIssue",
+      "serviceName": "ReportIssueService",
+      "description": "Guest reports a room issue via mobile app, website 'Help' widget, or front desk (e.g., cleanliness, maintenance, noise).",
+      "category": "Intake",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Fast intake reduces guest frustration and prevents escalation; capturing structured data immediately enables faster routing and reduces potential revenue loss from cancellations.",
+      "substeps": [
+        {
+          "substepName": "SubmitReportViaChannel",
+          "duration": 2
+        },
+        {
+          "substepName": "SystemConfirmReceipt",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "AcknowledgeAndTriage",
+      "serviceName": "AcknowledgeAndTriageService",
+      "description": "Automated acknowledgement sent; issue is triaged by on-site manager or central operations (severity, SLA, compensation policy).",
+      "category": "Triage",
+      "estimatedDuration": 10,
+      "businessRationale": "Correct triage ensures appropriate response level (housekeeping vs maintenance vs relocation); mis-triage increases operational cost and guest churn risk.",
+      "substeps": [
+        {
+          "substepName": "AutoAcknowledgeMessage",
+          "duration": 1
+        },
+        {
+          "substepName": "ManagerTriageDecision",
+          "duration": 4
+        },
+        {
+          "substepName": "AssignPriorityAndSLA",
+          "duration": 5
+        }
+      ]
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "DispatchStaff",
+      "serviceName": "DispatchStaffService",
+      "description": "Staff (housekeeping/maintenance) are dispatched; ETA and staff status tracked; guest receives ETA and optional room relocation if needed.",
+      "category": "Response",
+      "estimatedDuration": 30,
+      "businessRationale": "Rapid on-site response reduces likelihood of guest abandoning stay or requesting refund; long dispatch times correlate with negative NPS and potential lost future revenue.",
+      "substeps": [
+        {
+          "substepName": "NotifyOnSiteStaff",
+          "duration": 2
+        },
+        {
+          "substepName": "StaffTravelToRoom",
+          "duration": 15
+        },
+        {
+          "substepName": "OnSiteAssessment",
+          "duration": 13
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "ResolveAndCompensate",
+      "serviceName": "ResolveAndCompensateService",
+      "description": "Issue is resolved (cleaning, repair, room move) and compensation is offered if appropriate (voucher, partial refund, free breakfast). Compensation is recorded against the booking folio.",
+      "category": "Resolution",
+      "estimatedDuration": 20,
+      "businessRationale": "Resolution plus fair compensation preserves customer lifetime value; compensation is a measurable cost but reduces churn and negative reviews which have larger long-term revenue impact.",
+      "substeps": [
+        {
+          "substepName": "PerformFixOrRelocateGuest",
+          "duration": 12
+        },
+        {
+          "substepName": "OfferCompensation",
+          "duration": 3
+        },
+        {
+          "substepName": "ApplyFolioAdjustment",
+          "duration": 5
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "FollowUpAndSurvey",
+      "serviceName": "FollowUpAndSurveyService",
+      "description": "Post-resolution follow-up message and short survey sent to guest; guest can accept compensation or escalate to corporate support.",
+      "category": "FollowUp",
+      "estimatedDuration": 3,
+      "businessRationale": "Follow-up captures guest sentiment and prevents negative public reviews; positive follow-up increases retention probability and reduces acquisition cost for future bookings.",
+      "substeps": [
+        {
+          "substepName": "SendFollowUpMessage",
+          "duration": 1
+        },
+        {
+          "substepName": "ReceiveSurveyResponse",
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "ReconciliationAndAnalytics",
+      "serviceName": "ReconciliationAndAnalyticsService",
+      "description": "Incident is logged in analytics, compensation cost reconciled with revenue, root-cause analysis triggered if thresholds exceeded, and SLA/operational metrics updated.",
+      "category": "Closure",
+      "estimatedDuration": 15,
+      "businessRationale": "Accurate reconciliation ensures correct accounting and identifies systemic issues; analytics drive process improvements that reduce future complaint rates and associated revenue leakage.",
+      "substeps": [
+        {
+          "substepName": "UpdateIncidentRecordAndFolio",
+          "duration": 5
+        },
+        {
+          "substepName": "RecordCompensationCost",
+          "duration": 5
+        },
+        {
+          "substepName": "TriggerRootCauseAlerts",
+          "duration": 5
+        }
+      ]
+    }
+  ],
+  "id": "42da7ecb-d6e8-4ca1-9abb-c2c79695b3f6",
+  "name": "Hospitality - Customer Complaint Resolution",
+  "timestamp": "2026-01-09T15:12:43.529Z",
+  "source": "sector-demo"
+}
