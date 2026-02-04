@@ -1507,7 +1507,7 @@ app.post('/api/dynatrace/deploy-dashboard-via-mcp', async (req, res) => {
     console.log('[MCP Proxy] Dynatrace environment:', environmentUrl);
     console.log('[MCP Proxy] Journey:', journeyConfig.companyName, journeyConfig.journeyType);
     
-     // Import deployer dynamically
+    // Import deployer dynamically
     const { deployJourneyDashboard } = await import('./scripts/dynatrace-dashboard-deployer.js');
     
     // Call the dashboard deployer through MCP server
