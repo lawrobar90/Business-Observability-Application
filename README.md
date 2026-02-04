@@ -117,11 +117,12 @@ monaco deploy manifest.yaml
 Follow the [DynatraceConfig.md](DynatraceConfig.md) guide for step-by-step UI instructions.
 
 **What Gets Configured:**
+- ✅ OneAgent Features (Node.js Business Events) - **Now Automated!**
 - ✅ Business Event Capture Rules
 - ✅ Service Naming Rules  
 - ✅ OpenPipeline Pipelines & Processors
 - ✅ Dynamic Routing
-- ⚠️ OneAgent Features (manual step required)
+- ✅ **100% Automated - No manual UI steps!**
 
 See [dynatrace-monaco/README.md](dynatrace-monaco/README.md) for detailed automation documentation.
 

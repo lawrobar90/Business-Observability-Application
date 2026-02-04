@@ -26,7 +26,7 @@ export DT_API_TOKEN='dt0c01.XXX...'
 npm run configure:dynatrace
 ```
 
-**That's it!** ✅ All configurations will be deployed automatically.
+**That's it!** ✅ All configurations including OneAgent features will be deployed automatically.
 
 ---
 
@@ -60,6 +60,10 @@ npm run configure:monaco
 ## ⚙️ What Gets Configured
 
 The automated deployment configures:
+
+### 0. **OneAgent Features** ✨ NEW - Now Automated!
+- **Node.js Business Events**: Enabled automatically
+- No manual UI steps required!
 
 ### 1. **Business Event Capture Rule**
 - **Name**: BizObs App
@@ -98,27 +102,20 @@ The automated deployment configures:
 
 ---
 
-## 🔴 Manual Steps Required
+## ✅ No Manual Steps Required!
 
-After running the automated configuration:
+Everything is now fully automated! After running the configuration:
 
-### 1. Enable OneAgent Features
-```
-Settings → Preferences → OneAgent Features
-→ Filter by "Business"
-→ Enable: "Node.js Business Events [Opt-in]"
-```
-
-### 2. Restart Node.js Application
+### 1. Restart Node.js Application (Recommended)
 ```bash
 # If running locally
 ./restart.sh
 
 # If in Codespaces
-pkill -f "node server.js" && node server.js &
+pkill -f "node server.js" && bash .devcontainer/start-app.sh
 ```
 
-### 3. Run Test Simulations
+### 2. Run Test Simulations
 - Open BizObs UI (port 8080)
 - Create a customer journey
 - Start simulation

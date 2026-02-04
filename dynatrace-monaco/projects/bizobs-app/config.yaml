@@ -1,4 +1,13 @@
 configs:
+  - id: oneagent-features
+    type:
+      settings:
+        schema: builtin:oneagent.features
+        scope: environment
+    config:
+      name: Enable Node.js Business Events
+      template: oneagent-features.json
+
   - id: bizobs-capture-rule
     type:
       settings:

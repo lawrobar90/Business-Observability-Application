@@ -84,8 +84,22 @@ async function deploySettings(schemaId, scopeType, scope, value) {
 async function deploy() {
     const configs = [];
 
+    // 0. Enable OneAgent Features (Node.js Business Events)
+    console.log('0️⃣  Enabling OneAgent Features (Node.js Business Events)...');
+    try {
+        const oneAgentFeatures = {
+            enabled: true,
+            featureSets: ['nodejs_business_events']
+        };
+        await deploySettings('builtin:oneagent.features', 'environment', 'environment', oneAgentFeatures);
+        console.log('   ✅ OneAgent features enabled');
+    } catch (error) {
+        console.error(`   ⚠️  Could not auto-enable: ${error.message || error.body || error}`);
+        console.error('      → Enable manually: Settings > OneAgent Features > Node.js Business Events');
+    }
+
     // 1. Business Event Capture Rule
-    console.log('1️⃣  Deploying Business Event Capture Rule...');
+    console.log('\n1️⃣  Deploying Business Event Capture Rule...');
     try {
         const captureRule = JSON.parse(fs.readFileSync(path.join(CONFIG_DIR, 'capture-rule.json'), 'utf8'));
         await deploySettings('builtin:bizevents-processing-rules.rule', 'environment', 'environment', captureRule);
@@ -131,13 +145,16 @@ async function deploy() {
     console.log('\n==============================================');
     console.log('🎉 Deployment Complete!');
     console.log('==============================================');
-    console.log('\n📋 Manual Steps Still Required:');
-    console.log('1. Enable OneAgent Features:');
-    console.log('   Settings > Preferences > OneAgent Features');
-    console.log('   → Enable "Node.js Business Events [Opt-in]"');
-    console.log('\n2. Restart your Node.js application');
-    console.log('\n3. Run test simulations through BizObs UI');
-    console.log('\n4. Validate with queries in Notebooks');
+    console.log('\n✅ Configuration Deployed:');
+    console.log('   • OneAgent Features (Node.js Business Events)');
+    console.log('   • Business Event Capture Rule');
+    console.log('   • Service Naming Rule');
+    console.log('   • OpenPipeline Pipeline');
+    console.log('   • Dynamic Routing');
+    console.log('\n📋 Next Steps:');
+    console.log('1. Restart your Node.js application (if running)');
+    console.log('2. Run test simulations through BizObs UI');
+    console.log('3. Validate with queries in Notebooks');
     console.log('\n📚 See DynatraceConfig.md for validation queries');
     console.log('');
 }
