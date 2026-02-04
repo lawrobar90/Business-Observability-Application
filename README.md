@@ -119,6 +119,7 @@ This application is specifically designed for Dynatrace customer journey demonst
 
 For detailed usage instructions, see [START-SERVER-GUIDE.md](START-SERVER-GUIDE.md).
 For deployment details, see [DEPLOYMENT-SUMMARY.md](DEPLOYMENT-SUMMARY.md).
+For repository clone tracking, see [TRACKING-CLONES.md](TRACKING-CLONES.md).
 
 - **Main Server** (`server.js`): Express.js application serving frontend and coordinating services
 - **Journey Simulation** (`routes/journey-simulation.js`): Core business logic for customer journey processing
