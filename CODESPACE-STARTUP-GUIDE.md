@@ -10,9 +10,10 @@ When your Codespace starts, you'll see this beautiful startup summary:
 ╚══════════════════════════════════════════════════════════════════╝
 
 
-1️⃣  OneAgent Status
-   ✅ Dynatrace OneAgent installed
+1️⃣  Dynatrace OneAgent Status
+   ✅ Dynatrace Node.js OneAgent configured
    ✅ Connected to: https://bko67471.sprint.apps.dynatracelabs.com
+   ℹ️  Note: Full OneAgent not available in containers
 
 2️⃣  Starting BizObs Application
    ✅ BizObs app started (PID: 12345)
@@ -20,12 +21,13 @@ When your Codespace starts, you'll see this beautiful startup summary:
    ✅ Server is ready!
 
 3️⃣  MCP Server Status
-   ✅ MCP server will auto-start when needed
+   ✅ MCP server auto-started
    Port: 3000
 
-4️⃣  Dynatrace Configuration
-   💡 Ready to deploy configuration
-   Run: npm run configure:dynatrace
+4️⃣  Dynatrace Configuration (Monaco)
+   🚀 Auto-deploying Monaco configuration...
+   ✅ Monaco configuration deployed
+   ⚠️  Some configurations may need manual setup
 
 ╔══════════════════════════════════════════════════════════════════╗
 ║                     🎉 READY TO USE! 🎉                          ║
@@ -37,6 +39,7 @@ When your Codespace starts, you'll see this beautiful startup summary:
 
 📊 Quick Actions:
    • View logs:          tail -f /tmp/bizobs.log
+   • Monaco logs:        cat /tmp/monaco-deploy.log
    • Configure Dynatrace:npm run configure:dynatrace
    • Restart app:        pkill -f 'node server.js' && bash .devcontainer/start-app.sh
 
@@ -48,6 +51,9 @@ When your Codespace starts, you'll see this beautiful startup summary:
 💡 Next Steps:
    1. Click the BizObs App URL above
    2. Create a customer journey
+   3. Configure Dynatrace settings in UI
+   4. Review Monaco deployment logs if needed
+```
    3. Configure Dynatrace settings in UI
    4. Deploy dashboards with MCP server
 

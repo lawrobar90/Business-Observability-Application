@@ -10,10 +10,11 @@
     "dev": "NODE_ENV=development node server.js",
     "validate": "node scripts/validate-startup.cjs",
     "restart-services": "curl -X POST http://localhost:${PORT:-8080}/api/admin/services/restart-all",
-    "configure:dynatrace": "node dynatrace-monaco/deploy.js",
+    "configure:dynatrace": "node dynatrace-monaco/deploy.cjs",
     "configure:monaco": "cd dynatrace-monaco && monaco deploy manifest.yaml"
   },
   "dependencies": {
+    "@dynatrace/oneagent": "^1.325.69-1.0.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

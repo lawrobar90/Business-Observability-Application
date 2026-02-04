@@ -27,14 +27,15 @@ echo ""
 cd /workspaces/Business-Observability-Application || exit 1
 
 # Check OneAgent installation
-echo -e "${BOLD}1️⃣  OneAgent Status${NC}"
-if [ -d "/opt/dynatrace/oneagent" ]; then
-    echo -e "   ${GREEN}✅ Dynatrace OneAgent installed${NC}"
+echo -e "${BOLD}1️⃣  Dynatrace OneAgent Status${NC}"
+if grep -q '"@dynatrace/oneagent"' /workspaces/Business-Observability-Application/package.json 2>/dev/null; then
+    echo -e "   ${GREEN}✅ Dynatrace Node.js OneAgent configured${NC}"
     if [ -n "${DYNATRACE_URL}" ]; then
         echo -e "   ${GREEN}✅ Connected to: ${DYNATRACE_URL}${NC}"
     fi
 else
-    echo -e "   ${YELLOW}⚠️  OneAgent not installed (running in demo mode)${NC}"
+    echo -e "   ${YELLOW}⚠️  OneAgent not configured (running in demo mode)${NC}"
+    echo -e "   ${CYAN}   Note: Full OneAgent not available in containers${NC}"
 fi
 echo ""
 
@@ -45,9 +46,17 @@ fi
 
 # Start the BizObs application
 echo -e "${BOLD}2️⃣  Starting BizObs Application${NC}"
-nohup node server.js > /tmp/bizobs.log 2>&1 &
-APP_PID=$!
-echo -e "   ${GREEN}✅ BizObs app started (PID: ${APP_PID})${NC}"
+
+# Check if already running
+if pgrep -f "node server.js" > /dev/null; then
+    EXISTING_PID=$(pgrep -f "node server.js")
+    echo -e "   ${CYAN}ℹ️  BizObs app already running (PID: ${EXISTING_PID})${NC}"
+    APP_PID=$EXISTING_PID
+else
+    nohup node server.js > /tmp/bizobs.log 2>&1 &
+    APP_PID=$!
+    echo -e "   ${GREEN}✅ BizObs app started (PID: ${APP_PID})${NC}"
+fi
 
 # Wait for app to start
 echo -e "   ${CYAN}⏳ Waiting for server to be ready...${NC}"
@@ -73,13 +82,33 @@ else
 fi
 echo ""
 
-# Check if Monaco configuration needed
-echo -e "${BOLD}4️⃣  Dynatrace Configuration${NC}"
+# Auto-deploy Monaco configuration
+echo -e "${BOLD}4️⃣  Dynatrace Configuration (Monaco)${NC}"
 if [ -n "${DT_API_TOKEN}" ] && [ -n "${DYNATRACE_URL}" ]; then
-    echo -e "   ${CYAN}💡 Ready to deploy configuration${NC}"
-    echo -e "   ${CYAN}   Run: npm run configure:dynatrace${NC}"
+    echo -e "   ${CYAN}🚀 Auto-deploying Monaco configuration...${NC}"
+    
+    # Run Monaco deployment synchronously with timeout
+    cd /workspaces/Business-Observability-Application
+    timeout 30 node dynatrace-monaco/deploy.cjs > /tmp/monaco-deploy.log 2>&1
+    
+    # Check result
+    if grep -q "Deployment Complete" /tmp/monaco-deploy.log 2>/dev/null; then
+        echo -e "   ${GREEN}✅ Monaco configuration deployed${NC}"
+        
+        # Count any failures
+        FAILED_COUNT=$(grep -c "❌ Failed" /tmp/monaco-deploy.log 2>/dev/null || echo 0)
+        if [ "$FAILED_COUNT" -gt 0 ]; then
+            echo -e "   ${YELLOW}⚠️  Some configurations may need manual setup${NC}"
+            echo -e "   ${CYAN}   View details: cat /tmp/monaco-deploy.log${NC}"
+        fi
+    else
+        echo -e "   ${YELLOW}⚠️  Monaco deployment had issues${NC}"
+        echo -e "   ${CYAN}   Run manually: npm run configure:dynatrace${NC}"
+        echo -e "   ${CYAN}   Check logs: cat /tmp/monaco-deploy.log${NC}"
+    fi
 else
-    echo -e "   ${YELLOW}⚠️  Set DT_API_TOKEN to auto-configure Dynatrace${NC}"
+    echo -e "   ${YELLOW}⚠️  Set DT_API_TOKEN to auto-deploy Dynatrace configuration${NC}"
+    echo -e "   ${CYAN}   Or run manually: npm run configure:dynatrace${NC}"
 fi
 echo ""
 
