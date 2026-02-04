@@ -4,86 +4,173 @@
   <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://github.com/lawrobar90/Business-Observability-Application" alt="QR code linking to the Business Observability Application repository on GitHub" />
 </p>
 
-A comprehensive business observability application optimized for Dynatrace ACE-Box demo environments.
+A comprehensive business observability application with integrated Dynatrace dashboard deployment via MCP server.
 
 ## ⚡ Quick Start
 
-### 🚀 One-Click Cloud Deployment (No Setup Required)
+### 🚀 GitHub Codespaces (Recommended - Auto-Start)
 
-#### GitHub Codespaces (Recommended)
+#### 1️⃣ **Set Up Codespace Secrets (One-Time)**
+Before creating your codespace, configure these secrets for automatic OneAgent installation:
+
+**Go to**: Your GitHub repo → **Settings** → **Secrets and variables** → **Codespaces** → **New repository secret**
+
+Add these two secrets:
+
+| Secret Name | Description | Example | Required |
+|------------|-------------|---------|----------|
+| `DYNATRACE_URL` | Your Dynatrace tenant URL | `https://abc12345.sprint.apps.dynatracelabs.com` | ✅ Yes |
+| `DYNATRACE_TOKEN` | **PaaS token** (scope: `PaaS integration - Installer download`) | `dt0c01.ABC123...` | ✅ For OneAgent |
+
+> 💡 **How to create a PaaS token:**
+> 1. Go to your Dynatrace tenant → **Settings** → **Access tokens** → **Generate new token**
+> 2. Name: `Codespace OneAgent`
+> 3. Scope: ✓ **PaaS integration - Installer download**
+> 4. Copy the token (starts with `dt0c01.`)
+
+#### 2️⃣ **Create Codespace**
 1. Click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
-2. Wait for environment to load (auto-installs dependencies)
-3. **Optional**: Set Dynatrace credentials in Codespace secrets:
-   - `DYNATRACE_URL`: Your tenant URL (e.g., `https://abc12345.live.dynatrace.com`)
-   - `DYNATRACE_TOKEN`: API token with trace ingestion permissions
-4. Run: `npm start` (or `npm run start:cloud` for explicit cloud mode)
-5. Open forwarded port 8080 in browser
+2. Wait for environment to build (~2-3 minutes):
+   - ✅ OneAgent installs automatically (if secrets configured)
+   - ✅ Dependencies install via `npm install`
+   - ✅ App and MCP server start automatically
+3. **That's it!** Open forwarded port **8080** in your browser
 
-> **Note**: Without OneAgent, the app runs in **demo mode** with console logging. For full Dynatrace integration, provide the environment variables above.
+#### 3️⃣ **Access the Application**
+- The app starts automatically on port **8080**
+- MCP server runs automatically on port **3000**
+- Click the **Ports** tab and open the forwarded URL for port 8080
+- No manual commands needed! 🎉
 
-#### Alternative Cloud Options
-- **Replit**: Import this repo → Run `npm start`  
-- **CodeSandbox**: Import from GitHub → Auto-starts
-- **Gitpod**: `https://gitpod.io/#https://github.com/lawrobar90/Partner-PowerUp-BizObs-App`
-- **StackBlitz**: WebContainer-based instant deployment
+> **🔍 What happens automatically:**
+> - OneAgent installs during container creation (if `DYNATRACE_TOKEN` provided)
+> - BizObs app starts with MCP server integration enabled
+> - Dynatrace MCP server starts for OAuth-based dashboard deployment
+> - All services ready to use immediately
 
-### 🖥️ Local Installation
+#### ⚙️ **Optional: Add Your Own Dynatrace Settings**
+Once the app is running:
+1. Click **"Dynatrace Settings"** in the UI
+2. Your MCP server URL is auto-detected (`http://localhost:3000`)
+3. Add your environment URL (e.g., `https://bko67471.sprint.apps.dynatracelabs.com`)
+4. Click **"Test Connection"** to authenticate via OAuth popup
+5. Deploy dashboards with one click! 🚀
 
-## Install OneAgent 
-- Install a Dynatrace OneAgent on your machine where you are installing the BizObs application
-- See Documentation here for a guide of deployment methods:
-- https://docs.dynatrace.com/docs/ingest-from/dynatrace-oneagent/installation-and-operation
+> **📝 Note**: Without secrets configured, the app runs in demo mode. You can still add Dynatrace settings manually in the UI.
 
-In a terminal - Git/Powershell etc
-- Download this BizObs repository, and change directory to where the start-server.sh is located
+---
 
-- Run the complete BizObs application with a single command:
+### 🖥️ Local Installation (For Development)
+
+#### Prerequisites
+1. **Install Dynatrace OneAgent** on your local machine:
+   - See [Installation Guide](https://docs.dynatrace.com/docs/ingest-from/dynatrace-oneagent/installation-and-operation)
+2. **Clone this repository**
+
+#### Quick Start Commands
 ```bash
+# Option 1: Complete startup with all services
 ./start-server.sh
-```
 
-Or for simple Node.js startup:
-```bash
+# Option 2: Simple Node.js startup
 npm install
 npm start
+
+# Option 3: Start with Dynatrace environment configured
+export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
+node server.js
 ```
 
-## Add configuration to Dynatrace Tenant
-Follow this guide
-https://github.com/lawrobar90/Partner-PowerUp-BizObs-App/blob/main/DynatraceConfig.md
+#### Configure Dynatrace Tenant
+Follow the [DynatraceConfig.md](DynatraceConfig.md) guide for detailed setup instructions.
 
-### ⚠️ Important: Sprint Environments
-If deploying to a **Dynatrace Sprint environment** (e.g., `*.sprint.apps.dynatracelabs.com`):
-- **Platform tokens (dt0s/dt0c) are NOT supported** for dashboard deployment
-- The Document Service requires an **OAuth 2.0 token** (not an API access token):
-  1. Go to: Account Settings → Identity & Access Management → OAuth clients
-  2. Create new OAuth client with scopes: `document:documents:read` `document:documents:write`
-  3. Generate OAuth token from the client (JWT format, >200 chars)
-  4. Use this OAuth token in the Dynatrace Settings
-  5. See: [Document Service SDK](https://developer.dynatrace.com/develop/sdks/client-document/)
-  6. Regular Dynatrace SaaS/Managed environments can use Platform tokens normally
+---
+
+### 🔐 Authentication Methods
+
+#### OAuth via MCP Server (Recommended)
+- **Automatic in Codespaces**: MCP server handles all OAuth flows
+- **Best for**: Sprint environments, SaaS tenants
+- **No API tokens needed**: Sign in once via browser popup
+- **Uses**: Dynatrace MCP Server v1.3.1+ in HTTP mode
+
+#### Dashboard Deployment
+- All dashboard deployments go through the **Dynatrace MCP Server**
+- OAuth authentication handled automatically via popup
+- Works with all Dynatrace environments (Sprint, SaaS, Managed)
+
+---
+
+### 🔍 Codespaces Troubleshooting
+
+#### View Application Logs
+```bash
+# View live logs
+tail -f /tmp/bizobs.log
+
+# Check if app is running
+ps aux | grep node
+
+# Check port status
+netstat -tuln | grep -E '8080|3000'
+```
+
+#### Manual Restart (If Needed)
+```bash
+# Kill existing processes
+pkill -f "node server.js"
+pkill -f "dynatrace-mcp-server"
+
+# Start manually with your environment
+export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
+node server.js
+```
+
+#### Verify OneAgent Installation
+```bash
+# Check if OneAgent is installed
+ls -la /opt/dynatrace/oneagent
+
+# View OneAgent logs
+sudo tail -f /var/log/dynatrace/oneagent/oneagent.log
+```
+
+---
 
 ## 🌐 Access URLs
 
+- **Codespaces**: Check **Ports** tab, open port **8080**
 - **Local**: http://localhost:8080/
 
 ## 🎯 Key Features
 
 - **Customer Journey Simulation**: Multi-step business process simulation
 - **Multi-persona Load Generation**: Realistic customer behavior patterns  
-- **Dynatrace Integration**: Full metadata injection and observability
+- **Dynatrace Dashboard Deployment**: One-click dashboard creation via MCP server
+- **OAuth Integration**: Secure authentication via Dynatrace MCP Server
 - **Real-time Monitoring**: Live metrics and health endpoints
 - **Error Simulation**: Configurable failure scenarios for demos
 
 ## 🏗️ Architecture
 
 - **Main Server**: Port 8080 with full web interface
-- **Child Services**: Dynamic service creation on ports 8081-8094
-- **Kubernetes Ingress**: External routing via ingress controller
+- **MCP Server**: Port 3000 for Dynatrace dashboard deployment (auto-starts with DT_ENVIRONMENT)
+- **Child Services**: Dynamic service creation on ports 8099-8101
+- **OAuth Authentication**: Handled by Dynatrace MCP Server (no API tokens needed)
 - **Health Monitoring**: Comprehensive service health tracking
 
 ## 🔧 Management Commands
 
+**Codespaces** (auto-start enabled):
+```bash
+# View logs
+tail -f /tmp/bizobs.log
+
+# Restart if needed
+pkill -f "node server.js" && node server.js &
+```
+
+**Local Development**:
 ```bash
 ./start-server.sh    # Complete startup with ingress deployment
 ./status.sh          # Detailed status report
@@ -104,41 +191,42 @@ PolicyDiscovery → QuoteGeneration → PolicySelection → PaymentProcessing �
 
 ## 🛠️ Technical Stack
 
-- **Runtime**: Node.js v22+ with Express.js
-- **Observability**: Dynatrace metadata injection (13 headers)
-- **Load Balancing**: NGINX with upstream configuration
-- **Process Management**: Native Node.js with health checks
-- **Ingress**: Kubernetes ingress for external access
+- **Runtime**: Node.js v20+ with Express.js
+- **Observability**: Dynatrace OneAgent with full APM instrumentation
+- **Dashboard Deployment**: Dynatrace MCP Server v1.3.1+ (JSON-RPC via HTTP)
+- **Authentication**: OAuth 2.0 via MCP server (no API tokens needed)
+- **Process Management**: Native Node.js with auto-start in Codespaces
 
 ## 📁 Project Structure
 
 ```
-├── server.js              # Main application server
-├── start-server.sh        # Complete startup script
-├── routes/                # API route handlers
-├── services/              # Business logic services
-├── middleware/            # Dynatrace and observability middleware
-├── scripts/               # Utility and simulation scripts
-├── k8s/                   # Kubernetes ingress configuration
-├── nginx/                 # NGINX load balancer configuration
-└── logs/                  # Application logs
+├── server.js                      # Main application server
+├── .devcontainer/
+│   ├── devcontainer.json          # Codespaces configuration
+│   ├── install-oneagent.sh        # OneAgent auto-installer
+│   └── start-app.sh               # Auto-start script
+├── routes/                        # API route handlers
+├── services/                      # Business logic services
+├── middleware/                    # Dynatrace observability middleware
+├── scripts/
+│   └── dynatrace-dashboard-deployer.js  # MCP proxy for dashboards
+└── public/index.html              # Main UI with Dynatrace settings
 ```
 
-## 🎭 Ready for Demos
+## 🎭 Ready for Codespaces & Demos
 
-This application is specifically designed for Dynatrace customer journey demonstrations with full observability integration and realistic business scenarios.
+This application is specifically designed for:
+- **GitHub Codespaces**: One-click deployment with auto-start
+- **Dynatrace Integration**: OneAgent auto-installation and full APM
+- **Dashboard Deployment**: OAuth-based deployment via MCP server
+- **Customer Journey Demos**: Realistic business scenarios with full observability
 
-For detailed usage instructions, see [START-SERVER-GUIDE.md](START-SERVER-GUIDE.md).
-For deployment details, see [DEPLOYMENT-SUMMARY.md](DEPLOYMENT-SUMMARY.md).
-
-- **Main Server** (`server.js`): Express.js application serving frontend and coordinating services
-- **Journey Simulation** (`routes/journey-simulation.js`): Core business logic for customer journey processing
-- **Service Manager** (`services/service-manager.js`): Dynamic microservice spawning and management
-- **Dynamic Services**: Auto-generated services for different customer journey steps
-- **Frontend**: HTML interfaces for testing and simulation control
-
+### Additional Documentation
+- **MCP Integration**: [dynatrace-mcp-integration.md](dynatrace-mcp-integration.md)
+- **Quick Start Guide**: [MCP-QUICK-START.md](MCP-QUICK-START.md)
+- **Dynatrace Config**: [DynatraceConfig.md](DynatraceConfig.md)
 
 ---
 
 **Built for Dynatrace Partner Power-Up Program**  
-Demonstrating advanced business observability and distributed tracing capabilities.
+Demonstrating advanced business observability with integrated dashboard deployment.

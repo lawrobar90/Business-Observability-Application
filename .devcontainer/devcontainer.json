@@ -11,8 +11,8 @@
     "8080": {"label": "BizObs App", "onAutoForward": "openBrowser"},
     "3000": {"label": "MCP Server", "onAutoForward": "silent"}
   },
-  "postCreateCommand": "npm install",
-  "postStartCommand": "bash -c 'if [ -f .devcontainer/install-oneagent.sh ]; then bash .devcontainer/install-oneagent.sh; fi'",
+  "postCreateCommand": "npm install && bash .devcontainer/install-oneagent.sh",
+  "postStartCommand": "bash .devcontainer/start-app.sh",
   "remoteEnv": {
     "CLOUD_MODE": "true",
     "NODE_ENV": "development",
