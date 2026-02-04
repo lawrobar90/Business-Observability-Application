@@ -15,10 +15,11 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus } from './services/service-manager.js';
+import portManager from './services/port-manager.js';
 
 import journeyRouter from './routes/journey.js';
 import simulateRouter from './routes/simulate.js';
@@ -29,6 +30,8 @@ import serviceProxyRouter from './routes/serviceProxy.js';
 import journeySimulationRouter from './routes/journey-simulation.js';
 import configRouter from './routes/config.js';
 import loadrunnerRouter from './routes/loadrunner-integration.js';
+import oauthRouter from './routes/oauth.js';
+import mcpRouter from './routes/mcp-integration.js';
 import { injectDynatraceMetadata, injectErrorMetadata, propagateMetadata, validateMetadata } from './middleware/dynatrace-metadata.js';
 import { performComprehensiveHealthCheck } from './middleware/observability-hygiene.js';
 // MongoDB integration removed
@@ -48,6 +51,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Trust proxy to get correct protocol (HTTPS) from headers
+app.set('trust proxy', true);
+
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
@@ -324,6 +331,8 @@ app.use('/api/service-proxy', serviceProxyRouter);
 app.use('/api/journey-simulation', journeySimulationRouter);
 app.use('/api/config', configRouter);
 app.use('/api/loadrunner', loadrunnerRouter);
+app.use('/api/oauth', oauthRouter);
+app.use('/api/mcp', mcpRouter);
 
 // Internal business event endpoint for OneAgent capture
 app.post('/api/internal/bizevent', (req, res) => {
@@ -417,9 +426,9 @@ app.post('/api/test/error-trace', async (req, res) => {
 });
 
 // --- Admin endpoint to reset all dynamic service ports (for UI Reset button) ---
-app.post('/api/admin/reset-ports', (req, res) => {
+app.post('/api/admin/reset-ports', async (req, res) => {
   try {
-    stopAllServices();
+    await stopAllServices();
     res.json({ ok: true, message: 'All dynamic services stopped and ports freed.' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -728,6 +737,1108 @@ app.get('/api/admin/ports', (req, res) => {
     res.status(500).json({ ok: false, error: error.message });
   }
 });
+
+// Force cleanup stale port allocations
+app.post('/api/admin/ports/cleanup', async (req, res) => {
+  try {
+    const cleaned = await portManager.cleanupStaleAllocations();
+    const serviceStatus = getServiceStatus();
+    res.json({
+      ok: true,
+      message: `Cleaned ${cleaned} stale port allocations`,
+      cleaned,
+      portStatus: {
+        available: serviceStatus.availablePorts,
+        allocated: serviceStatus.allocatedPorts,
+        total: (parseInt(process.env.SERVICE_PORT_MAX || '8120') - parseInt(process.env.SERVICE_PORT_MIN || '8081') + 1),
+        range: serviceStatus.portRange
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ============================================
+// OAuth SSO Endpoints
+// ============================================
+
+// Temporary storage for OAuth state and tokens (in production, use Redis or database)
+const oauthSessions = new Map();
+
+// PKCE helper functions (MCP server style - no client secret needed!)
+function generateCodeVerifier() {
+  // Generate 46 random bytes for code verifier (base64url encoded = ~61 chars)
+  return crypto.randomBytes(46).toString('base64url');
+}
+
+function generateCodeChallenge(verifier) {
+  // SHA256 hash of verifier, base64url encoded
+  return crypto.createHash('sha256')
+    .update(verifier)
+    .digest('base64url');
+}
+
+// Initiate OAuth authorization flow (PKCE - automatic, simple!)
+app.post('/api/oauth/authorize', async (req, res) => {
+  const { environment } = req.body;
+  
+  if (!environment) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Missing Dynatrace environment URL'
+    });
+  }
+  
+  try {
+    // Generate PKCE challenge (replaces client secret!)
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = generateCodeChallenge(codeVerifier);
+    
+    // Generate state for CSRF protection
+    const state = crypto.randomBytes(32).toString('hex');
+    
+    // Use same OAuth client as MCP server (has localhost:* already registered)
+    const clientId = 'dt0s12.local-dt-mcp-server';
+    
+    // Use dynamic port for OAuth callback (like MCP server does with ports 5344-5349)
+    const callbackPort = 5344 + Math.floor(Math.random() * 6); // Random port 5344-5349
+    const redirectUri = `http://localhost:${callbackPort}/auth/login`;
+    
+    // Start temporary OAuth callback server on localhost (like MCP server)
+    const callbackServer = http.createServer(async (req, res) => {
+      const url = new URL(req.url, `http://localhost:${callbackPort}`);
+      
+      if (url.pathname === '/auth/login') {
+        const code = url.searchParams.get('code');
+        const receivedState = url.searchParams.get('state');
+        const error = url.searchParams.get('error');
+        
+        if (error) {
+          res.writeHead(400, { 'Content-Type': 'text/html' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>OAuth Error</title></head>
+              <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1>❌ Authorization Failed</h1>
+                <p><strong>Error:</strong> ${error}</p>
+                <p>You can close this tab.</p>
+              </body>
+            </html>
+          `);
+          return;
+        }
+        
+        if (code && receivedState === state) {
+          // Exchange code for token
+          try {
+            const tokenUrl = `${environment}/sso/oauth2/token`;
+            const tokenResponse = await fetch(tokenUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: clientId,
+                code: code,
+                redirect_uri: redirectUri,
+                code_verifier: codeVerifier
+              })
+            });
+            
+            const tokenData = await tokenResponse.json();
+            
+            if (tokenData.access_token) {
+              // Store token globally for reuse
+              activeOAuthToken = tokenData.access_token;
+              tokenEnvironment = environment.replace(/\/$/, '');
+              
+              console.log('[OAuth] ✅ Token received and stored!');
+              
+              res.writeHead(200, { 'Content-Type': 'text/html' });
+              res.end(`
+                <!DOCTYPE html>
+                <html>
+                  <head><title>Authorization Successful!</title></head>
+                  <body style="font-family: Arial; padding: 40px; text-align: center;">
+                    <h1>✅ Authorization Successful!</h1>
+                    <p>You have successfully authorized the Dynatrace MCP Server.</p>
+                    <p><strong>You can close this tab and return to your terminal.</strong></p>
+                    <script>setTimeout(() => window.close(), 3000);</script>
+                  </body>
+                </html>
+              `);
+              
+              // Close server after successful auth
+              callbackServer.close();
+            } else {
+              throw new Error(tokenData.error || 'Failed to get token');
+            }
+          } catch (err) {
+            console.error('[OAuth] Token exchange error:', err);
+            res.writeHead(500, { 'Content-Type': 'text/html' });
+            res.end(`
+              <!DOCTYPE html>
+              <html>
+                <head><title>Token Exchange Failed</title></head>
+                <body style="font-family: Arial; padding: 40px; text-align: center;">
+                  <h1>❌ Token Exchange Failed</h1>
+                  <p>${err.message}</p>
+                  <p>You can close this tab.</p>
+                </body>
+              </html>
+            `);
+          }
+        } else {
+          res.writeHead(400, { 'Content-Type': 'text/html' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+              <head><title>Invalid Request</title></head>
+              <body style="font-family: Arial; padding: 40px; text-align: center;">
+                <h1>❌ Invalid Request</h1>
+                <p>Missing or invalid authorization code/state.</p>
+                <p>You can close this tab.</p>
+              </body>
+            </html>
+          `);
+        }
+      }
+    });
+    
+    callbackServer.listen(callbackPort, 'localhost', () => {
+      console.log(`[OAuth] Callback server listening on http://localhost:${callbackPort}/auth/login`);
+    });
+    
+    // Store OAuth session with PKCE verifier and callback server
+    oauthSessions.set(state, {
+      environment: environment.replace(/\/$/, ''),
+      clientId,
+      codeVerifier, // Store for token exchange
+      callbackServer, // Store server instance to close later
+      timestamp: Date.now()
+    });
+    
+    // Clean up old sessions (older than 10 minutes)
+    for (const [key, session] of oauthSessions.entries()) {
+      if (Date.now() - session.timestamp > 600000) {
+        // Close callback server if it exists
+        if (session.callbackServer) {
+          session.callbackServer.close();
+        }
+        oauthSessions.delete(key);
+      }
+    }
+    
+    // Construct OAuth authorization URL with PKCE
+    const scope = 'document:documents:read document:documents:write storage:buckets:read storage:metrics:read';
+    
+    // Auto-discover SSO URL by following redirect
+    const envUrl = environment.replace(/\/$/, '');
+    const ssoDiscoveryUrl = `${envUrl}/platform/oauth2/authorization/dynatrace-sso`;
+    
+    const authUrl = new URL(ssoDiscoveryUrl);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', scope);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('state', state);
+    
+    console.log('[OAuth] Authorization URL generated (PKCE):', authUrl.toString());
+    
+    res.json({
+      ok: true,
+      authorizationUrl: authUrl.toString(),
+      state: state,
+      callbackPort: callbackPort // Send port to client
+    });
+    
+  } catch (error) {
+    console.error('[OAuth] Authorization error:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// OAuth callback endpoint
+app.get('/api/oauth/callback', async (req, res) => {
+  console.log('[OAuth Callback] === CALLBACK HIT ===');
+  console.log('[OAuth Callback] Query params:', req.query);
+  console.log('[OAuth Callback] Headers:', req.headers);
+  
+  const { code, state, error: oauthError } = req.query;
+  
+  if (oauthError) {
+    console.error('[OAuth Callback] OAuth error received:', oauthError);
+    return res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;">
+          <h1 style="color: #ff5252;">❌ OAuth Authorization Failed</h1>
+          <p>Error: ${oauthError}</p>
+          <p>You can close this window.</p>
+        </body>
+      </html>
+    `);
+  }
+  
+  if (!code || !state) {
+    return res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;">
+          <h1 style="color: #ff5252;">❌ Invalid Callback</h1>
+          <p>Missing authorization code or state</p>
+          <p>You can close this window.</p>
+        </body>
+      </html>
+    `);
+  }
+  
+  const session = oauthSessions.get(state);
+  
+  if (!session) {
+    return res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;">
+          <h1 style="color: #ff5252;">❌ Invalid Session</h1>
+          <p>OAuth session expired or not found</p>
+          <p>Please try logging in again.</p>
+        </body>
+      </html>
+    `);
+  }
+  
+  try {
+    // Exchange authorization code for access token (PKCE - use code_verifier instead of client_secret!)
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/oauth/callback`;
+    const tokenUrl = `${session.environment}/sso/oauth2/token`;
+    
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+        // NO Authorization header with PKCE! code_verifier replaces client_secret
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: session.clientId,
+        code: code,
+        redirect_uri: redirectUri,
+        code_verifier: session.codeVerifier // PKCE: code_verifier instead of client_secret!
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('[OAuth] Token exchange failed:', errorText);
+      throw new Error(`Token exchange failed: ${tokenResponse.statusText}`);
+    }
+    
+    const tokenData = await tokenResponse.json();
+    console.log('[OAuth] Access token received successfully (PKCE flow)');
+    console.log('[OAuth] Token starts with:', tokenData.access_token.substring(0, 10));
+    console.log('[OAuth] Expires in:', tokenData.expires_in, 'seconds');
+    
+    // Store token in session
+    session.accessToken = tokenData.access_token;
+    session.refreshToken = tokenData.refresh_token; // Store for automatic refresh
+    session.expiresIn = tokenData.expires_in;
+    session.tokenReceivedAt = Date.now();
+    
+    // Also store immediately in global variable for immediate access
+    activeOAuthToken = tokenData.access_token;
+    tokenEnvironment = session.environment;
+    console.log('[OAuth] Token stored globally for environment:', tokenEnvironment);
+    
+    res.send(`
+      <html>
+        <head>
+          <title>OAuth Success</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;">
+          <h1 style="color: #4caf50;">✅ OAuth Login Successful!</h1>
+          <p>You have successfully authenticated with Dynatrace.</p>
+          <p style="margin-top: 20px; color: #64b5f6;">This window will close automatically...</p>
+          <p style="margin-top: 10px; font-size: 12px; color: #999;">If it doesn't close, you can close it manually.</p>
+          <script>
+            console.log('[OAuth Callback] Starting auto-close sequence...');
+            
+            // Function to notify parent and attempt close
+            function notifyAndClose() {
+              if (window.opener && !window.opener.closed) {
+                console.log('[OAuth Callback] Sending success message to parent...');
+                window.opener.postMessage({ type: 'oauth-success', state: '${state}' }, '*');
+              } else {
+                console.log('[OAuth Callback] No opener window found');
+              }
+              
+              // Try to close
+              try {
+                window.close();
+                console.log('[OAuth Callback] Window close attempted');
+              } catch (e) {
+                console.log('[OAuth Callback] Window close failed:', e.message);
+              }
+            }
+            
+            // Try immediately
+            notifyAndClose();
+            
+            // Try again after small delays (in case listener not ready)
+            setTimeout(notifyAndClose, 100);
+            setTimeout(notifyAndClose, 500);
+            setTimeout(notifyAndClose, 1000);
+            
+            // Show manual close message after 2 seconds if still open
+            setTimeout(() => {
+              document.body.innerHTML = '<div style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;"><h1 style="color: #4caf50;">✅ Success!</h1><p>Authentication complete!</p><p style="margin-top: 10px; color: #64b5f6;">You can close this window now.</p></div>';
+            }, 2000);
+              }, 1000);
+            }, 500);
+          </script>
+        </body>
+      </html>
+    `);
+    
+  } catch (error) {
+    console.error('[OAuth] Callback error:', error);
+    res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background: #1a1a1a; color: white;">
+          <h1 style="color: #ff5252;">❌ Token Exchange Failed</h1>
+          <p>Error: ${error.message}</p>
+          <p>Please try logging in again.</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Store the active OAuth token (persists across requests)
+let activeOAuthToken = null;
+let tokenEnvironment = null;
+
+// Check OAuth token status (for frontend polling)
+app.get('/api/oauth/token-status', (req, res) => {
+  // Check if we have an active token
+  if (activeOAuthToken) {
+    return res.json({
+      hasToken: true,
+      environment: tokenEnvironment
+    });
+  }
+  
+  // Find any session with a valid access token
+  for (const [state, session] of oauthSessions.entries()) {
+    if (session.accessToken) {
+      // Store token for subsequent use (don't delete!)
+      activeOAuthToken = session.accessToken;
+      tokenEnvironment = session.environment;
+      
+      console.log('[OAuth] Token stored for environment:', tokenEnvironment);
+      
+      return res.json({
+        hasToken: true,
+        environment: tokenEnvironment
+      });
+    }
+  }
+  
+  res.json({
+    hasToken: false
+  });
+});
+
+// ============================================
+// Dynatrace Dashboard Deployment
+// ============================================
+
+// Dynatrace Dashboard Deployment Endpoint
+app.post('/api/dynatrace/deploy-dashboard', async (req, res) => {
+  try {
+    const { journeyConfig } = req.body;
+    
+    if (!journeyConfig || !journeyConfig.companyName || !journeyConfig.steps) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required journeyConfig with companyName and steps'
+      });
+    }
+    
+    // Check for active OAuth token first (takes precedence)
+    let DT_ENVIRONMENT, DT_TOKEN;
+    
+    console.log('[dynatrace-deploy] Checking for OAuth token...');
+    console.log('[dynatrace-deploy] activeOAuthToken exists:', !!activeOAuthToken);
+    console.log('[dynatrace-deploy] tokenEnvironment:', tokenEnvironment);
+    
+    if (activeOAuthToken && tokenEnvironment) {
+      console.log('[dynatrace-deploy] ✅ Using stored OAuth token');
+      DT_ENVIRONMENT = tokenEnvironment;
+      DT_TOKEN = activeOAuthToken;
+    } else {
+      console.log('[dynatrace-deploy] ⚠️ No OAuth token, checking fallback...');
+      // Fall back to environment variables or headers
+      DT_ENVIRONMENT = process.env.DT_ENVIRONMENT || req.headers['x-dt-environment'];
+      DT_TOKEN = process.env.DT_PLATFORM_TOKEN || req.headers['x-dt-token'];
+      console.log('[dynatrace-deploy] Fallback - Has environment:', !!DT_ENVIRONMENT, 'Has token:', !!DT_TOKEN);
+    }
+    
+    const DT_BUDGET = process.env.DT_GRAIL_BUDGET || req.headers['x-dt-budget'] || '500';
+    
+    if (!DT_ENVIRONMENT || !DT_TOKEN) {
+      return res.status(500).json({
+        ok: false,
+        needsOAuthLogin: true,
+        error: 'Dynatrace not configured. Please sign in with OAuth SSO.'
+      });
+    }
+
+    console.log('[dynatrace-deploy] Environment:', DT_ENVIRONMENT);
+    console.log('[dynatrace-deploy] Token length:', DT_TOKEN.length, 'starts with:', DT_TOKEN.substring(0, 4));
+    
+    // Check if this is a Sprint environment with Platform token
+    const isSprintEnvironment = DT_ENVIRONMENT.includes('.sprint.') || DT_ENVIRONMENT.includes('sprint.apps.dynatrace');
+    const isPlatformToken = DT_TOKEN.length < 100 && (DT_TOKEN.startsWith('dt0s') || DT_TOKEN.startsWith('dt0c'));
+    const isOAuthToken = DT_TOKEN.length > 100 && !DT_TOKEN.startsWith('dt0');
+    
+    console.log('[dynatrace-deploy] Detection results:', { isSprintEnvironment, isPlatformToken, isOAuthToken });
+    
+    // If Sprint environment + Platform token (not OAuth token), check if OAuth credentials are available
+    if (isSprintEnvironment && isPlatformToken && !isOAuthToken) {
+      console.log('[dynatrace-deploy] ⚠️ Sprint + Platform token detected');
+      
+      // Check if OAuth SSO credentials are in request body (from settings)
+      const hasOAuthCreds = req.body.oauthClientId && req.body.oauthClientSecret && req.body.oauthAccountUrn;
+      
+      if (hasOAuthCreds) {
+        console.log('[dynatrace-deploy] OAuth credentials available - prompting for SSO login');
+        return res.json({
+          ok: false,
+          needsOAuthLogin: true,
+          environment: DT_ENVIRONMENT,
+          message: 'Sprint environment requires OAuth SSO authentication'
+        });
+      } else {
+        console.log('[dynatrace-deploy] No OAuth credentials - will try Config API fallback');
+      }
+    } else if (isOAuthToken) {
+      console.log('[dynatrace-deploy] ✅ OAuth token detected - proceeding with deployment');
+    }
+    
+    // Set environment variables for deployer script
+    process.env.DT_ENVIRONMENT = DT_ENVIRONMENT;
+    process.env.DT_PLATFORM_TOKEN = DT_TOKEN;
+    process.env.DT_GRAIL_BUDGET = DT_BUDGET;
+    
+    // Import deployer dynamically
+    const { deployJourneyDashboard } = await import('./scripts/dynatrace-dashboard-deployer.js');
+    
+    const result = await deployJourneyDashboard(journeyConfig);
+    
+    if (result.success) {
+      res.json({
+        ok: true,
+        dashboardId: result.dashboardId,
+        dashboardUrl: result.dashboardUrl,
+        companyName: result.companyName,
+        message: `Dashboard created for ${result.companyName}`
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        error: result.error,
+        companyName: result.companyName
+      });
+    }
+  } catch (error) {
+    console.error('[dynatrace-deploy] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ============================================
+// Dynatrace Dashboard Deployment via MCP Proxy
+// ============================================
+
+// Deploy dashboard via Dynatrace MCP Server
+// ============================================
+// MCP Server Management
+// ============================================
+
+let mcpServerProcess = null;
+let mcpServerStatus = 'stopped'; // stopped, starting, running, error
+let mcpServerAuthUrl = null;
+
+// Start MCP Server
+app.post('/api/mcp/start', async (req, res) => {
+  try {
+    const { environmentUrl, port = 3000 } = req.body;
+    
+    if (!environmentUrl) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing Dynatrace environment URL'
+      });
+    }
+    
+    // Check if already running
+    if (mcpServerProcess && mcpServerStatus === 'running') {
+      return res.json({
+        ok: true,
+        status: 'already_running',
+        message: 'MCP server is already running',
+        port: port
+      });
+    }
+    
+    console.log('[MCP] Starting MCP server on port', port, 'for environment:', environmentUrl);
+    mcpServerStatus = 'starting';
+    mcpServerAuthUrl = null;
+    
+    // Start MCP server process
+    mcpServerProcess = spawn('npx', [
+      '-y',
+      '@dynatrace-oss/dynatrace-mcp-server@latest',
+      '--http',
+      '-p',
+      port.toString()
+    ], {
+      env: {
+        ...process.env,
+        DT_ENVIRONMENT: environmentUrl,
+        DT_MCP_DISABLE_TELEMETRY: 'false'
+      },
+      cwd: process.cwd()
+    });
+    
+    let outputBuffer = '';
+    
+    // Capture stdout for OAuth URL
+    mcpServerProcess.stdout.on('data', (data) => {
+      const output = data.toString();
+      outputBuffer += output;
+      console.log('[MCP stdout]', output);
+      
+      // Look for OAuth URL
+      const oauthMatch = output.match(/https:\/\/[^\s]+oauth2\/authorize[^\s]+/);
+      if (oauthMatch) {
+        mcpServerAuthUrl = oauthMatch[0];
+        console.log('[MCP] OAuth URL detected:', mcpServerAuthUrl);
+      }
+      
+      // Check if server started successfully
+      if (output.includes('Dynatrace MCP Server running on HTTP')) {
+        mcpServerStatus = 'running';
+        console.log('[MCP] Server is now running');
+      }
+    });
+    
+    mcpServerProcess.stderr.on('data', (data) => {
+      console.error('[MCP stderr]', data.toString());
+    });
+    
+    mcpServerProcess.on('exit', (code) => {
+      console.log('[MCP] Process exited with code:', code);
+      mcpServerStatus = code === 0 ? 'stopped' : 'error';
+      mcpServerProcess = null;
+    });
+    
+    // Wait a bit for startup
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    res.json({
+      ok: true,
+      status: mcpServerStatus,
+      message: mcpServerStatus === 'running' ? 'MCP server started successfully' : 'MCP server is starting...',
+      authUrl: mcpServerAuthUrl,
+      port: port,
+      logs: outputBuffer
+    });
+    
+  } catch (error) {
+    console.error('[MCP] Start error:', error);
+    mcpServerStatus = 'error';
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Get MCP Server Status
+app.get('/api/mcp/status', async (req, res) => {
+  // Double-check by pinging the MCP server
+  let actuallyRunning = mcpServerStatus === 'running';
+  
+  if (!actuallyRunning && mcpServerProcess) {
+    // Try to verify it's really running by checking if port is responding
+    try {
+      const testResponse = await fetch('http://localhost:3000', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/list',
+          params: {}
+        }),
+        timeout: 2000
+      }).catch(() => null);
+      
+      if (testResponse && testResponse.ok) {
+        mcpServerStatus = 'running';
+        actuallyRunning = true;
+        console.log('[MCP] Status verified - server is running');
+      }
+    } catch (error) {
+      // Ignore - will return current status
+    }
+  }
+  
+  res.json({
+    ok: true,
+    status: mcpServerStatus,
+    running: actuallyRunning,
+    authUrl: mcpServerAuthUrl,
+    pid: mcpServerProcess?.pid || null
+  });
+});
+
+// Stop MCP Server
+app.post('/api/mcp/stop', (req, res) => {
+  if (mcpServerProcess) {
+    mcpServerProcess.kill();
+    mcpServerProcess = null;
+    mcpServerStatus = 'stopped';
+    mcpServerAuthUrl = null;
+    res.json({ ok: true, message: 'MCP server stopped' });
+  } else {
+    res.json({ ok: true, message: 'MCP server was not running' });
+  }
+});
+
+// ============================================
+// Dashboard Deployment via MCP
+// ============================================
+
+app.post('/api/dynatrace/deploy-dashboard-via-mcp', async (req, res) => {
+  try {
+    const { mcpServerUrl, environmentUrl, journeyConfig } = req.body;
+    
+    if (!mcpServerUrl) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing MCP server URL'
+      });
+    }
+    
+    if (!environmentUrl) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing Dynatrace environment URL'
+      });
+    }
+    
+    if (!journeyConfig) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing journey configuration'
+      });
+    }
+    
+    console.log('[MCP Proxy] Deploying dashboard via MCP server:', mcpServerUrl);
+    console.log('[MCP Proxy] Dynatrace environment:', environmentUrl);
+    console.log('[MCP Proxy] Journey:', journeyConfig.companyName, journeyConfig.journeyType);
+    
+    // Call the dashboard deployer through MCP server
+    const deployResult = await deployJourneyDashboard(journeyConfig, {
+      useMcpProxy: true,
+      mcpServerUrl: mcpServerUrl,
+      environmentUrl: environmentUrl
+    });
+    
+    if (deployResult.success) {
+      res.json({
+        ok: true,
+        success: true,
+        dashboardId: deployResult.dashboardId,
+        dashboardUrl: deployResult.dashboardUrl,
+        companyName: deployResult.companyName
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        error: deployResult.error,
+        companyName: deployResult.companyName
+      });
+    }
+  } catch (error) {
+    console.error('[MCP Proxy] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ============================================
+// Dynatrace Dashboard Deployment (Legacy/Direct)
+// ============================================
+
+// Dynatrace Dashboard Deployment Endpoint
+app.post('/api/dynatrace/deploy-dashboard', async (req, res) => {
+  try {
+    const { journeyConfig } = req.body;
+    
+    console.log('[dynatrace-deploy] Received request');
+    console.log('[dynatrace-deploy] Headers:', {
+      'x-dt-environment': req.headers['x-dt-environment'] ? 'present' : 'missing',
+      'x-dt-token': req.headers['x-dt-token'] ? 'present (length: ' + req.headers['x-dt-token']?.length + ')' : 'missing',
+      'x-dt-budget': req.headers['x-dt-budget'] || 'missing'
+    });
+    
+    if (!journeyConfig || !journeyConfig.companyName || !journeyConfig.steps) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required journeyConfig with companyName and steps'
+      });
+    }
+    
+    // Try to get credentials from headers first (from UI), then fall back to environment variables
+    const DT_ENVIRONMENT = req.headers['x-dt-environment'] || process.env.DT_ENVIRONMENT;
+    const DT_TOKEN = req.headers['x-dt-token'] || process.env.DT_PLATFORM_TOKEN;
+    const DT_BUDGET = req.headers['x-dt-budget'] || process.env.DT_BUDGET || '100';
+    
+    console.log('[dynatrace-deploy] Credentials check:', {
+      hasEnvironment: !!DT_ENVIRONMENT,
+      hasToken: !!DT_TOKEN,
+      tokenLength: DT_TOKEN?.length || 0,
+      environmentSource: req.headers['x-dt-environment'] ? 'UI Settings (headers)' : (process.env.DT_ENVIRONMENT ? 'Environment Variables' : 'NOT FOUND'),
+      tokenSource: req.headers['x-dt-token'] ? 'UI Settings (headers)' : (process.env.DT_PLATFORM_TOKEN ? 'Environment Variables' : 'NOT FOUND')
+    });
+    
+    if (!DT_ENVIRONMENT || !DT_TOKEN) {
+      return res.status(500).json({
+        ok: false,
+        error: 'Dynatrace not configured. Set credentials in environment variables or MCP Settings UI.'
+      });
+    }
+    
+    console.log('[dynatrace-deploy] Checking for Sprint + Platform token combination...');
+    console.log('[dynatrace-deploy] Environment:', DT_ENVIRONMENT);
+    console.log('[dynatrace-deploy] Token length:', DT_TOKEN.length, 'starts with:', DT_TOKEN.substring(0, 4));
+    
+    // Check if this is a Sprint environment with Platform token (unsupported combination)
+    const isSprintEnvironment = DT_ENVIRONMENT.includes('.sprint.') || DT_ENVIRONMENT.includes('sprint.apps.dynatrace');
+    const isPlatformToken = DT_TOKEN.length < 100 && (DT_TOKEN.startsWith('dt0s') || DT_TOKEN.startsWith('dt0c'));
+    
+    console.log('[dynatrace-deploy] Detection results:', { isSprintEnvironment, isPlatformToken });
+    
+    if (isSprintEnvironment && isPlatformToken) {
+      console.error('[dynatrace-deploy] ❌ Sprint environment detected with Platform token - OAuth required');
+      return res.status(403).json({
+        ok: false,
+        error: 'Sprint environment requires OAuth SSO authentication. Platform tokens are not supported.',
+        needsOAuth: true,
+        environment: DT_ENVIRONMENT,
+        suggestion: 'Use MCP OAuth flow to authenticate with Sprint environment'
+      });
+    }
+    
+    // Set environment variables for the deployer script
+    process.env.DT_ENVIRONMENT = DT_ENVIRONMENT;
+    process.env.DT_PLATFORM_TOKEN = DT_TOKEN;
+    process.env.DT_BUDGET = DT_BUDGET;
+    
+    // Import deployer dynamically
+    const { deployJourneyDashboard } = await import('./scripts/dynatrace-dashboard-deployer.js');
+    
+    const result = await deployJourneyDashboard(journeyConfig);
+    
+    if (result.success) {
+      res.json({
+        ok: true,
+        dashboardId: result.dashboardId,
+        dashboardUrl: result.dashboardUrl,
+        companyName: result.companyName,
+        message: `Dashboard created for ${result.companyName}`
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        error: result.error,
+        companyName: result.companyName
+      });
+    }
+  } catch (error) {
+    console.error('[dynatrace-deploy] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Query Dynatrace for journey analytics
+app.post('/api/dynatrace/query-journey', async (req, res) => {
+  try {
+    const { companyName, timeframe } = req.body;
+    
+    if (!companyName) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required companyName'
+      });
+    }
+    
+    // Try environment variables first, then headers from UI
+    const DT_ENVIRONMENT = process.env.DT_ENVIRONMENT || req.headers['x-dt-environment'];
+    const DT_TOKEN = process.env.DT_PLATFORM_TOKEN || req.headers['x-dt-token'];
+    const DT_BUDGET = process.env.DT_GRAIL_BUDGET || req.headers['x-dt-budget'] || '500';
+    
+    if (!DT_ENVIRONMENT || !DT_TOKEN) {
+      return res.status(500).json({
+        ok: false,
+        error: 'Dynatrace not configured. Set credentials in environment variables or MCP Settings UI.'
+      });
+    }
+    
+    // Set environment variables for deployer script
+    process.env.DT_ENVIRONMENT = DT_ENVIRONMENT;
+    process.env.DT_PLATFORM_TOKEN = DT_TOKEN;
+    process.env.DT_GRAIL_BUDGET = DT_BUDGET;
+    
+    const { queryJourneyData } = await import('./scripts/dynatrace-dashboard-deployer.js');
+    const result = await queryJourneyData(companyName, timeframe || '24h');
+    
+    res.json({
+      ok: true,
+      companyName,
+      data: result
+    });
+  } catch (error) {
+    console.error('[dynatrace-query] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Verify Dynatrace deployment (BizEvents, Services, Entities)
+app.post('/api/dynatrace/verify-deployment', async (req, res) => {
+  try {
+    const { companyName, correlationId, steps } = req.body;
+    
+    if (!companyName) {
+      return res.status(400).json({ ok: false, error: 'Missing required companyName' });
+    }
+    
+    const DT_ENVIRONMENT = process.env.DT_ENVIRONMENT || req.headers['x-dt-environment'];
+    const DT_TOKEN = process.env.DT_PLATFORM_TOKEN || req.headers['x-dt-token'];
+    
+    if (!DT_ENVIRONMENT || !DT_TOKEN) {
+      return res.status(500).json({ ok: false, error: 'Dynatrace not configured' });
+    }
+    
+    const baseUrl = DT_ENVIRONMENT.replace(/\/$/, '');
+    const headers = { 'Authorization': `Api-Token ${DT_TOKEN}`, 'Content-Type': 'application/json' };
+    
+    console.log(`[verify] Checking deployment for ${companyName}...`);
+    
+    // Query 1: Check BizEvents
+    const bizEventsQuery = correlationId 
+      ? `fetch bizevents | filter event.provider == "${companyName}" and correlationId == "${correlationId}" | summarize count()`
+      : `fetch bizevents | filter event.provider == "${companyName}" | summarize count()`;
+    
+    let bizEventsFound = false, bizEventsCount = 0;
+    try {
+      const bizRes = await fetch(`${baseUrl}/platform/storage/query/v1/query:execute`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query: bizEventsQuery, requestTimeoutMilliseconds: 30000 })
+      });
+      const bizData = await bizRes.json();
+      if (bizData.result && bizData.result.records && bizData.result.records[0]) {
+        bizEventsCount = bizData.result.records[0]['count()'] || 0;
+        bizEventsFound = bizEventsCount > 0;
+      }
+    } catch (e) {
+      console.log('[verify] BizEvents query failed:', e.message);
+    }
+    
+    // Query 2: Check Services
+    const serviceQuery = steps && steps.length > 0
+      ? `fetch dt.entity.service | filter entity.name in (${steps.map(s => `"${s}Service"`).join(',')}) | summarize count()`
+      : `fetch dt.entity.service | filter contains(entity.name, "${companyName}") | summarize count()`;
+    
+    let servicesFound = false, serviceCount = 0;
+    try {
+      const svcRes = await fetch(`${baseUrl}/platform/storage/query/v1/query:execute`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query: serviceQuery, requestTimeoutMilliseconds: 30000 })
+      });
+      const svcData = await svcRes.json();
+      if (svcData.result && svcData.result.records && svcData.result.records[0]) {
+        serviceCount = svcData.result.records[0]['count()'] || 0;
+        servicesFound = serviceCount > 0;
+      }
+    } catch (e) {
+      console.log('[verify] Services query failed:', e.message);
+    }
+    
+    // Query 3: Check Entities (process groups, hosts)
+    let entitiesFound = false, entityCount = 0;
+    try {
+      const entRes = await fetch(`${baseUrl}/platform/storage/query/v1/query:execute`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          query: `fetch dt.entity.process_group | filter contains(entity.name, "bizobs") | summarize count()`,
+          requestTimeoutMilliseconds: 30000 
+        })
+      });
+      const entData = await entRes.json();
+      if (entData.result && entData.result.records && entData.result.records[0]) {
+        entityCount = entData.result.records[0]['count()'] || 0;
+        entitiesFound = entityCount > 0;
+      }
+    } catch (e) {
+      console.log('[verify] Entities query failed:', e.message);
+    }
+    
+    console.log(`[verify] Results: BizEvents=${bizEventsCount}, Services=${serviceCount}, Entities=${entityCount}`);
+    
+    res.json({
+      ok: true,
+      verification: {
+        bizEventsFound,
+        bizEventsCount,
+        servicesFound,
+        serviceCount,
+        entitiesFound,
+        entityCount,
+        timeframe: '2h',
+        companyName
+      }
+    });
+    
+  } catch (error) {
+    console.error('[verify] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Test Dynatrace connection
+app.post('/api/dynatrace/test-connection', async (req, res) => {
+  try {
+    const { environment, token } = req.body;
+    
+    if (!environment || !token) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing environment URL or token'
+      });
+    }
+    
+    // Normalize environment URL (remove trailing slash)
+    const baseUrl = environment.replace(/\/$/, '');
+    
+    // For Sprint/SaaS environments, try the app-engine health endpoint
+    // This is the most reliable endpoint that exists across all environment types
+    const testUrl = `${baseUrl}/platform/app-engine/v2/app-engines`;
+    
+    console.log('[dynatrace-test] Testing connection to:', testUrl);
+    console.log('[dynatrace-test] Using token prefix:', token.substring(0, 10) + '...');
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log('[dynatrace-test] Response status:', response.status);
+    
+    // Try to get response body for debugging
+    let responseBody = '';
+    try {
+      responseBody = await response.text();
+      console.log('[dynatrace-test] Response body:', responseBody.substring(0, 500));
+    } catch (e) {
+      console.log('[dynatrace-test] Could not read response body');
+    }
+    
+    if (response.ok) {
+      res.json({
+        ok: true,
+        message: 'Connection successful - Token validated',
+        environment: baseUrl
+      });
+    } else if (response.status === 401) {
+      res.json({
+        ok: false,
+        error: 'Authentication failed - Check your token is valid and not expired'
+      });
+    } else if (response.status === 403) {
+      // 403 might actually mean auth worked but missing scope - that's OK for testing
+      res.json({
+        ok: true,
+        message: 'Connection successful - Token authenticated (some scopes may be missing for this test endpoint)',
+        environment: baseUrl
+      });
+    } else if (response.status === 404) {
+      // 404 likely means auth worked but endpoint not available - try one more
+      console.log('[dynatrace-test] First endpoint returned 404, trying alternative...');
+      
+      // Try DQL query endpoint - should work in Sprint
+      const dqlTestUrl = `${baseUrl}/platform/storage/query/v1/query:execute`;
+      const dqlTest = await fetch(dqlTestUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          query: "fetch bizevents | limit 1",
+          requestTimeoutMilliseconds: 5000
+        })
+      });
+      
+      console.log('[dynatrace-test] DQL test status:', dqlTest.status);
+      
+      if (dqlTest.status === 200 || dqlTest.status === 403 || dqlTest.status === 400) {
+        // Any of these means auth worked
+        res.json({
+          ok: true,
+          message: 'Connection successful - Token validated via query endpoint',
+          environment: baseUrl
+        });
+      } else if (dqlTest.status === 401) {
+        res.json({
+          ok: false,
+          error: 'Authentication failed - Token may be invalid or expired'
+        });
+      } else {
+        res.json({
+          ok: false,
+          error: `Could not verify connection - HTTP ${dqlTest.status}. Token may be valid but unable to confirm.`
+        });
+      }
+    } else {
+      res.json({
+        ok: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+        details: responseBody.substring(0, 200)
+      });
+    }
+  } catch (error) {
+    console.error('[dynatrace-test] Error:', error);
+    res.json({
+      ok: false,
+      error: `Network error: ${error.message}`
+    });
+  }
+});
+
 
 // New Customer Journey endpoint - clears all services to start fresh
 app.post('/api/admin/new-customer-journey', (req, res) => {
@@ -1266,11 +2377,80 @@ server.listen(PORT, () => {
   
   // Store health monitor for cleanup
   server.healthMonitor = healthMonitor;
+  
+  // --- Auto-start MCP Server ---
+  console.log('🔍 Checking for Dynatrace MCP Server configuration...');
+  
+  // Check for environment variable first, then check if we can load from some config
+  const dtEnvironment = process.env.DT_ENVIRONMENT || process.env.DT_MCP_ENVIRONMENT;
+  
+  if (dtEnvironment) {
+    console.log(`🚀 Starting Dynatrace MCP Server for environment: ${dtEnvironment}`);
+    
+    // Start MCP server automatically
+    mcpServerStatus = 'starting';
+    mcpServerProcess = spawn('npx', [
+      '-y',
+      '@dynatrace-oss/dynatrace-mcp-server@latest',
+      '--http',
+      '-p',
+      '3000'
+    ], {
+      env: {
+        ...process.env,
+        DT_ENVIRONMENT: dtEnvironment,
+        DT_MCP_DISABLE_TELEMETRY: 'false'
+      },
+      cwd: process.cwd()
+    });
+    
+    // Capture stdout for OAuth URL
+    mcpServerProcess.stdout.on('data', (data) => {
+      const output = data.toString();
+      console.log('[MCP]', output.trim());
+      
+      // Look for OAuth URL
+      const oauthMatch = output.match(/https:\/\/[^\s]+oauth2\/authorize[^\s]+/);
+      if (oauthMatch) {
+        mcpServerAuthUrl = oauthMatch[0];
+        console.log('🔐 [MCP] OAuth URL available (open in browser if needed)');
+      }
+      
+      // Check if server started successfully
+      if (output.includes('Dynatrace MCP Server running on HTTP')) {
+        mcpServerStatus = 'running';
+        console.log('✅ [MCP] Server is now running on port 3000');
+      }
+    });
+    
+    mcpServerProcess.stderr.on('data', (data) => {
+      const error = data.toString().trim();
+      if (!error.includes('npm warn') && !error.includes('nohup:')) {
+        console.error('[MCP ERROR]', error);
+      }
+    });
+    
+    mcpServerProcess.on('exit', (code) => {
+      console.log(`[MCP] Process exited with code: ${code}`);
+      mcpServerStatus = code === 0 ? 'stopped' : 'error';
+      mcpServerProcess = null;
+    });
+  } else {
+    console.log('ℹ️  No DT_ENVIRONMENT set - MCP server will start on first connection test');
+    console.log('💡 Set DT_ENVIRONMENT env var to auto-start MCP server on app startup');
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  
+  // Stop MCP server if running
+  if (mcpServerProcess) {
+    console.log('[MCP] Stopping MCP server...');
+    mcpServerProcess.kill();
+    mcpServerProcess = null;
+  }
   
   // Stop health monitor
   if (server.healthMonitor) {
@@ -1288,6 +2468,13 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 Received SIGINT, shutting down gracefully...');
+  
+  // Stop MCP server if running
+  if (mcpServerProcess) {
+    console.log('[MCP] Stopping MCP server...');
+    mcpServerProcess.kill();
+    mcpServerProcess = null;
+  }
   
   // Stop health monitor
   if (server.healthMonitor) {

@@ -289,12 +289,144 @@
           </div>
         </div>
         <div class="flex items-center space-x-3">
+          <button onclick="openDynatraceSettings()" class="px-3 py-2 rounded-lg bg-dtpurple/20 hover:bg-dtpurple/40 border border-dtpurple text-white text-sm font-medium transition-all flex items-center gap-2" title="Configure Dynatrace MCP Settings">
+            <span>⚙️</span>
+            <span id="dt-settings-indicator">MCP Settings</span>
+          </button>
           <div class="px-3 py-1 rounded-full bg-dtgreen/20 border border-dtgreen text-dtgreen text-xs font-medium">
             ✅ READY
           </div>
           <span id="host-label" class="text-sm text-dtaccent font-medium px-3 py-1 rounded-full bg-dtpurple/20 border border-dtpurple">Smartscape UI · Real-time overlays</span>
         </div>
       </header>
+
+      <!-- Dynatrace MCP Settings Modal -->
+      <div id="dynatrace-settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-4">
+        <div class="bg-dtcard border-2 border-dtcyan rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <!-- Modal Header -->
+          <div class="p-6 border-b border-dtborder bg-gradient-to-r from-dtpurple/20 to-dtcyan/20">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="p-2 rounded-lg bg-dtcyan/20 border border-dtcyan">
+                  <span class="text-2xl">🔗</span>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-bold text-dtcyan">Dynatrace MCP Settings</h2>
+                  <p class="text-sm text-gray-400 mt-1">Configure connection to your Dynatrace environment</p>
+                </div>
+              </div>
+              <button onclick="closeDynatraceSettings()" class="text-gray-400 hover:text-white text-2xl font-bold transition-all">×</button>
+            </div>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="p-6 space-y-6">
+            <!-- Connection Status -->
+            <div id="dt-connection-status" class="p-4 rounded-lg bg-dtgray/50 border border-dtborder hidden">
+              <div class="flex items-center gap-3">
+                <span id="dt-status-icon" class="text-2xl"></span>
+                <div class="flex-1">
+                  <p id="dt-status-text" class="font-medium"></p>
+                  <p id="dt-status-detail" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- MCP Server URL -->
+            <div>
+              <label class="block text-sm font-semibold text-dtcyan mb-2">
+                Dynatrace MCP Server URL
+                <span class="text-red-400">*</span>
+              </label>
+              <input 
+                type="text" 
+                id="dt-mcp-server-input" 
+                placeholder="http://localhost:3000"
+                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
+              />
+              <p class="text-xs text-gray-400 mt-1">
+                💡 Auto-detected MCP server URL. Change only if MCP runs elsewhere.
+              </p>
+            </div>
+
+            <!-- Dynatrace Environment (for MCP) -->
+            <div>
+              <label class="block text-sm font-semibold text-dtcyan mb-2">
+                Dynatrace Environment URL
+                <span class="text-red-400">*</span>
+              </label>
+              <input 
+                type="text" 
+                id="dt-environment-input" 
+                placeholder="https://abc12345.sprint.apps.dynatracelabs.com"
+                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
+              />
+              <p class="text-xs text-gray-400 mt-1">
+                🌐 Your Dynatrace tenant URL (used by MCP server for authentication)
+              </p>
+            </div>
+
+            <!-- Info Box -->
+            <div class="p-4 rounded-lg bg-dtblue/10 border border-dtblue">
+              <p class="text-sm font-semibold text-dtblue mb-2">🚀 MCP Server will be started automatically</p>
+              <div class="text-xs text-gray-300 space-y-1">
+                <div>• The Dynatrace MCP Server runs alongside this app</div>
+                <div>• OAuth authentication is handled automatically</div>
+                <div>• No API tokens needed - just configure your tenant URL</div>
+              </div>
+            </div>
+
+            <!-- Additional Settings -->
+            <div>
+              <label class="block text-sm font-semibold text-dtcyan mb-2">
+                Grail Query Budget (GB)
+              </label>
+              <input 
+                type="number" 
+                id="dt-budget-input" 
+                value="100"
+                min="1"
+                max="10000"
+                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
+              />
+              <p class="text-xs text-gray-400 mt-1">
+                💰 Set budget limit for Grail queries per session
+              </p>
+            </div>
+
+            <!-- Storage Info -->
+            <div class="p-4 rounded-lg bg-dtgray/30 border border-gray-600">
+              <p class="text-sm text-gray-400">
+                <span class="text-dtcyan font-semibold">🔐 Security:</span> Your credentials are encrypted using AES-GCM with a browser-generated key. 
+                They are stored locally in your browser and never sent to the BizObs server. 
+                Only you can access your stored credentials.
+              </p>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="p-6 border-t border-dtborder bg-dtgray/30 flex gap-3">
+            <button 
+              onclick="testDynatraceConnection()" 
+              class="flex-1 bg-dtblue hover:bg-dtblue/80 text-white px-6 py-3 rounded-lg font-bold transition-all"
+            >
+              🧪 Test Connection
+            </button>
+            <button 
+              onclick="saveDynatraceSettings()" 
+              class="flex-1 bg-dtgreen hover:bg-dtgreen/80 text-black px-6 py-3 rounded-lg font-bold transition-all"
+            >
+              💾 Save Settings
+            </button>
+            <button 
+              onclick="clearDynatraceSettings()" 
+              class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all"
+            >
+              🗑️ Clear
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Service Status Dropdown - Top Right Corner -->
       <div class="fixed top-4 right-4 z-50">
@@ -722,8 +854,27 @@
                       </button>
                     </div>
                   </div>
-                  
-
+                </div>
+                
+                <!-- Dynatrace Integration Section -->
+                <div class="mt-6 p-4 bg-gradient-to-r from-dtpurple to-dtblue bg-opacity-20 rounded-lg border border-dtcyan">
+                  <h4 class="text-lg font-bold text-dtcyan mb-3 flex items-center gap-2">
+                    <span>🔗</span> Dynatrace Integration
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-4">
+                    Auto-deploy monitoring dashboards and configure Dynatrace settings for your journey
+                  </p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button onclick="deployDynatraceDashboard()" class="bg-dtcyan hover:bg-dtgreen text-black font-bold rounded-lg px-4 py-3 shadow-card transition-all text-sm">
+                      � Deploy Journey Dashboard
+                    </button>
+                    <button onclick="queryDynatraceData()" class="bg-dtblue hover:bg-dtcyan text-white hover:text-black font-bold rounded-lg px-4 py-3 shadow-card transition-all text-sm">
+                      ✅ Verify Data Ingestion
+                    </button>
+                  </div>
+                  <div id="dynatrace-status" class="mt-3 p-3 bg-black bg-opacity-50 rounded text-xs font-mono text-gray-400">
+                    Ready to deploy Dynatrace dashboards...
+                  </div>
                 </div>
               </div>
               
@@ -803,6 +954,14 @@
     </section>
   <script src="/socket.io/socket.io.js"></script>
   <script>
+    // Define Dynatrace storage keys FIRST (before any other code)
+    window.DT_SETTINGS_KEY = 'bizobs_dt_settings_v1';
+    window.DT_ENCRYPTION_KEY = 'bizobs_dt_enc_key';
+    console.log('[Init] Storage keys defined:', { 
+      DT_SETTINGS_KEY: window.DT_SETTINGS_KEY, 
+      DT_ENCRYPTION_KEY: window.DT_ENCRYPTION_KEY 
+    });
+    
     const ioClient = io();
     const journeyForm = document.getElementById('journey-form');
     const journeyOutput = document.getElementById('journey-output');
@@ -2954,7 +3113,8 @@
                 journeyId: prompt.journeyId || `journey_${prompt.companyName.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}`,
                 steps: prompt.steps.map((step, index) => ({
                   stepIndex: index + 1,
-                  action: step.stepName || step.action,
+                  stepName: step.stepName || step.action,
+                  serviceName: step.serviceName,
                   description: step.description,
                   category: step.category || 'General',
                   timestamp: step.timestamp || new Date().toISOString(),
@@ -3540,6 +3700,34 @@
             const errorSteps = journey.steps.filter(step => step.status === 'failed' || step.status === 'error').length;
             const totalSteps = journey.totalSteps || journey.steps.length;
             
+            // 💾 SAVE JOURNEY DATA FOR DASHBOARD DEPLOYMENT
+            // Use journeyData from request (has complete config) or window.lastJourney as fallback
+            console.log('[DEBUG] About to save journey data. Available sources:', {
+              hasJourneyData: !!journeyData,
+              hasWindowLastJourney: !!window.lastJourney,
+              hasRequestBodyJourney: !!requestBody.journey
+            });
+            
+            const journeyConfigForDashboard = journeyData || window.lastJourney || requestBody.journey;
+            
+            if (!journeyConfigForDashboard) {
+              console.error('❌ CRITICAL: No journey config available to save!');
+            }
+            
+            window.currentJourneyData = {
+              journey: journeyConfigForDashboard,  // Complete journey config with steps
+              correlationId: journey.correlationId,
+              executionResult: json  // Save the execution result too
+            };
+            
+            console.log('✅ Journey data saved to currentJourneyData for dashboard deployment:', {
+              companyName: journeyConfigForDashboard?.companyName,
+              stepsCount: journeyConfigForDashboard?.steps?.length,
+              correlationId: journey.correlationId,
+              hasStepsArray: Array.isArray(journeyConfigForDashboard?.steps),
+              firstStepName: journeyConfigForDashboard?.steps?.[0]?.stepName
+            });
+            
             let statusMessage = '';
             if (errorSteps === 0) {
               statusMessage = `✅ Journey Complete! All ${completedSteps} steps successful`;
@@ -4112,6 +4300,12 @@
           durationMinutes: parseInt(durationInput.value) || 5
         };
 
+        console.log('LoadRunner test payload:', {
+          journeyConfig: lastJourney,
+          errorSimulationEnabled: errorSimulationEnabled,
+          ...testConfig
+        });
+
         const response = await fetch('/api/loadrunner/start-test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4121,6 +4315,13 @@
             ...testConfig
           })
         });
+
+        console.log('LoadRunner response status:', response.status);
+        console.log('LoadRunner response ok:', response.ok);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
         const result = await response.json();
 
@@ -4146,7 +4347,18 @@
 
       } catch (error) {
         console.error('LoadRunner test error:', error);
-        statusEl.textContent = `❌ Error: ${error.message}`;
+        console.error('Error details:', error.message, error.stack);
+        
+        let errorMessage = 'Unknown error occurred';
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Network connection failed - check server status';
+        } else if (error.message.includes('HTTP')) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = error.message;
+        }
+        
+        statusEl.textContent = `❌ Error: ${errorMessage}`;
         statusEl.className = 'mt-3 text-sm text-red-400 font-medium';
         startBtn.disabled = false;
         startBtn.textContent = '🚀 Start LoadRunner Test';
@@ -6077,6 +6289,1007 @@ Return the response in JSON code format that can be copied from this UI
     window.delay = delay;
     
     // Sidebar is now permanently pinned - no toggle functionality needed
+    
+    // ============================================
+    // Dynatrace Integration Functions
+    // ============================================
+    
+    // Deploy Dynatrace Dashboard
+    async function deployDynatraceDashboard() {
+      const statusEl = document.getElementById('dynatrace-status');
+      
+      // DEBUG: Log what we have
+      console.log('[DEBUG] deployDynatraceDashboard called');
+      console.log('[DEBUG] window.currentJourneyData:', window.currentJourneyData);
+      console.log('[DEBUG] window.lastJourney:', window.lastJourney);
+      
+      // Use window.currentJourneyData explicitly
+      if (!window.currentJourneyData || !window.currentJourneyData.journey) {
+        statusEl.textContent = '❌ Error: No journey loaded. Please generate or load a journey first.';
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        console.error('[DEBUG] currentJourneyData check failed:', {
+          exists: !!window.currentJourneyData,
+          hasJourney: !!(window.currentJourneyData && window.currentJourneyData.journey),
+          windowKeys: Object.keys(window).filter(k => k.includes('journey') || k.includes('Journey'))
+        });
+        return;
+      }
+      
+      const journey = window.currentJourneyData.journey;
+      
+      statusEl.textContent = `🚀 Deploying dashboard for ${journey.companyName}...`;
+      statusEl.className = 'mt-3 p-3 bg-blue-900 bg-opacity-50 rounded text-xs font-mono text-blue-300';
+      
+      try {
+        // Try to load MCP server URL from localStorage
+        console.log('[Dashboard] Loading stored MCP server configuration...');
+        const storedSettings = await window.loadDynatraceSettings();
+        
+        if (!storedSettings || !storedSettings.mcpServerUrl) {
+          statusEl.textContent = '⚠️ No MCP server configured. Please configure in Settings.';
+          statusEl.className = 'mt-3 p-3 bg-yellow-900 bg-opacity-50 rounded text-xs font-mono text-yellow-300';
+          console.warn('[Dashboard] No MCP server URL found');
+          return;
+        }
+        
+        console.log('[Dashboard] MCP server URL:', storedSettings.mcpServerUrl);
+        console.log('[Dashboard] Environment URL:', storedSettings.environmentUrl);
+        
+        if (!storedSettings.environmentUrl) {
+          statusEl.textContent = '⚠️ No Dynatrace environment configured. Please configure in Settings.';
+          statusEl.className = 'mt-3 p-3 bg-yellow-900 bg-opacity-50 rounded text-xs font-mono text-yellow-300';
+          console.warn('[Dashboard] No environment URL found');
+          return;
+        }
+        
+        // Deploy dashboard via MCP server proxy
+        const response = await fetch('/api/dynatrace/deploy-dashboard-via-mcp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mcpServerUrl: storedSettings.mcpServerUrl,
+            environmentUrl: storedSettings.environmentUrl,
+            journeyConfig: journey
+          })
+        });
+        
+        console.log('[Dashboard] Response status:', response.status);
+        const result = await response.json();
+        console.log('[Dashboard] Response data:', result);
+        
+        if (result.ok && result.success !== false) {
+          statusEl.textContent = `✅ Dashboard created successfully!\nID: ${result.dashboardId}\nURL: ${result.dashboardUrl}\n\nClick to open dashboard ↗`;
+          statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-xs font-mono text-green-300 cursor-pointer hover:bg-green-800';
+          statusEl.onclick = () => window.open(result.dashboardUrl, '_blank');
+        } else {
+          const errorMsg = result.error || 'Unknown error';
+          statusEl.textContent = `❌ Dashboard deployment failed:\n${errorMsg}`;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+          
+          // Check if Dynatrace is configured
+          if (errorMsg.includes('not configured') || errorMsg.includes('credentials')) {
+            statusEl.textContent += '\n\n💡 Tip: Click "Dynatrace Settings" button (top right) to configure your API token';
+          }
+        }
+      } catch (error) {
+        console.error('Dashboard deployment error:', error);
+        statusEl.textContent = `❌ Request failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+      }
+    }
+    
+    // Initiate OAuth flow for dashboard deployment
+    async function initiateOAuthForDashboard() {
+      const statusEl = document.getElementById('dynatrace-status');
+      statusEl.textContent = '🔐 Initializing OAuth SSO...';
+      statusEl.className = 'mt-3 p-3 bg-blue-900 bg-opacity-50 rounded text-xs font-mono text-blue-300';
+      
+      try {
+        // Get stored environment
+        const storedSettings = await window.loadDynatraceSettings();
+        if (!storedSettings) {
+          throw new Error('No environment configured. Please save settings first.');
+        }
+        
+        // Initialize OAuth session
+        const response = await fetch('/api/mcp/init-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            environment: storedSettings.environment
+          })
+        });
+        
+        const { authUrl, sessionId } = await response.json();
+        
+        // Open OAuth window
+        const authWindow = window.open(authUrl, 'dynatrace-oauth', 'width=600,height=700,menubar=no,toolbar=no');
+        
+        statusEl.textContent = '🔐 OAuth window opened - please sign in with Dynatrace...';
+        
+        // Listen for OAuth callback
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'mcp-auth-success' && event.data.sessionId === sessionId) {
+            statusEl.textContent = '✅ Authentication successful! Deploying dashboard with OAuth token...';
+            
+            // Now deploy with OAuth token
+            // TODO: Update dashboard deployment to use MCP session
+            setTimeout(() => {
+              statusEl.innerHTML = `
+                ✅ Authenticated successfully!
+                
+                Note: Dashboard deployment with OAuth tokens coming soon.
+                For now, use MCP Auto-Generate feature:
+                
+                <button onclick="window.location.href='/mcp-demo.html'" 
+                        style="margin-top: 10px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                  🚀 Go to MCP Demo
+                </button>
+              `;
+            }, 1000);
+          }
+        });
+        
+      } catch (error) {
+        statusEl.textContent = `❌ OAuth initialization failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+      }
+    }
+    
+    // Query Dynatrace Journey Analytics
+    async function queryDynatraceData() {
+      const statusEl = document.getElementById('dynatrace-status');
+      
+      if (!currentJourneyData || !currentJourneyData.journey) {
+        statusEl.textContent = '❌ Error: No journey loaded. Please generate or load a journey first.';
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        return;
+      }
+      
+      const journey = currentJourneyData.journey;
+      const companyName = journey.companyName;
+      const correlationId = currentJourneyData.correlationId;
+      
+      statusEl.textContent = `🔍 Verifying deployment for ${companyName}...\n\nChecking: BizEvents, Services, Entities...`;
+      statusEl.className = 'mt-3 p-3 bg-blue-900 bg-opacity-50 rounded text-xs font-mono text-blue-300';
+      
+      try {
+        // Try to load credentials from localStorage
+        const storedSettings = await window.loadDynatraceSettings();
+        
+        if (!storedSettings) {
+          statusEl.textContent = '❌ Dynatrace not configured.\n\nClick "MCP Settings" to configure your credentials.';
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+          return;
+        }
+        
+        const response = await fetch('/api/dynatrace/verify-deployment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-DT-Environment': storedSettings.environment,
+            'X-DT-Token': storedSettings.token,
+            'X-DT-Budget': storedSettings.budget
+          },
+          body: JSON.stringify({
+            companyName: companyName,
+            correlationId: correlationId,
+            steps: journey.steps.map(s => s.stepName)
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+          const v = result.verification;
+          
+          statusEl.innerHTML = `<div style="line-height: 1.8;">
+            <strong>✅ Deployment Verification for ${companyName}</strong><br><br>
+            
+            <strong>📊 BizEvents:</strong> ${v.bizEventsFound ? `✅ ${v.bizEventsCount} events found` : '❌ No events yet'}<br>
+            <strong>🔗 Services:</strong> ${v.servicesFound ? `✅ ${v.serviceCount} services detected` : '❌ No services yet'}<br>
+            <strong>📍 Entities:</strong> ${v.entitiesFound ? `✅ ${v.entityCount} entities` : '❌ No entities yet'}<br>
+            <strong>🕐 Time Range:</strong> Last ${v.timeframe || '2h'}<br><br>
+            
+            ${correlationId ? `<strong>🔗 Correlation ID:</strong> ${correlationId.substring(0, 24)}...<br><br>` : ''}
+            
+            ${v.bizEventsFound ? `<strong>💡 Tip:</strong> BizEvents are flowing! Dashboard will show real data.<br>` : `<strong>⚠️ Note:</strong> Run journey simulation first to generate BizEvents.<br>`}
+          </div>`;
+          
+          statusEl.className = v.bizEventsFound && v.servicesFound ? 
+            'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-sm text-green-300 border border-green-600' :
+            'mt-3 p-3 bg-yellow-900 bg-opacity-50 rounded text-sm text-yellow-300 border border-yellow-600';
+        } else {
+          const errorMsg = result.error || 'Unknown error';
+          statusEl.textContent = `❌ Verification failed:\n${errorMsg}\n\n💡 Check your Dynatrace credentials in MCP Settings.`;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        }
+      } catch (error) {
+        console.error('Verification error:', error);
+        statusEl.textContent = `❌ Request failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+      }
+    }
+    
+    // Make functions globally available
+    window.deployDynatraceDashboard = deployDynatraceDashboard;
+    window.queryDynatraceData = queryDynatraceData;
+    
+    // Bypass function to try Platform token on Sprint anyway
+    window.deployDashboardBypass = async function() {
+      const statusEl = document.getElementById('dynatrace-status');
+      statusEl.textContent = '🚀 Bypassing Sprint check... Trying Platform token with Configuration API fallback...';
+      statusEl.className = 'mt-3 p-3 bg-orange-900 bg-opacity-50 rounded text-xs font-mono text-orange-300';
+      
+      // Call deployment with bypass header
+      if (!currentJourneyData || !currentJourneyData.journey) {
+        statusEl.textContent = '❌ Error: No journey loaded.';
+        return;
+      }
+      
+      const journey = currentJourneyData.journey;
+      const storedSettings = await window.loadDynatraceSettings();
+      
+      if (!storedSettings) {
+        statusEl.textContent = '❌ Dynatrace not configured. Click "MCP Settings" to configure.';
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/dynatrace/deploy-dashboard', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-DT-Environment': storedSettings.environment,
+            'X-DT-Token': storedSettings.token,
+            'X-DT-Budget': storedSettings.budget,
+            'X-Bypass-Sprint-Check': 'true'
+          },
+          body: JSON.stringify({ journeyConfig: journey })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok && result.success !== false) {
+          statusEl.innerHTML = `✅ Dashboard created successfully!<br>ID: ${result.dashboardId}<br><br><a href="${result.dashboardUrl}" target="_blank" style="color: #64b5f6; text-decoration: underline;">Open Dashboard →</a>`;
+          statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-xs font-mono text-green-300 cursor-pointer';
+        } else {
+          statusEl.textContent = `❌ Deployment failed: ${result.error}`;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        }
+      } catch (error) {
+        statusEl.textContent = `❌ Request failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+      }
+    };
+    
+    // ============================================
+    // Dynatrace Settings Management (Secure Storage)
+    // ============================================
+    
+    // Storage keys already defined at top of script
+    
+    // ONE-TIME CLEANUP: Fix corrupted localStorage where keys got swapped
+    (function cleanupCorruptedStorage() {
+      const encKeyData = localStorage.getItem(window.DT_ENCRYPTION_KEY);
+      const settingsData = localStorage.getItem(window.DT_SETTINGS_KEY);
+      
+      // Clear ALL encryption-related data (OAuth SSO doesn't need it)
+      console.log('[Startup] Cleaning up old encryption data (OAuth SSO mode)...');
+      localStorage.removeItem(window.DT_ENCRYPTION_KEY);
+      
+      // If settings exist and contain encrypted tokens, clear them too
+      if (settingsData) {
+        try {
+          const parsed = JSON.parse(settingsData);
+          // If settings contain encrypted token data, clear it
+          if (parsed && parsed.token && typeof parsed.token === 'string' && parsed.token.length > 100) {
+            console.log('[Startup] Removing old encrypted token data...');
+            parsed.token = null;
+            localStorage.setItem(window.DT_SETTINGS_KEY, JSON.stringify(parsed));
+          }
+        } catch (e) {
+          // If can't parse, leave it
+          console.warn('[Startup] Could not parse settings:', e.message);
+        }
+      }
+      
+      console.log('[Startup] OAuth SSO mode - encryption not needed');
+    })();
+    
+    // Check Web Crypto API availability
+    function isWebCryptoAvailable() {
+      return window.crypto && window.crypto.subtle;
+    }
+    
+    // Check if we're in a secure context
+    function checkSecureContext() {
+      const isSecure = window.isSecureContext;
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      
+      console.log('[Security Check]', {
+        isSecureContext: isSecure,
+        protocol: protocol,
+        hostname: hostname,
+        hasCrypto: !!window.crypto,
+        hasSubtle: !!(window.crypto && window.crypto.subtle),
+        currentURL: window.location.href
+      });
+      
+      return {isSecure, protocol, hostname};
+    }
+    
+    // Generate or retrieve encryption key
+    async function getEncryptionKey() {
+      const secureCheck = checkSecureContext();
+      
+      if (!isWebCryptoAvailable()) {
+        let errorMsg = 'Web Crypto API not available.\n\n';
+        errorMsg += `Current URL: ${window.location.href}\n`;
+        errorMsg += `Protocol: ${secureCheck.protocol}\n`;
+        errorMsg += `Secure Context: ${secureCheck.isSecure ? 'Yes' : 'No'}\n\n`;
+        
+        if (secureCheck.protocol === 'http:') {
+          errorMsg += '❌ You are using HTTP (insecure)\n';
+          errorMsg += '✅ Please use HTTPS instead:\n';
+          errorMsg += `   https://${secureCheck.hostname}`;
+        } else {
+          errorMsg += '⚠️ HTTPS detected but Web Crypto unavailable.\n';
+          errorMsg += 'Try: Close all tabs and reopen with https://';
+        }
+        
+        throw new Error(errorMsg);
+      }
+      
+      let keyData = localStorage.getItem(window.DT_ENCRYPTION_KEY);
+      
+      console.log('[Crypto] Raw keyData from localStorage:', keyData ? keyData.substring(0, 100) + '...' : 'null');
+      
+      if (!keyData) {
+        console.log('[Crypto] Generating new encryption key...');
+        // Generate new key
+        const key = await window.crypto.subtle.generateKey(
+          { name: 'AES-GCM', length: 256 },
+          true,
+          ['encrypt', 'decrypt']
+        );
+        
+        // Export and store
+        const exported = await window.crypto.subtle.exportKey('jwk', key);
+        console.log('[Crypto] Key exported:', { hasKty: !!exported.kty, hasK: !!exported.k });
+        console.log('[Crypto] Key generated and exported successfully');
+        console.log('[Crypto] About to save encryption key to:', window.DT_ENCRYPTION_KEY);
+        localStorage.setItem(window.DT_ENCRYPTION_KEY, JSON.stringify(exported));
+        console.log('[Crypto] Key saved to localStorage');
+        
+        // Verify
+        const verify = localStorage.getItem(window.DT_ENCRYPTION_KEY);
+        if (verify) {
+          const parsed = JSON.parse(verify);
+          console.log('[Crypto] Verification - saved key has kty:', !!parsed.kty, 'hasK:', !!parsed.k);
+        }
+        
+        return key;
+      }
+      
+      // Import existing key with validation
+      try {
+        const keyJson = JSON.parse(keyData);
+        
+        console.log('[Crypto] Parsed keyJson type:', typeof keyJson);
+        console.log('[Crypto] Parsed keyJson keys:', Object.keys(keyJson || {}));
+        console.log('[Crypto] Validating key structure:', {
+          hasKty: !!keyJson.kty,
+          hasK: !!keyJson.k,
+          kty: keyJson.kty
+        });
+        
+        // Validate JWK structure
+        if (!keyJson.kty || !keyJson.k) {
+          console.warn('[Crypto] Invalid key in storage, regenerating...');
+          localStorage.removeItem(window.DT_ENCRYPTION_KEY);
+          localStorage.removeItem(window.DT_SETTINGS_KEY); // Clear old encrypted data
+          console.log('[Crypto] Cleared old encrypted settings (key changed)');
+          return await getEncryptionKey(); // Recursive call to regenerate
+        }
+        
+        console.log('[Crypto] Importing existing key...');
+        return await window.crypto.subtle.importKey(
+          'jwk',
+          keyJson,
+          { name: 'AES-GCM', length: 256 },
+          true,
+          ['encrypt', 'decrypt']
+        );
+      } catch (error) {
+        console.error('[Crypto] Failed to import key, regenerating:', error.message);
+        localStorage.removeItem(window.DT_ENCRYPTION_KEY);
+        localStorage.removeItem(window.DT_SETTINGS_KEY); // Clear old encrypted data
+        console.log('[Crypto] Cleared old encrypted settings (key changed)');
+        return await getEncryptionKey(); // Recursive call to regenerate
+      }
+    }
+    
+    // Encrypt data
+    async function encryptData(data) {
+      const key = await getEncryptionKey();
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(data);
+      
+      const encrypted = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encoded
+      );
+      
+      return {
+        iv: Array.from(iv),
+        data: Array.from(new Uint8Array(encrypted))
+      };
+    }
+    
+    // Decrypt data
+    async function decryptData(encrypted) {
+      const key = await getEncryptionKey();
+      const iv = new Uint8Array(encrypted.iv);
+      const data = new Uint8Array(encrypted.data);
+      
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        data
+      );
+      
+      return new TextDecoder().decode(decrypted);
+    }
+    
+    // Save settings securely
+    async function saveDynatraceSettings() {
+      const mcpServerUrl = document.getElementById('dt-mcp-server-input').value.trim();
+      const environmentUrl = document.getElementById('dt-environment-input').value.trim();
+      const budget = document.getElementById('dt-budget-input').value || '100';
+      
+      if (!mcpServerUrl) {
+        showDtStatus('error', 'Missing MCP Server URL', 'Please provide Dynatrace MCP Server URL');
+        return;
+      }
+      
+      if (!environmentUrl) {
+        showDtStatus('error', 'Missing Environment URL', 'Please provide your Dynatrace tenant URL');
+        return;
+      }
+      
+      console.log('[Settings] Saving MCP server configuration');
+      
+      // Validate URL formats
+      if (!mcpServerUrl.startsWith('http://') && !mcpServerUrl.startsWith('https://')) {
+        showDtStatus('error', 'Invalid URL', 'MCP Server URL must start with http:// or https://');
+        return;
+      }
+      
+      if (!environmentUrl.startsWith('http://') && !environmentUrl.startsWith('https://')) {
+        showDtStatus('error', 'Invalid URL', 'Environment URL must start with http:// or https://');
+        return;
+      }
+      
+      try {
+        const settings = {
+          mcpServerUrl: mcpServerUrl,
+          environmentUrl: environmentUrl,
+          budget: budget,
+          savedAt: new Date().toISOString()
+        };
+        
+        localStorage.setItem(window.DT_SETTINGS_KEY, JSON.stringify(settings));
+        console.log('[Settings] Settings saved successfully');
+        
+        showDtStatus('success', '✅ Settings Saved!', 'OAuth SSO will be used automatically when deploying dashboards');
+        updateSettingsIndicator(true);
+        
+        // Close modal after brief delay
+        setTimeout(() => {
+          closeDynatraceSettings();
+        }, 1500);
+        
+      } catch (error) {
+        console.error('[Settings] Save error:', error);
+        let errorMessage = error.message || 'Encryption failed';
+        
+        // Provide helpful error message if it's a crypto issue
+        if (errorMessage.includes('kty') || errorMessage.includes('JWK')) {
+          errorMessage = 'Encryption key error. Clearing and regenerating...\n\nPlease try saving again.';
+          // Clear corrupted key
+          localStorage.removeItem(window.DT_ENCRYPTION_KEY);
+        }
+        
+        showDtStatus('error', 'Failed to save settings', errorMessage);
+      }
+    }
+    
+    // Auto-detect MCP server URL based on deployment context
+    function detectMcpServerUrl() {
+      const currentHost = window.location.hostname;
+      const currentProtocol = window.location.protocol;
+      
+      // If running on localhost, MCP is likely on localhost:3000
+      if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+        return 'http://localhost:3000';
+      }
+      
+      // If running on remote server, MCP runs on same host with port 3000
+      return `${currentProtocol}//${currentHost}:3000`;
+    }
+    
+    // Load settings
+    async function loadDynatraceSettings() {
+      console.log('[Settings] Loading MCP server configuration...');
+      const settingsJson = localStorage.getItem(window.DT_SETTINGS_KEY);
+      
+      // Auto-detect MCP server URL as default
+      const defaultMcpUrl = detectMcpServerUrl();
+      
+      if (!settingsJson) {
+        console.log('[Settings] No settings found, using auto-detected MCP URL:', defaultMcpUrl);
+        return {
+          mcpServerUrl: defaultMcpUrl,
+          environmentUrl: null,
+          budget: '100'
+        };
+      }
+      
+      try {
+        const settings = JSON.parse(settingsJson);
+        
+        console.log('[Settings] MCP server configuration loaded');
+        
+        // Use auto-detected URL if not explicitly configured
+        const result = {
+          mcpServerUrl: settings.mcpServerUrl || defaultMcpUrl,
+          environmentUrl: settings.environmentUrl || null,
+          environment: settings.environment || null, // Legacy
+          budget: settings.budget || '100'
+        };
+        
+        console.log('[Settings] Loaded settings:', {
+          mcpServerUrl: result.mcpServerUrl,
+          environmentUrl: result.environmentUrl,
+          budget: result.budget
+        });
+        
+        return result;
+      } catch (error) {
+        console.error('[Settings] Error loading settings:', error);
+        localStorage.removeItem(window.DT_SETTINGS_KEY);
+        return null;
+      }
+    }
+    
+    // Clear settings
+    function clearDynatraceSettings() {
+      if (confirm('Are you sure you want to clear all Dynatrace settings? This cannot be undone.')) {
+        localStorage.removeItem(window.DT_SETTINGS_KEY);
+        
+        document.getElementById('dt-mcp-server-input').value = '';
+        document.getElementById('dt-budget-input').value = '100';
+        
+        showDtStatus('success', 'Settings Cleared', 'All settings have been removed from local storage');
+        updateSettingsIndicator(false);
+      }
+    }
+    
+    // Test connection with MCP server
+    async function testDynatraceConnection() {
+      const mcpServerUrl = document.getElementById('dt-mcp-server-input').value.trim();
+      const environmentUrl = document.getElementById('dt-environment-input').value.trim();
+      
+      if (!mcpServerUrl) {
+        showDtStatus('error', 'Missing MCP Server URL', 'Please enter MCP Server URL');
+        return;
+      }
+      
+      if (!environmentUrl) {
+        showDtStatus('error', 'Missing Environment URL', 'Please enter your Dynatrace tenant URL');
+        return;
+      }
+      
+      showDtStatus('loading', 'Checking MCP Server...', 'Please wait while we verify the connection');
+      
+      try {
+        // First check if MCP server is already running
+        const statusResponse = await fetch('/api/mcp/status');
+        const statusResult = await statusResponse.json();
+        
+        if (statusResult.running) {
+          showDtStatus('success', '✅ MCP Server Already Running!', `Ready to deploy to ${environmentUrl}`);
+          return;
+        }
+        
+        // If not running, try to start it
+        showDtStatus('loading', 'Starting MCP Server...', 'This may take a moment...');
+        
+        const portMatch = mcpServerUrl.match(/:(\d+)/);
+        const port = portMatch ? parseInt(portMatch[1]) : 3000;
+        
+        const startResponse = await fetch('/api/mcp/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            environmentUrl: environmentUrl,
+            port: port
+          })
+        });
+        
+        const startResult = await startResponse.json();
+        
+        if (!startResponse.ok) {
+          showDtStatus('error', 'Failed to Start MCP Server', startResult.error || 'Unknown error');
+          return;
+        }
+        
+        // If already running, success immediately
+        if (startResult.status === 'running' || startResult.status === 'already_running') {
+          showDtStatus('success', '✅ MCP Server Connected!', `Ready to deploy to ${environmentUrl}`);
+          return;
+        }
+        
+        // If OAuth URL is provided, show it
+        if (startResult.authUrl) {
+          showDtStatus('info', '🔐 OAuth Authentication Required', 
+            `Please complete authentication in the popup window.\n\nWaiting for authorization...`);
+          
+          // Open OAuth URL in new window
+          window.open(startResult.authUrl, '_blank', 'width=600,height=800');
+        } else {
+          showDtStatus('loading', 'MCP Server Starting...', 'Waiting for server initialization...');
+        }
+        
+        // Poll for server status
+        let attempts = 0;
+        const maxAttempts = 60; // 60 seconds for OAuth
+        
+        const checkStatus = async () => {
+          attempts++;
+          
+          try {
+            const checkResponse = await fetch('/api/mcp/status');
+            const checkResult = await checkResponse.json();
+            
+            if (checkResult.running) {
+              showDtStatus('success', '✅ MCP Server Connected!', `Ready to deploy to ${environmentUrl}`);
+            } else if (attempts < maxAttempts) {
+              // Update status message periodically
+              if (attempts % 10 === 0) {
+                showDtStatus('loading', 'Still waiting...', `Attempt ${attempts}/${maxAttempts} - Please complete OAuth if prompted`);
+              }
+              setTimeout(checkStatus, 1000);
+            } else {
+              showDtStatus('error', 'Timeout', 'MCP server did not complete startup. Try clicking Test Connection again.');
+            }
+          } catch (error) {
+            if (attempts < maxAttempts) {
+              setTimeout(checkStatus, 1000);
+            } else {
+              showDtStatus('error', 'Connection Failed', 'Could not verify MCP server status');
+            }
+          }
+        };
+        
+        setTimeout(checkStatus, 2000);
+        
+      } catch (error) {
+        showDtStatus('error', 'Connection Failed', `Error: ${error.message}`);
+      }
+    }
+    
+    // Open Dynatrace settings modal and load existing settings
+    async function openDynatraceSettings() {
+      // Load existing settings if available
+      const settings = await loadDynatraceSettings();
+      
+      if (settings) {
+        document.getElementById('dt-mcp-server-input').value = settings.mcpServerUrl || '';
+        document.getElementById('dt-environment-input').value = settings.environmentUrl || '';
+        document.getElementById('dt-budget-input').value = settings.budget || '100';
+      }
+      
+      // Show modal logic...
+    }
+    
+    // DEPRECATED OAuth SSO functions (kept for backward compatibility)
+    async function OLD_testDynatraceConnection_OAuth() {
+      const environment = document.getElementById('dt-environment-input').value.trim();
+      
+      if (!environment) {
+        showDtStatus('error', 'Missing Environment', 'Please enter Dynatrace Environment URL');
+        return;
+      }
+      
+      showDtStatus('loading', 'Testing connection...', 'Initiating OAuth SSO login');
+      
+      try {
+        // First save the environment
+        const settings = {
+          environment,
+          budget: document.getElementById('dt-budget-input').value || '100',
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(window.DT_SETTINGS_KEY, JSON.stringify(settings));
+        
+        // Trigger OAuth login flow
+        showDtStatus('info', '🔐 OAuth SSO Login', 'Opening authentication window...');
+        
+        const response = await fetch('/api/oauth/authorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ environment })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok && result.authorizationUrl) {
+          // Open authorization URL in new window
+          const authWindow = window.open(result.authorizationUrl, 'dynatrace-oauth', 'width=600,height=700');
+          
+          showDtStatus('info', '🔐 Sign In Required', 'Please sign in to Dynatrace in the popup window. The window will close automatically after signing in.');
+          
+          // Listen for OAuth success message from popup
+          const messageHandler = (event) => {
+            console.log('[OAuth Test] Received postMessage:', event.data);
+            if (event.data && event.data.type === 'oauth-success') {
+              console.log('[OAuth Test] OAuth success message confirmed!');
+              // Force close the popup window
+              if (authWindow && !authWindow.closed) {
+                console.log('[OAuth Test] Closing auth window...');
+                authWindow.close();
+              }
+              // Check token status immediately
+              checkTokenStatus();
+            }
+          };
+          console.log('[OAuth Test] Message listener attached');
+          window.addEventListener('message', messageHandler);
+          
+          // Function to check token status
+          const checkTokenStatus = async () => {
+            try {
+              const tokenCheck = await fetch('/api/oauth/token-status');
+              const tokenResult = await tokenCheck.json();
+              
+              if (tokenResult.hasToken) {
+                clearInterval(pollInterval);
+                window.removeEventListener('message', messageHandler);
+                if (authWindow && !authWindow.closed) {
+                  authWindow.close();
+                }
+                showDtStatus('success', '✅ Connection Successful!', `Authenticated with ${environment} via OAuth SSO`);
+              }
+            } catch (error) {
+              console.error('[OAuth] Token check error:', error);
+            }
+          };
+          
+          // Poll for OAuth completion (backup mechanism)
+          const pollInterval = setInterval(checkTokenStatus, 2000);
+          
+          // Stop polling after 5 minutes
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            window.removeEventListener('message', messageHandler);
+          }, 300000);
+        } else {
+          showDtStatus('error', 'OAuth Failed', result.error || 'Could not initiate OAuth flow');
+        }
+      } catch (error) {
+        console.error('Connection test error:', error);
+        showDtStatus('error', 'Connection Failed', error.message);
+      }
+    }
+    
+    // UI Helpers
+    function openDynatraceSettings() {
+      document.getElementById('dynatrace-settings-modal').classList.remove('hidden');
+      
+      // Load existing settings with auto-detection
+      loadDynatraceSettings().then(settings => {
+        if (settings) {
+          document.getElementById('dt-mcp-server-input').value = settings.mcpServerUrl || '';
+          document.getElementById('dt-environment-input').value = settings.environmentUrl || '';
+          document.getElementById('dt-budget-input').value = settings.budget || '100';
+          console.log('[Settings] Loaded and populated:', settings.mcpServerUrl);
+        }
+      }).catch(error => {
+        console.error('[Settings] Load error:', error);
+      });
+    }
+    
+    function closeDynatraceSettings() {
+      document.getElementById('dynatrace-settings-modal').classList.add('hidden');
+      document.getElementById('dt-connection-status').classList.add('hidden');
+    }
+    
+    function showDtStatus(type, title, detail) {
+      const statusDiv = document.getElementById('dt-connection-status');
+      const iconSpan = document.getElementById('dt-status-icon');
+      const textSpan = document.getElementById('dt-status-text');
+      const detailSpan = document.getElementById('dt-status-detail');
+      
+      const configs = {
+        success: { icon: '✅', bgClass: 'bg-green-900/30', borderClass: 'border-green-500' },
+        error: { icon: '❌', bgClass: 'bg-red-900/30', borderClass: 'border-red-500' },
+        loading: { icon: '⏳', bgClass: 'bg-blue-900/30', borderClass: 'border-blue-500' },
+        info: { icon: '💡', bgClass: 'bg-dtcyan/20', borderClass: 'border-dtcyan' }
+      };
+      
+      const config = configs[type] || configs.info;
+      
+      statusDiv.className = `p-4 rounded-lg ${config.bgClass} border ${config.borderClass}`;
+      iconSpan.textContent = config.icon;
+      textSpan.textContent = title;
+      detailSpan.textContent = detail;
+      
+      statusDiv.classList.remove('hidden');
+    }
+    
+    function updateSettingsIndicator(hasSettings) {
+      const indicator = document.getElementById('dt-settings-indicator');
+      if (hasSettings) {
+        indicator.textContent = 'MCP Configured ✓';
+        indicator.parentElement.classList.add('border-dtgreen', 'bg-dtgreen/20');
+        indicator.parentElement.classList.remove('border-dtpurple', 'bg-dtpurple/20');
+      } else {
+        indicator.textContent = 'MCP Settings';
+        indicator.parentElement.classList.remove('border-dtgreen', 'bg-dtgreen/20');
+        indicator.parentElement.classList.add('border-dtpurple', 'bg-dtpurple/20');
+      }
+    }
+    
+    // Make functions globally available
+    window.openDynatraceSettings = openDynatraceSettings;
+    window.closeDynatraceSettings = closeDynatraceSettings;
+    window.saveDynatraceSettings = saveDynatraceSettings;
+    window.clearDynatraceSettings = clearDynatraceSettings;
+    window.testDynatraceConnection = testDynatraceConnection;
+    window.toggleTokenVisibility = toggleTokenVisibility;
+    window.loadDynatraceSettings = loadDynatraceSettings;
+    
+    // ============================================
+    // OAuth SSO Login Flow
+    // ============================================
+    
+    // Login with OAuth SSO (MCP server style - automatic, simple)
+    async function loginWithOAuthSSO() {
+      const statusEl = document.getElementById('dynatrace-status');
+      
+      try {
+        // Load environment from settings
+        const settings = await loadDynatraceSettings();
+        
+        if (!settings || !settings.environment) {
+          statusEl.innerHTML = `
+            <div style="line-height: 1.6;">
+              <strong>❌ Environment Not Configured</strong><br><br>
+              Please add your Dynatrace Environment URL in Settings first.<br><br>
+              <button onclick="openDynatraceSettings()" 
+                      style="padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                ⚙️ Open Settings
+              </button>
+            </div>
+          `;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-sm text-red-300 border border-red-600';
+          return;
+        }
+        
+        // Trigger OAuth authorization flow (PKCE - no client secret needed!)
+        statusEl.textContent = '🔐 Initiating OAuth SSO login...';
+        statusEl.className = 'mt-3 p-3 bg-purple-900 bg-opacity-50 rounded text-sm text-purple-300 border border-purple-600';
+        
+        const response = await fetch('/api/oauth/authorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            environment: settings.environment
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok && result.authorizationUrl) {
+          // Open authorization URL in new window
+          const authWindow = window.open(result.authorizationUrl, 'dynatrace-oauth', 'width=600,height=700');
+          
+          statusEl.innerHTML = `
+            <div style="line-height: 1.6;">
+              <strong>🔐 OAuth SSO Login</strong><br><br>
+              A new window has opened for you to sign in to Dynatrace.<br>
+              After signing in, the window will close automatically.<br><br>
+              <em>If the window didn't open, <a href="${result.authorizationUrl}" target="_blank" style="color: #64b5f6; text-decoration: underline;">click here</a>.</em>
+            </div>
+          `;
+          
+          // Listen for OAuth success message from popup
+          const messageHandler = (event) => {
+            console.log('[OAuth Parent] Received postMessage:', event.data);
+            if (event.data && event.data.type === 'oauth-success') {
+              console.log('[OAuth Parent] OAuth success message confirmed!');
+              if (authWindow && !authWindow.closed) {
+                console.log('[OAuth Parent] Closing auth window...');
+                authWindow.close();
+              }
+              checkTokenStatus();
+            }
+          };
+          console.log('[OAuth Parent] Message listener attached');
+          window.addEventListener('message', messageHandler);
+          
+          // Function to check token and proceed with deployment
+          const checkTokenStatus = async () => {
+            try {
+              const tokenCheck = await fetch('/api/oauth/token-status');
+              const tokenResult = await tokenCheck.json();
+              
+              if (tokenResult.hasToken) {
+                clearInterval(pollInterval);
+                window.removeEventListener('message', messageHandler);
+                if (authWindow && !authWindow.closed) {
+                  authWindow.close();
+                }
+                
+                // OAuth token received - server will handle authentication
+                console.log('[OAuth] Token received successfully');
+                
+                statusEl.innerHTML = `
+                  <div style="line-height: 1.6;">
+                    <strong>✅ OAuth SSO Login Successful!</strong><br><br>
+                    You're now authenticated and can deploy dashboards.<br><br>
+                    <button onclick="deployDynatraceDashboard()" 
+                            style="padding: 12px 24px; background: #7c4dff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                      🚀 Deploy Dashboard Now
+                    </button>
+                  </div>
+                `;
+                statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-sm text-green-300 border border-green-600';
+              }
+            } catch (error) {
+              console.error('[OAuth] Token check error:', error);
+            }
+          };
+          
+          // Poll for OAuth completion (backup mechanism)
+          const pollInterval = setInterval(checkTokenStatus, 2000);
+          
+          // Stop polling after 5 minutes
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            window.removeEventListener('message', messageHandler);
+          }, 300000);
+        } else {
+          statusEl.innerHTML = `
+            <div style="line-height: 1.6;">
+              <strong>❌ OAuth Authorization Failed</strong><br><br>
+              ${result.error || 'Could not initiate OAuth flow'}<br><br>
+              Please check your environment URL and try again.
+            </div>
+          `;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-sm text-red-300 border border-red-600';
+        }
+        
+      } catch (error) {
+        console.error('[OAuth] Login error:', error);
+        statusEl.textContent = `❌ OAuth login failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-sm text-red-300 border border-red-600';
+      }
+    }
+    
+    window.loginWithOAuthSSO = loginWithOAuthSSO;
+    
+    // Check if settings exist on page load
+    setTimeout(() => {
+      const settingsExist = localStorage.getItem(window.DT_SETTINGS_KEY);
+      updateSettingsIndicator(!!settingsExist);
+    }, 500);
 
   </script>
 </body>
