@@ -474,9 +474,10 @@ export function getChildServiceMeta() {
 }
 
 // Stop all services and free all ports
-export function stopAllServices() {
+export async function stopAllServices() {
+  // First kill tracked services
   Object.values(childServices).forEach(child => {
-    child.kill('SIGTERM');
+    child.kill('SIGKILL');
   });
   
   // Clear all port allocations using port manager
@@ -488,7 +489,22 @@ export function stopAllServices() {
     delete childServices[serviceName];
     delete childServiceMeta[serviceName];
   });
-  console.log(`[service-manager] All services stopped and ports freed from port manager`);
+  
+  // NUCLEAR OPTION: Kill ALL journey services by name, including zombies from previous server restarts
+  console.log('[service-manager] 💣 Killing ALL journey services by name (including zombies)...');
+  const { execSync } = await import('child_process');
+  try {
+    // Kill all journey service processes by name pattern
+    execSync('pkill -9 -f "Service$"', { stdio: 'ignore' });
+    console.log('[service-manager] ✅ All journey services killed by name pattern');
+  } catch (e) {
+    // pkill returns exit code 1 if no processes found, which is fine
+    console.log('[service-manager] No additional journey services found to kill');
+  }
+  
+  // Clean up any stale port allocations (services that died but weren't properly cleaned up)
+  const cleaned = await portManager.cleanupStaleAllocations();
+  console.log(`[service-manager] All services stopped and ports freed from port manager (${cleaned} stale allocations cleaned)`);
 }
 
 // Stop only customer journey services, preserve essential infrastructure services

@@ -1923,6 +1923,23 @@ router.post('/simulate-batch-chained', async (req, res) => {
       return { ...s, ...plan };
     });
 
+    // Cleanup old services and ports before starting new journey
+    try {
+      // Stop any running services from previous journeys (especially other companies)
+      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
+      stopCustomerJourneyServices();
+      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
+      
+      // Clean up any stale port allocations
+      const { portManager } = await import('../services/port-manager.js');
+      const cleaned = await portManager.cleanupStaleAllocations();
+      if (cleaned > 0) {
+        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journey start`);
+      }
+    } catch (cleanupErr) {
+      console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
+    }
+
     // Ensure services running with correct context
     for (const s of errorPlannedSteps) {
       await ensureServiceRunning(s.stepName, { companyName, domain, industryType, stepName: s.stepName, serviceName: s.serviceName, description: s.description, category: s.category });

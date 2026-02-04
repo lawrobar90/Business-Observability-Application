@@ -38,6 +38,7 @@ class PortManager extends EventEmitter {
    * Find the next available port, checking both our tracking and actual availability
    */
   async findAvailablePort() {
+    // First attempt: find port without cleanup
     for (let port = this.minPort; port <= this.maxPort; port++) {
       // Skip if we think it's allocated or being allocated
       if (this.allocatedPorts.has(port) || this.pendingAllocations.has(port)) {
@@ -58,22 +59,32 @@ class PortManager extends EventEmitter {
       }
     }
     
-    // Attempt to clean up stale allocations (in case ports were freed externally)
+    // Second attempt: Aggressively clean up stale allocations (ports freed externally)
+    console.log(`⚠️ [PortManager] No ports found on first scan, attempting aggressive cleanup...`);
     try {
       const cleaned = await this.cleanupStaleAllocations();
+      console.log(`🧹 [PortManager] Cleaned ${cleaned} stale allocations, retrying port scan`);
+      
       if (cleaned > 0) {
-        console.log(`🧹 [PortManager] Cleaned ${cleaned} stale allocations, retrying port scan`);
+        // Retry with fresh scan after cleanup
         for (let port = this.minPort; port <= this.maxPort; port++) {
           if (this.allocatedPorts.has(port) || this.pendingAllocations.has(port)) continue;
-          if (await this.isPortAvailable(port)) return port;
-          this.allocatedPorts.set(port, { service: 'unknown', company: 'unknown', timestamp: Date.now() });
+          if (await this.isPortAvailable(port)) {
+            console.log(`✅ [PortManager] Found available port ${port} after cleanup`);
+            return port;
+          }
         }
       }
     } catch (e) {
       console.warn(`⚠️ [PortManager] Cleanup attempt failed: ${e.message}`);
     }
 
-    throw new Error(`No available ports in range ${this.minPort}-${this.maxPort}`);
+    // If still no port available, log detailed status for debugging
+    const status = this.getStatus();
+    console.error(`❌ [PortManager] Port exhaustion - Allocated: ${status.allocatedPorts}/${status.totalPorts}, Pending: ${status.pendingAllocations}`);
+    console.error(`   Active allocations:`, status.allocations.slice(0, 10)); // Show first 10
+    
+    throw new Error(`No available ports in range ${this.minPort}-${this.maxPort} (${status.allocatedPorts} allocated, ${status.pendingAllocations} pending)`);
   }
 
   /**
