@@ -52,6 +52,17 @@ npm start
 Follow this guide
 https://github.com/lawrobar90/Partner-PowerUp-BizObs-App/blob/main/DynatraceConfig.md
 
+### ⚠️ Important: Sprint Environments
+If deploying to a **Dynatrace Sprint environment** (e.g., `*.sprint.apps.dynatracelabs.com`):
+- **Platform tokens (dt0s/dt0c) are NOT supported** for dashboard deployment
+- The Document Service requires an **OAuth 2.0 token** (not an API access token):
+  1. Go to: Account Settings → Identity & Access Management → OAuth clients
+  2. Create new OAuth client with scopes: `document:documents:read` `document:documents:write`
+  3. Generate OAuth token from the client (JWT format, >200 chars)
+  4. Use this OAuth token in the Dynatrace Settings
+  5. See: [Document Service SDK](https://developer.dynatrace.com/develop/sdks/client-document/)
+  6. Regular Dynatrace SaaS/Managed environments can use Platform tokens normally
+
 ## 🌐 Access URLs
 
 - **Local**: http://localhost:8080/
