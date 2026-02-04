@@ -1,26 +1,30 @@
 {
-  "name": "BizObs Generator - Cloud Ready",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "name": "BizObs Generator - Cloud Ready with OneAgent",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "18"
+      "version": "20"
     }
   },
-  "forwardPorts": [8080, 8081, 8082, 8083, 8084, 8085],
+  "forwardPorts": [8080, 3000, 8099, 8100, 8101],
   "portsAttributes": {
-    "8080": {"label": "BizObs Generator", "onAutoForward": "openBrowser"}
+    "8080": {"label": "BizObs App", "onAutoForward": "openBrowser"},
+    "3000": {"label": "MCP Server", "onAutoForward": "silent"}
   },
   "postCreateCommand": "npm install",
+  "postStartCommand": "bash -c 'if [ -f .devcontainer/install-oneagent.sh ]; then bash .devcontainer/install-oneagent.sh; fi'",
   "remoteEnv": {
     "CLOUD_MODE": "true",
-    "NODE_ENV": "development"
+    "NODE_ENV": "development",
+    "DT_ENVIRONMENT": "${localEnv:DT_ENVIRONMENT}",
+    "DT_PAAS_TOKEN": "${localEnv:DT_PAAS_TOKEN}"
   },
   "secrets": {
-    "DYNATRACE_URL": {
-      "description": "Your Dynatrace tenant URL (e.g., https://abc12345.live.dynatrace.com)"
+    "DT_ENVIRONMENT": {
+      "description": "Your Dynatrace environment URL (e.g., https://abc12345.sprint.apps.dynatracelabs.com)"
     },
-    "DYNATRACE_TOKEN": {
-      "description": "Dynatrace API token with trace ingestion permissions"
+    "DT_PAAS_TOKEN": {
+      "description": "Dynatrace PaaS token for OneAgent installation"
     }
   },
   "customizations": {
