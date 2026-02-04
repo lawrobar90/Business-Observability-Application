@@ -2699,7 +2699,13 @@ server.listen(PORT, () => {
   let continuousJourneyProcess = null;
   const ENABLE_CONTINUOUS_JOURNEYS = process.env.ENABLE_CONTINUOUS_JOURNEYS === 'true';
   
-  if (ENABLE_CONTINUOUS_JOURNEYS) {
+  // Function to start continuous journey generator
+  function startContinuousJourneyGenerator() {
+    if (continuousJourneyProcess) {
+      console.log('ℹ️  Continuous Journey Generator already running');
+      return;
+    }
+    
     console.log('🔄 Starting Continuous Journey Generator...');
     
     continuousJourneyProcess = spawn('node', [
@@ -2726,15 +2732,26 @@ server.listen(PORT, () => {
     continuousJourneyProcess.on('exit', (code) => {
       console.log(`[Continuous Journey] Process exited with code: ${code}`);
       continuousJourneyProcess = null;
+      server.continuousJourneyProcess = null;
     });
     
     // Store reference for cleanup
     server.continuousJourneyProcess = continuousJourneyProcess;
+    global.continuousJourneyProcess = continuousJourneyProcess;
     
     console.log('✅ Continuous Journey Generator started');
+  }
+  
+  // Store the start function globally for access from routes
+  global.startContinuousJourneyGenerator = startContinuousJourneyGenerator;
+  
+  // Auto-start if environment variable is set
+  if (ENABLE_CONTINUOUS_JOURNEYS) {
+    startContinuousJourneyGenerator();
   } else {
     console.log('ℹ️  Continuous Journey Generator disabled');
-    console.log('💡 Set ENABLE_CONTINUOUS_JOURNEYS=true to auto-generate journey data');
+    console.log('💡 Will auto-start when you create a journey simulation');
+    console.log('💡 Or set ENABLE_CONTINUOUS_JOURNEYS=true to start immediately');
   }
 });
 

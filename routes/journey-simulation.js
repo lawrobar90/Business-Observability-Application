@@ -676,6 +676,19 @@ async function callDynamicService(stepName, port, payload, incomingHeaders = {})
 // Simulate journey
 router.post('/simulate-journey', async (req, res) => {
   console.log('[journey-sim] Route handler called');
+  
+  // Auto-start continuous journey generator on first journey simulation
+  if (typeof global.startContinuousJourneyGenerator === 'function' && !global.continuousJourneyProcess) {
+    console.log('🚀 Auto-starting Continuous Journey Generator (first journey detected)');
+    setTimeout(() => {
+      try {
+        global.startContinuousJourneyGenerator();
+      } catch (error) {
+        console.error('⚠️  Failed to auto-start continuous journey generator:', error.message);
+      }
+    }, 2000); // Wait 2 seconds after first journey completes
+  }
+  
   try {
     const { 
       journeyId = `journey_${Date.now()}`, 
