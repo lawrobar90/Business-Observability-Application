@@ -18,7 +18,8 @@
     "NODE_ENV": "development",
     "DT_ENVIRONMENT": "${localEnv:DYNATRACE_URL}",
     "DT_PAAS_TOKEN": "${localEnv:DYNATRACE_TOKEN}",
-    "DT_API_TOKEN": "${localEnv:DYNATRACE_API_TOKEN}"
+    "DT_API_TOKEN": "${localEnv:DYNATRACE_API_TOKEN}",
+    "DT_PLATFORM_TOKEN": "${localEnv:DT_PLATFORM_TOKEN}"
   },
   "secrets": {
     "DYNATRACE_URL": {
@@ -31,6 +32,10 @@
     },
     "DYNATRACE_API_TOKEN": {
       "description": "Dynatrace API token for Monaco configuration deployment (scopes: Read/Write settings, Read/Write configuration)",
+      "documentationUrl": "https://docs.dynatrace.com/docs/manage/access-control/access-tokens"
+    },
+    "DT_PLATFORM_TOKEN": {
+      "description": "Dynatrace Platform token for dashboard deployment (scopes: document:documents:write, document:documents:read)",
       "documentationUrl": "https://docs.dynatrace.com/docs/manage/access-control/access-tokens"
     }
   },
