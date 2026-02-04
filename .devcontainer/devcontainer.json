@@ -16,15 +16,15 @@
   "remoteEnv": {
     "CLOUD_MODE": "true",
     "NODE_ENV": "development",
-    "DT_ENVIRONMENT": "${localEnv:DT_ENVIRONMENT}",
-    "DT_PAAS_TOKEN": "${localEnv:DT_PAAS_TOKEN}"
+    "DT_ENVIRONMENT": "${localEnv:DYNATRACE_URL}",
+    "DT_PAAS_TOKEN": "${localEnv:DYNATRACE_TOKEN}"
   },
   "secrets": {
-    "DT_ENVIRONMENT": {
+    "DYNATRACE_URL": {
       "description": "Your Dynatrace environment URL (e.g., https://abc12345.sprint.apps.dynatracelabs.com)"
     },
-    "DT_PAAS_TOKEN": {
-      "description": "Dynatrace PaaS token for OneAgent installation"
+    "DYNATRACE_TOKEN": {
+      "description": "Dynatrace PaaS token for OneAgent installation (scope: PaaS integration - Installer download)"
     }
   },
   "customizations": {
