@@ -1273,6 +1273,87 @@ let mcpServerProcess = null;
 let mcpServerStatus = 'stopped'; // stopped, starting, running, error
 let mcpServerAuthUrl = null;
 
+async function probeMcpServer(port = 3000) {
+  try {
+    const testResponse = await fetch(`http://localhost:${port}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream'
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {}
+      }),
+      timeout: 2000
+    }).catch(() => null);
+
+    return Boolean(testResponse && testResponse.ok);
+  } catch (error) {
+    return false;
+  }
+}
+
+async function startMcpServer(environmentUrl, port = 3000) {
+  console.log('[MCP] Starting MCP server on port', port, 'for environment:', environmentUrl);
+  mcpServerStatus = 'starting';
+  mcpServerAuthUrl = null;
+
+  mcpServerProcess = spawn('npx', [
+    '-y',
+    '@dynatrace-oss/dynatrace-mcp-server@latest',
+    '--http',
+    '-p',
+    port.toString()
+  ], {
+    env: {
+      ...process.env,
+      DT_ENVIRONMENT: environmentUrl,
+      DT_MCP_DISABLE_TELEMETRY: 'false'
+    },
+    cwd: process.cwd()
+  });
+
+  let outputBuffer = '';
+
+  mcpServerProcess.stdout.on('data', (data) => {
+    const output = data.toString();
+    outputBuffer += output;
+    console.log('[MCP stdout]', output);
+
+    const oauthMatch = output.match(/https:\/\/[^\s]+oauth2\/authorize[^\s]+/);
+    if (oauthMatch) {
+      mcpServerAuthUrl = oauthMatch[0];
+      console.log('[MCP] OAuth URL detected:', mcpServerAuthUrl);
+    }
+
+    if (output.includes('Dynatrace MCP Server running on HTTP')) {
+      mcpServerStatus = 'running';
+      console.log('[MCP] Server is now running');
+    }
+  });
+
+  mcpServerProcess.stderr.on('data', (data) => {
+    console.error('[MCP stderr]', data.toString());
+  });
+
+  mcpServerProcess.on('exit', (code) => {
+    console.log('[MCP] Process exited with code:', code);
+    mcpServerStatus = code === 0 ? 'stopped' : 'error';
+    mcpServerProcess = null;
+  });
+
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  return {
+    status: mcpServerStatus,
+    authUrl: mcpServerAuthUrl,
+    logs: outputBuffer
+  };
+}
+
 // Start MCP Server
 app.post('/api/mcp/start', async (req, res) => {
   try {
@@ -1294,69 +1375,16 @@ app.post('/api/mcp/start', async (req, res) => {
         port: port
       });
     }
-    
-    console.log('[MCP] Starting MCP server on port', port, 'for environment:', environmentUrl);
-    mcpServerStatus = 'starting';
-    mcpServerAuthUrl = null;
-    
-    // Start MCP server process
-    mcpServerProcess = spawn('npx', [
-      '-y',
-      '@dynatrace-oss/dynatrace-mcp-server@latest',
-      '--http',
-      '-p',
-      port.toString()
-    ], {
-      env: {
-        ...process.env,
-        DT_ENVIRONMENT: environmentUrl,
-        DT_MCP_DISABLE_TELEMETRY: 'false'
-      },
-      cwd: process.cwd()
-    });
-    
-    let outputBuffer = '';
-    
-    // Capture stdout for OAuth URL
-    mcpServerProcess.stdout.on('data', (data) => {
-      const output = data.toString();
-      outputBuffer += output;
-      console.log('[MCP stdout]', output);
-      
-      // Look for OAuth URL
-      const oauthMatch = output.match(/https:\/\/[^\s]+oauth2\/authorize[^\s]+/);
-      if (oauthMatch) {
-        mcpServerAuthUrl = oauthMatch[0];
-        console.log('[MCP] OAuth URL detected:', mcpServerAuthUrl);
-      }
-      
-      // Check if server started successfully
-      if (output.includes('Dynatrace MCP Server running on HTTP')) {
-        mcpServerStatus = 'running';
-        console.log('[MCP] Server is now running');
-      }
-    });
-    
-    mcpServerProcess.stderr.on('data', (data) => {
-      console.error('[MCP stderr]', data.toString());
-    });
-    
-    mcpServerProcess.on('exit', (code) => {
-      console.log('[MCP] Process exited with code:', code);
-      mcpServerStatus = code === 0 ? 'stopped' : 'error';
-      mcpServerProcess = null;
-    });
-    
-    // Wait a bit for startup
-    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    const startResult = await startMcpServer(environmentUrl, port);
     
     res.json({
       ok: true,
-      status: mcpServerStatus,
-      message: mcpServerStatus === 'running' ? 'MCP server started successfully' : 'MCP server is starting...',
-      authUrl: mcpServerAuthUrl,
+      status: startResult.status,
+      message: startResult.status === 'running' ? 'MCP server started successfully' : 'MCP server is starting...',
+      authUrl: startResult.authUrl,
       port: port,
-      logs: outputBuffer
+      logs: startResult.logs
     });
     
   } catch (error) {
@@ -1374,31 +1402,12 @@ app.get('/api/mcp/status', async (req, res) => {
   // Double-check by pinging the MCP server
   let actuallyRunning = mcpServerStatus === 'running';
   
-  if (!actuallyRunning && mcpServerProcess) {
-    // Try to verify it's really running by checking if port is responding
-    try {
-      const testResponse = await fetch('http://localhost:3000', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream'
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'tools/list',
-          params: {}
-        }),
-        timeout: 2000
-      }).catch(() => null);
-      
-      if (testResponse && testResponse.ok) {
-        mcpServerStatus = 'running';
-        actuallyRunning = true;
-        console.log('[MCP] Status verified - server is running');
-      }
-    } catch (error) {
-      // Ignore - will return current status
+  if (!actuallyRunning) {
+    const running = await probeMcpServer();
+    if (running) {
+      mcpServerStatus = 'running';
+      actuallyRunning = true;
+      console.log('[MCP] Status verified - server is running');
     }
   }
   
@@ -1453,7 +1462,48 @@ app.post('/api/dynatrace/deploy-dashboard-via-mcp', async (req, res) => {
       });
     }
     
-    console.log('[MCP Proxy] Deploying dashboard via MCP server:', mcpServerUrl);
+    let effectiveMcpServerUrl = mcpServerUrl;
+    try {
+      const parsedUrl = new URL(mcpServerUrl);
+      const port = parsedUrl.port || '3000';
+      const isCodespacesHost = parsedUrl.hostname.endsWith('.app.github.dev');
+      if (isCodespacesHost || parsedUrl.hostname === req.hostname) {
+        effectiveMcpServerUrl = `http://localhost:${port}`;
+      }
+    } catch (urlError) {
+      console.warn('[MCP Proxy] Invalid MCP server URL, using provided value:', urlError.message);
+    }
+
+    let mcpPort = 3000;
+    try {
+      const parsedMcpUrl = new URL(effectiveMcpServerUrl);
+      mcpPort = parsedMcpUrl.port ? parseInt(parsedMcpUrl.port, 10) : 3000;
+    } catch (error) {
+      // Keep default
+    }
+
+    let isRunning = await probeMcpServer(mcpPort);
+    if (!isRunning) {
+      const startResult = await startMcpServer(environmentUrl, mcpPort);
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        if (await probeMcpServer(mcpPort)) {
+          isRunning = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      if (!isRunning) {
+        return res.status(503).json({
+          ok: false,
+          error: 'MCP server is not ready. Please complete OAuth if prompted and try again.',
+          authUrl: startResult.authUrl || null
+        });
+      }
+    }
+
+    console.log('[MCP Proxy] Deploying dashboard via MCP server:', effectiveMcpServerUrl);
     console.log('[MCP Proxy] Dynatrace environment:', environmentUrl);
     console.log('[MCP Proxy] Journey:', journeyConfig.companyName, journeyConfig.journeyType);
     
@@ -1463,7 +1513,7 @@ app.post('/api/dynatrace/deploy-dashboard-via-mcp', async (req, res) => {
     // Call the dashboard deployer through MCP server
     const deployResult = await deployJourneyDashboard(journeyConfig, {
       useMcpProxy: true,
-      mcpServerUrl: mcpServerUrl,
+      mcpServerUrl: effectiveMcpServerUrl,
       environmentUrl: environmentUrl
     });
     

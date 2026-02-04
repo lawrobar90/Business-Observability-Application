@@ -393,53 +393,47 @@ async function deployJourneyDashboard(journeyConfig, options = {}) {
   try {
     let authHeader, documentServiceUrl;
     
-    // Use MCP proxy if configured
+    // Use MCP proxy if configured (deploy dashboard via API using platform token)
     if (useMcpProxy && mcpServerUrl) {
-      console.log(`🔗 Deploying via MCP server proxy...`);
-      
-      // Send JSON-RPC request to MCP server to create the dashboard
-      const mcpResponse = await fetch(mcpServerUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: Date.now(),
-          method: 'tools/call',
-          params: {
-            name: 'create_dynatrace_notebook',
-            arguments: {
-              content: JSON.stringify(dashboard, null, 2),
-              name: `${companyName} - ${journeyName}`,
-              type: 'dashboard'
-            }
-          }
-        })
-      });
-      
-      if (!mcpResponse.ok) {
-        throw new Error(`MCP server request failed: ${mcpResponse.status} - ${mcpResponse.statusText}`);
+      if (!DT_TOKEN) {
+        throw new Error('Dashboard deployment requires DT_PLATFORM_TOKEN. MCP server does not support dashboard creation in this build.');
       }
-      
-      const mcpResult = await mcpResponse.json();
-      
-      if (mcpResult.error) {
-        throw new Error(`MCP error: ${mcpResult.error.message}`);
+
+      console.log(`🔗 Deploying dashboard via API (MCP proxy enabled)...`);
+
+      const targetEnvironment = environmentUrl || DT_ENVIRONMENT;
+      documentServiceUrl = normalizeSprintUrl(targetEnvironment);
+      authHeader = `Api-Token ${DT_TOKEN}`;
+
+      const response = await fetch(
+        `${documentServiceUrl}/platform/classic/environment-api/v2/dashboards`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(dashboard)
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Dashboard creation failed: ${response.status} - ${errorText}`);
       }
-      
-      // Extract result from MCP response
-      const notebookUrl = mcpResult.result?.content?.[0]?.text;
-      const dashboardId = notebookUrl?.match(/notebooks\/([^\/\?]+)/)?.[1];
-      
-      console.log(`✅ Dashboard created via MCP server!`);
+
+      const result = await response.json();
+      const dashboardId = result.id;
+      const dashboardUrl = `${targetEnvironment}/ui/dashboards/${dashboardId}`;
+
+      console.log(`✅ Dashboard created successfully!`);
       console.log(`   Dashboard ID: ${dashboardId}`);
-      console.log(`   Dashboard URL: ${notebookUrl}`);
-      
+      console.log(`   Dashboard URL: ${dashboardUrl}`);
+
       return {
         success: true,
         dashboardId,
-        dashboardUrl: notebookUrl,
+        dashboardUrl,
         companyName,
         industryType
       };
