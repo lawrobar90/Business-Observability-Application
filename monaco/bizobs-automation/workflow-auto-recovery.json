@@ -1,0 +1,123 @@
+{
+  "title": "{{ .name }}",
+  "description": "Automatically re-enables error injection when problems are resolved",
+  "owner": "{{ .Env.DT_WORKFLOW_OWNER | default \"bizobs-automation\" }}",
+  "isPrivate": false,
+  "actor": {
+    "type": "USER",
+    "name": "automation"
+  },
+  "trigger": {
+    "eventTrigger": {
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "davis-problem",
+        "value": {
+          "categories": {
+            "error": true
+          },
+          "onProblemClose": true
+        }
+      },
+      "filterQuery": "matchesValue(event.name, \"*error*\") AND matchesValue(dimensions[\"dt.entity.process_group\"], \"*BizObs*\")"
+    }
+  },
+  "tasks": {
+    "check_flag_status": {
+      "name": "Check Current Flag Status",
+      "description": "Get current feature flag state",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/remediation/feature-flags",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    },
+    "re_enable_error_injection": {
+      "name": "Re-enable Error Injection",
+      "description": "Set errorInjectionEnabled back to true",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/remediation/feature-flag",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Automation": "true"
+        },
+        "payload": {
+          "flag": "errorInjectionEnabled",
+          "value": true,
+          "reason": "Auto-recovery - Problem {{ event()[\"display_id\"] }} resolved, re-enabling error injection for realistic testing",
+          "problemId": "{{ event()[\"display_id\"] }}",
+          "triggeredBy": "dynatrace_workflow_recovery",
+          "dtEnvironment": "{{ .Env.DT_ENVIRONMENT }}",
+          "dtToken": "{{ .Env.DT_API_TOKEN }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": ["check_flag_status"],
+      "conditions": {
+        "states": {
+          "check_flag_status": "OK"
+        },
+        "custom": "{{ result(\"check_flag_status\")[\"body\"][\"errorInjectionEnabled\"] }} == false"
+      }
+    },
+    "send_recovery_deployment_event": {
+      "name": "Send Recovery Deployment Event",
+      "description": "Send CUSTOM_DEPLOYMENT event for recovery action",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_DEPLOYMENT",
+          "title": "BizObs Feature Flag Deployment: errorInjectionEnabled=true (Recovery)",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "deployment.name": "Feature Flag Recovery",
+            "deployment.version": "{{ now() | toDate(\"2006-01-02T15:04:05Z\") }}",
+            "deployment.source": "Dynatrace Workflow",
+            "feature.flag": "errorInjectionEnabled",
+            "previous.value": "false",
+            "new.value": "true",
+            "change.reason": "Auto-recovery after problem resolution",
+            "triggered.by": "dynatrace_workflow_recovery",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "remediation.type": "auto_recovery",
+            "application": "BizObs",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "{{ .name }}"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": ["re_enable_error_injection"],
+      "conditions": {
+        "states": {
+          "re_enable_error_injection": "OK"
+        }
+      }
+    }
+  }
+}

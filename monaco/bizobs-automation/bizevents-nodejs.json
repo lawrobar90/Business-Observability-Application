@@ -1,0 +1,52 @@
+{
+  "enabled": true,
+  "summary": "Capture BizObs journey events from Node.js processes",
+  "value": {
+    "enabled": true,
+    "ruleName": "{{ .name }}",
+    "description": "Captures business events from BizObs journey simulations including customer data, revenue, and journey steps",
+    "triggers": [
+      {
+        "type": "request.path",
+        "value": "/api/journey-simulation/*"
+      },
+      {
+        "type": "request.path",
+        "value": "/api/simulate-journey"
+      },
+      {
+        "type": "request.path",
+        "value": "/api/simulate-multiple-journeys"
+      }
+    ],
+    "data": {
+      "extractionRules": [
+        {
+          "from": "request.body",
+          "name": "journey.id",
+          "path": "$.journeyId"
+        },
+        {
+          "from": "request.body",
+          "name": "customer.id",
+          "path": "$.customerId"
+        },
+        {
+          "from": "request.body",
+          "name": "customer.name",
+          "path": "$.customerName"
+        },
+        {
+          "from": "response.body",
+          "name": "revenue",
+          "path": "$.totalRevenue"
+        },
+        {
+          "from": "response.body",
+          "name": "steps.completed",
+          "path": "$.stepsCompleted"
+        }
+      ]
+    }
+  }
+}

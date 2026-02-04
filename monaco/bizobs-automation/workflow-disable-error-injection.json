@@ -1,0 +1,174 @@
+{
+  "title": "{{ .name }}",
+  "description": "Automatically disables error injection when high error rates detected in BizObs journeys",
+  "owner": "{{ .Env.DT_WORKFLOW_OWNER | default \"bizobs-automation\" }}",
+  "isPrivate": false,
+  "actor": {
+    "type": "USER",
+    "name": "automation"
+  },
+  "trigger": {
+    "eventTrigger": {
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "davis-problem",
+        "value": {
+          "categories": {
+            "error": true
+          }
+        }
+      },
+      "filterQuery": "isNotNull(affected_entities) AND matchesValue(event.name, \"*error*\") AND matchesValue(dimensions[\"dt.entity.process_group\"], \"*BizObs*\")"
+    }
+  },
+  "tasks": {
+    "check_error_rate": {
+      "name": "Check Error Rate",
+      "description": "Query current error rate from Grail",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/metrics/query",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "queryParameters": {
+          "metricSelector": "builtin:service.errors.total.rate:filter(and(eq(\"dt.entity.service\",\"{{ event()[\"dt.entity.service\"] }}\")))",
+          "from": "now-5m",
+          "to": "now"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": [],
+      "conditions": {
+        "states": {},
+        "custom": ""
+      }
+    },
+    "disable_error_injection": {
+      "name": "Disable Error Injection Flag",
+      "description": "POST to BizObs remediation API to disable errorInjectionEnabled",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/remediation/feature-flag",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Automation": "true"
+        },
+        "payload": {
+          "flag": "errorInjectionEnabled",
+          "value": false,
+          "reason": "Automated remediation - High error rate detected: {{ event()[\"event.name\"] }}",
+          "problemId": "{{ event()[\"display_id\"] }}",
+          "triggeredBy": "dynatrace_workflow",
+          "dtEnvironment": "{{ .Env.DT_ENVIRONMENT }}",
+          "dtToken": "{{ .Env.DT_API_TOKEN }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": ["check_error_rate"],
+      "conditions": {
+        "states": {
+          "check_error_rate": "OK"
+        },
+        "custom": "{{ result(\"check_error_rate\")[\"statusCode\"] }} == 200"
+      }
+    },
+    "send_deployment_event": {
+      "name": "Send Deployment Event",
+      "description": "Send CUSTOM_DEPLOYMENT event to Dynatrace for audit trail",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_DEPLOYMENT",
+          "title": "BizObs Feature Flag Deployment: errorInjectionEnabled=false",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "deployment.name": "Feature Flag Change",
+            "deployment.version": "{{ now() | toDate(\"2006-01-02T15:04:05Z\") }}",
+            "deployment.source": "Dynatrace Workflow",
+            "feature.flag": "errorInjectionEnabled",
+            "previous.value": "true",
+            "new.value": "false",
+            "change.reason": "Automated remediation - High error rate",
+            "triggered.by": "dynatrace_workflow",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "remediation.type": "feature_flag_toggle",
+            "application": "BizObs",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "{{ .name }}"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": ["disable_error_injection"],
+      "conditions": {
+        "states": {
+          "disable_error_injection": "OK"
+        }
+      }
+    },
+    "wait_for_stabilization": {
+      "name": "Wait 2 Minutes",
+      "description": "Allow system to stabilize after flag change",
+      "action": "dynatrace.automations:sleep",
+      "active": true,
+      "input": {
+        "duration": "120"
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": ["send_deployment_event"],
+      "conditions": {
+        "states": {
+          "send_deployment_event": "OK"
+        }
+      }
+    },
+    "verify_problem_status": {
+      "name": "Verify Problem Resolved",
+      "description": "Check if problem is resolving",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/problems/{{ event()[\"event.id\"] }}",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "predecessors": ["wait_for_stabilization"],
+      "conditions": {
+        "states": {
+          "wait_for_stabilization": "OK"
+        }
+      }
+    }
+  }
+}

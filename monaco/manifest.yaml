@@ -1,0 +1,14 @@
+manifestVersion: "1.0"
+projects:
+  - name: bizobs-automation
+environmentGroups:
+  - name: default
+    environments:
+      - name: bizobs-production
+        url:
+          type: environment
+          value: DT_ENVIRONMENT
+        auth:
+          token:
+            type: environment
+            name: DT_API_TOKEN

@@ -79,6 +79,68 @@ process.env.DT_CUSTOM_PROP = 'role=main-server;type=api-gateway';
 // Child service management now handled by service-manager.js
 // Services are created dynamically based on journey steps
 
+// ============================================
+// Feature Flags for Self-Healing
+// ============================================
+const featureFlags = {
+  errorInjectionEnabled: true,
+  slowResponsesEnabled: true,
+  circuitBreakerEnabled: false,
+  rateLimitingEnabled: false,
+  cacheEnabled: true
+};
+
+// Make feature flags available globally for journey simulation
+global.featureFlags = featureFlags;
+
+// Helper function to send Dynatrace Events
+async function sendDynatraceEvent(eventType, properties, dtEnvironmentOverride = null, dtTokenOverride = null) {
+  const DT_ENVIRONMENT = dtEnvironmentOverride || process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
+  const DT_TOKEN = dtTokenOverride || process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
+  
+  if (!DT_ENVIRONMENT || !DT_TOKEN) {
+    console.log('[Event API] No Dynatrace credentials configured, skipping event');
+    return { success: false, reason: 'no_credentials' };
+  }
+  
+  try {
+    // Use CUSTOM_DEPLOYMENT for feature flag changes to show in deployment timeline
+    const deploymentEventType = eventType === 'CUSTOM_CONFIGURATION' ? 'CUSTOM_DEPLOYMENT' : eventType;
+    
+    const eventPayload = {
+      eventType: deploymentEventType,
+      title: properties.title || eventType,
+      timeout: 15,
+      properties: {
+        'deployment.name': `Feature Flag: ${properties.properties?.['feature.flag'] || 'unknown'}`,
+        'deployment.version': new Date().toISOString(),
+        'deployment.source': properties.properties?.['triggered.by'] || 'manual',
+        ...(properties.properties || {})
+      },
+      ...properties
+    };
+    
+    console.log('[Event API] Sending event to Dynatrace:', eventPayload);
+    
+    const response = await fetch(`${DT_ENVIRONMENT}/api/v2/events/ingest`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Api-Token ${DT_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventPayload)
+    });
+    
+    const result = await response.text();
+    console.log('[Event API] Response:', response.status, result);
+    
+    return { success: response.ok, status: response.status, body: result };
+  } catch (error) {
+    console.error('[Event API] Error sending event:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // startChildService is now in service-manager.js
 
 // ensureServiceRunning is now in service-manager.js
@@ -714,6 +776,143 @@ app.get('/api/health/detailed', async (req, res) => {
       status: 'error',
       error: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// ============================================
+// Self-Healing / Remediation Endpoints
+// ============================================
+
+// Get current feature flags
+app.get('/api/remediation/feature-flags', (req, res) => {
+  res.json({
+    ok: true,
+    flags: featureFlags,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Toggle feature flag (for Dynatrace Workflow automation)
+app.post('/api/remediation/feature-flag', async (req, res) => {
+  try {
+    const { flag, value, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken } = req.body;
+    
+    if (!flag || value === undefined) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required fields: flag, value'
+      });
+    }
+    
+    if (!(flag in featureFlags)) {
+      return res.status(400).json({
+        ok: false,
+        error: `Unknown feature flag: ${flag}`,
+        availableFlags: Object.keys(featureFlags)
+      });
+    }
+    
+    const previousValue = featureFlags[flag];
+    featureFlags[flag] = value;
+    
+    console.log(`[Remediation] Feature flag changed: ${flag} = ${previousValue} → ${value}`);
+    console.log(`[Remediation] Reason: ${reason || 'Not specified'}`);
+    console.log(`[Remediation] Triggered by: ${triggeredBy}`);
+    
+    // Send CUSTOM_DEPLOYMENT event to Dynatrace (shows in deployment timeline)
+    const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
+      title: `Feature Flag Changed: ${flag}`,
+      entitySelector: 'type("PROCESS_GROUP_INSTANCE"),entityName.equals("BizObs-MainServer")',
+      properties: {
+        'feature.flag': flag,
+        'previous.value': String(previousValue),
+        'new.value': String(value),
+        'change.reason': reason || 'Not specified',
+        'triggered.by': triggeredBy,
+        'problem.id': problemId || 'N/A',
+        'remediation.type': 'feature_flag_toggle',
+        'application': 'BizObs'
+      }
+    }, dtEnvironment, dtToken);
+    
+    res.json({
+      ok: true,
+      flag: flag,
+      previousValue: previousValue,
+      newValue: value,
+      reason: reason,
+      triggeredBy: triggeredBy,
+      eventSent: eventResult.success,
+      eventDetails: eventResult,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[Remediation] Error:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// Bulk toggle multiple flags (for complex remediation scenarios)
+app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
+  try {
+    const { flags, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken } = req.body;
+    
+    if (!flags || typeof flags !== 'object') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required field: flags (object)'
+      });
+    }
+    
+    const changes = [];
+    const events = [];
+    
+    for (const [flag, value] of Object.entries(flags)) {
+      if (flag in featureFlags) {
+        const previousValue = featureFlags[flag];
+        featureFlags[flag] = value;
+        
+        changes.push({ flag, previousValue, newValue: value });
+        
+        // Send individual CUSTOM_DEPLOYMENT event for each flag
+        const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
+          title: `Feature Flag Changed: ${flag}`,
+          entitySelector: 'type("PROCESS_GROUP_INSTANCE"),entityName.equals("BizObs-MainServer")',
+          properties: {
+            'feature.flag': flag,
+            'previous.value': String(previousValue),
+            'new.value': String(value),
+            'change.reason': reason || 'Bulk update',
+            'triggered.by': triggeredBy,
+            'problem.id': problemId || 'N/A',
+            'remediation.type': 'bulk_feature_flag_toggle',
+            'application': 'BizObs'
+          }
+        }, dtEnvironment, dtToken);
+        
+        events.push({ flag, eventSent: eventResult.success });
+      }
+    }
+    
+    res.json({
+      ok: true,
+      changes: changes,
+      events: events,
+      reason: reason,
+      triggeredBy: triggeredBy,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[Remediation] Bulk update error:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message
     });
   }
 });
@@ -2495,11 +2694,60 @@ server.listen(PORT, () => {
     console.log('ℹ️  No DT_ENVIRONMENT set - MCP server will start on first connection test');
     console.log('💡 Set DT_ENVIRONMENT env var to auto-start MCP server on app startup');
   }
+  
+  // --- Auto-start Continuous Journey Generator ---
+  let continuousJourneyProcess = null;
+  const ENABLE_CONTINUOUS_JOURNEYS = process.env.ENABLE_CONTINUOUS_JOURNEYS === 'true';
+  
+  if (ENABLE_CONTINUOUS_JOURNEYS) {
+    console.log('🔄 Starting Continuous Journey Generator...');
+    
+    continuousJourneyProcess = spawn('node', [
+      path.join(__dirname, 'scripts', 'continuous-journey-generator.js')
+    ], {
+      env: {
+        ...process.env,
+        BIZOBS_API_URL: `http://localhost:${PORT}`,
+        JOURNEY_INTERVAL_MS: process.env.JOURNEY_INTERVAL_MS || '30000',
+        JOURNEY_BATCH_SIZE: process.env.JOURNEY_BATCH_SIZE || '5'
+      },
+      cwd: process.cwd(),
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    
+    continuousJourneyProcess.stdout.on('data', (data) => {
+      console.log('[Continuous Journey]', data.toString().trim());
+    });
+    
+    continuousJourneyProcess.stderr.on('data', (data) => {
+      console.error('[Continuous Journey ERROR]', data.toString().trim());
+    });
+    
+    continuousJourneyProcess.on('exit', (code) => {
+      console.log(`[Continuous Journey] Process exited with code: ${code}`);
+      continuousJourneyProcess = null;
+    });
+    
+    // Store reference for cleanup
+    server.continuousJourneyProcess = continuousJourneyProcess;
+    
+    console.log('✅ Continuous Journey Generator started');
+  } else {
+    console.log('ℹ️  Continuous Journey Generator disabled');
+    console.log('💡 Set ENABLE_CONTINUOUS_JOURNEYS=true to auto-generate journey data');
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  
+  // Stop continuous journey generator if running
+  if (server.continuousJourneyProcess) {
+    console.log('[Continuous Journey] Stopping generator...');
+    server.continuousJourneyProcess.kill();
+    server.continuousJourneyProcess = null;
+  }
   
   // Stop MCP server if running
   if (mcpServerProcess) {
@@ -2524,6 +2772,13 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 Received SIGINT, shutting down gracefully...');
+  
+  // Stop continuous journey generator if running
+  if (server.continuousJourneyProcess) {
+    console.log('[Continuous Journey] Stopping generator...');
+    server.continuousJourneyProcess.kill();
+    server.continuousJourneyProcess = null;
+  }
   
   // Stop MCP server if running
   if (mcpServerProcess) {

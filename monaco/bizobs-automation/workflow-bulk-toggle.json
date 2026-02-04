@@ -1,0 +1,58 @@
+{
+  "title": "{{ .name }}",
+  "description": "Bulk toggle multiple feature flags for complex remediation scenarios",
+  "owner": "{{ .Env.DT_WORKFLOW_OWNER | default \"bizobs-automation\" }}",
+  "isPrivate": false,
+  "actor": {
+    "type": "USER",
+    "name": "automation"
+  },
+  "trigger": {
+    "eventTrigger": {
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "davis-problem",
+        "value": {
+          "categories": {
+            "error": true,
+            "slowdown": true,
+            "resource": true
+          }
+        }
+      },
+      "filterQuery": "isNotNull(affected_entities) AND matchesValue(dimensions[\"dt.entity.process_group\"], \"*BizObs*\")"
+    }
+  },
+  "tasks": {
+    "bulk_toggle_flags": {
+      "name": "Bulk Toggle Feature Flags",
+      "description": "Disable multiple flags for comprehensive mitigation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/remediation/feature-flags/bulk",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Automation": "true"
+        },
+        "payload": {
+          "flags": {
+            "errorInjectionEnabled": false,
+            "slowResponsesEnabled": false
+          },
+          "reason": "Bulk remediation - Multiple issues detected: {{ event()[\"event.name\"] }}",
+          "problemId": "{{ event()[\"display_id\"] }}",
+          "triggeredBy": "dynatrace_workflow_bulk",
+          "dtEnvironment": "{{ .Env.DT_ENVIRONMENT }}",
+          "dtToken": "{{ .Env.DT_API_TOKEN }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    }
+  }
+}

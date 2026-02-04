@@ -1,0 +1,52 @@
+configs:
+  # Self-Healing Workflow - Disable Error Injection
+  - id: workflow-disable-error-injection
+    config:
+      name: "BizObs Self-Healing - Disable Error Injection"
+      template: workflow-disable-error-injection.json
+      skip: false
+    type:
+      automation:
+        resource: workflow
+
+  # Self-Healing Workflow - Bulk Toggle
+  - id: workflow-bulk-toggle
+    config:
+      name: "BizObs Self-Healing - Bulk Feature Toggle"
+      template: workflow-bulk-toggle.json
+      skip: false
+    type:
+      automation:
+        resource: workflow
+
+  # Self-Healing Workflow - Auto Recovery
+  - id: workflow-auto-recovery
+    config:
+      name: "BizObs Self-Healing - Auto Recovery"
+      template: workflow-auto-recovery.json
+      skip: false
+    type:
+      automation:
+        resource: workflow
+
+  # BizEvents Capture - Node.js HTTP Incoming
+  - id: bizevents-nodejs
+    config:
+      name: "BizObs BizEvents - Node.js"
+      template: bizevents-nodejs.json
+      skip: false
+    type:
+      settings:
+        schema: builtin:bizevents-http-incoming
+        scope: environment
+
+  # Process Group Detection Rule
+  - id: process-detection-bizobs
+    config:
+      name: "BizObs Process Group Detection"
+      template: process-detection.json
+      skip: false
+    type:
+      settings:
+        schema: builtin:process-group.detection-rule
+        scope: environment

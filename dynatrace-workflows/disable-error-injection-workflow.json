@@ -1,0 +1,123 @@
+{
+  "title": "BizObs Self-Healing - Disable Error Injection",
+  "description": "Automatically disables error injection in BizObs when high error rates are detected",
+  "owner": "user@example.com",
+  "isPrivate": false,
+  "trigger": {
+    "eventTrigger": {
+      "triggerConfiguration": {
+        "type": "event",
+        "value": {
+          "query": "event.kind == \"DAVIS_PROBLEM\" AND event.status == \"OPEN\" AND affected_entity_types CONTAINS \"PROCESS_GROUP_INSTANCE\"",
+          "eventType": "events"
+        }
+      },
+      "filterQuery": "isNotNull(affected_entities) AND matchesValue(event.name, \"*error*\")"
+    }
+  },
+  "tasks": {
+    "disable_error_injection": {
+      "name": "Disable Error Injection",
+      "description": "Calls BizObs API to disable errorInjectionEnabled flag",
+      "action": "dynatrace.automations:http-function",
+      "input": {
+        "method": "POST",
+        "url": "http://localhost:8080/api/remediation/feature-flag",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "flag": "errorInjectionEnabled",
+          "value": false,
+          "reason": "Automated remediation - High error rate detected in {{ event()[\"event.name\"] }}",
+          "problemId": "{{ event()[\"display_id\"] }}",
+          "triggeredBy": "dynatrace_workflow"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    },
+    "log_remediation": {
+      "name": "Log Remediation Action",
+      "description": "Sends confirmation event to Dynatrace",
+      "action": "dynatrace.automations:http-function",
+      "input": {
+        "method": "POST",
+        "url": "{{ result(\"disable_error_injection\")[\"body\"][\"eventDetails\"][\"url\"] }}",
+        "payload": {
+          "workflow": "self_healing_executed",
+          "action": "disable_error_injection",
+          "problem_id": "{{ event()[\"display_id\"] }}",
+          "timestamp": "{{ now() }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": ["disable_error_injection"],
+      "conditions": {
+        "states": {
+          "disable_error_injection": "OK"
+        }
+      }
+    },
+    "wait_for_recovery": {
+      "name": "Wait 5 Minutes",
+      "description": "Allow time for system to recover",
+      "action": "dynatrace.automations:sleep",
+      "input": {
+        "duration": "300"
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": ["log_remediation"]
+    },
+    "check_problem_status": {
+      "name": "Check if Problem Resolved",
+      "description": "Query problem status",
+      "action": "dynatrace.automations:http-function",
+      "input": {
+        "method": "GET",
+        "url": "{{ DYNATRACE_ENVIRONMENT_URL }}/api/v2/problems/{{ event()[\"event.id\"] }}"
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": ["wait_for_recovery"]
+    },
+    "re_enable_if_resolved": {
+      "name": "Re-enable Error Injection",
+      "description": "Re-enable if problem is resolved",
+      "action": "dynatrace.automations:http-function",
+      "input": {
+        "method": "POST",
+        "url": "http://localhost:8080/api/remediation/feature-flag",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "flag": "errorInjectionEnabled",
+          "value": true,
+          "reason": "Auto-recovery - Problem {{ event()[\"display_id\"] }} resolved, re-enabling error injection",
+          "problemId": "{{ event()[\"display_id\"] }}",
+          "triggeredBy": "dynatrace_workflow_recovery"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "predecessors": ["check_problem_status"],
+      "conditions": {
+        "custom": "{{ result(\"check_problem_status\")[\"body\"][\"status\"] == \"CLOSED\" }}"
+      }
+    }
+  }
+}

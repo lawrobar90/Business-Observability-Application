@@ -144,6 +144,14 @@ function generateErrorMessage(errorType, stepName) {
 }
 
 function computeCustomerError(customerName, stepName) {
+  // Check global feature flag (set by server.js)
+  const errorInjectionEnabled = global.featureFlags?.errorInjectionEnabled !== false;
+  
+  if (!errorInjectionEnabled) {
+    // Feature flag disabled - no errors
+    return { hasError: false, reason: 'feature_flag_disabled' };
+  }
+  
   const key = String(customerName || '').toLowerCase().trim();
   const profile = CUSTOMER_ERROR_PROFILES[key] || CUSTOMER_ERROR_PROFILES.default;
   const isProblematic = profile.problematicSteps.some(s =>
