@@ -1379,7 +1379,10 @@ app.get('/api/mcp/status', async (req, res) => {
     try {
       const testResponse = await fetch('http://localhost:3000', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream'
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
