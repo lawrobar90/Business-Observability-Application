@@ -1,0 +1,17 @@
+{
+  "name": "Holistic API Rules",
+  "enabled": true,
+  "nameFormat": "{ProcessGroup:DetectedName}",
+  "conditions": [
+    {
+      "attribute": "PROCESS_GROUP_NAME",
+      "comparisonInfo": {
+        "type": "STRING",
+        "operator": "EXISTS",
+        "value": null,
+        "negate": false,
+        "caseSensitive": false
+      }
+    }
+  ]
+}

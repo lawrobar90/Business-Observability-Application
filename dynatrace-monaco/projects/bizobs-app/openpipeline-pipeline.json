@@ -1,0 +1,24 @@
+{
+  "id": "bizobs-template-pipeline",
+  "displayName": "BizObs Template Pipeline",
+  "enabled": true,
+  "dataSource": "bizevents",
+  "processors": [
+    {
+      "id": "json-parser",
+      "displayName": "JSON Parser",
+      "enabled": true,
+      "type": "dql",
+      "matcher": "true",
+      "dqlScript": "parse rqBody, \"JSON:json\" | fieldsFlatten json | parse json.additionalFields, \"JSON:additionalFields\" | fieldsFlatten json.additionalFields, prefix:\"additionalfields.\""
+    },
+    {
+      "id": "error-field-processor",
+      "displayName": "Error Field",
+      "enabled": true,
+      "type": "dql",
+      "matcher": "true",
+      "dqlScript": "fieldsAdd event.type = if(json.hasError == true, concat(event.type, ``, \" - Exception\"), else:{`event.type`})"
+    }
+  ]
+}

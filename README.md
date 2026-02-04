@@ -91,7 +91,39 @@ node server.js
 ```
 
 #### Configure Dynatrace Tenant
-Follow the [DynatraceConfig.md](DynatraceConfig.md) guide for detailed setup instructions.
+
+**Option 1: Automated Configuration** 🤖 (Recommended)
+```bash
+# Set environment variables
+export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
+export DT_API_TOKEN='dt0c01.XXX...'  # Token with settings.write scope
+
+# Run automated deployment
+cd dynatrace-monaco
+node deploy.js
+```
+
+**Option 2: Monaco (Monitoring as Code)** 📦
+```bash
+# Install Monaco CLI
+brew install dynatrace/dynatrace/monaco
+
+# Deploy configuration
+cd dynatrace-monaco
+monaco deploy manifest.yaml
+```
+
+**Option 3: Manual Configuration** 🔧
+Follow the [DynatraceConfig.md](DynatraceConfig.md) guide for step-by-step UI instructions.
+
+**What Gets Configured:**
+- ✅ Business Event Capture Rules
+- ✅ Service Naming Rules  
+- ✅ OpenPipeline Pipelines & Processors
+- ✅ Dynamic Routing
+- ⚠️ OneAgent Features (manual step required)
+
+See [dynatrace-monaco/README.md](dynatrace-monaco/README.md) for detailed automation documentation.
 
 ---
 

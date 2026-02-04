@@ -1,0 +1,37 @@
+configs:
+  - id: bizobs-capture-rule
+    type:
+      settings:
+        schema: builtin:bizevents-processing-rules.rule
+        scope: environment
+    config:
+      name: BizObs App Capture Rule
+      template: capture-rule.json
+
+  - id: service-naming-rule
+    type:
+      settings:
+        schema: builtin:service-naming
+        scope: environment
+    config:
+      name: Holistic API Rules
+      template: service-naming.json
+
+  - id: openpipeline-pipeline
+    type:
+      settings:
+        schema: builtin:openpipeline.events.pipelines
+        scope: environment
+    config:
+      name: BizObs Template Pipeline
+      template: openpipeline-pipeline.json
+
+  - id: openpipeline-routing
+    type:
+      settings:
+        schema: builtin:openpipeline.events.routing
+        scope: environment
+    config:
+      name: BizObs Dynamic Routing
+      template: openpipeline-routing.json
+      skip: false

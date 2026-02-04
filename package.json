@@ -9,7 +9,9 @@
     "start": "node server.js",
     "dev": "NODE_ENV=development node server.js",
     "validate": "node scripts/validate-startup.cjs",
-    "restart-services": "curl -X POST http://localhost:${PORT:-8080}/api/admin/services/restart-all"
+    "restart-services": "curl -X POST http://localhost:${PORT:-8080}/api/admin/services/restart-all",
+    "configure:dynatrace": "node dynatrace-monaco/deploy.js",
+    "configure:monaco": "cd dynatrace-monaco && monaco deploy manifest.yaml"
   },
   "dependencies": {
     "compression": "^1.7.4",

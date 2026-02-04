@@ -1,0 +1,7 @@
+{
+  "routeName": "BizObs App",
+  "enabled": true,
+  "dataSource": "bizevents",
+  "matcher": "matchesValue(event.category, \"BizObs App\")",
+  "targetPipeline": "bizobs-template-pipeline"
+}

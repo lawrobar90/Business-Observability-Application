@@ -1,0 +1,33 @@
+{
+  "ruleName": "BizObs App",
+  "enabled": true,
+  "triggerType": "REQUEST",
+  "triggers": [
+    {
+      "type": "request.path",
+      "matcher": {
+        "type": "STARTS_WITH",
+        "value": "/process"
+      }
+    }
+  ],
+  "eventProvider": {
+    "source": "request.body",
+    "fieldName": "companyName"
+  },
+  "eventType": {
+    "source": "request.body",
+    "fieldName": "stepName"
+  },
+  "eventCategory": {
+    "source": "constant",
+    "value": "BizObs App"
+  },
+  "dataFields": [
+    {
+      "source": "request.body",
+      "fieldName": "rqBody",
+      "path": "*"
+    }
+  ]
+}
