@@ -6317,40 +6317,19 @@ Return the response in JSON code format that can be copied from this UI
       
       const journey = window.currentJourneyData.journey;
       
-      statusEl.textContent = `🚀 Deploying dashboard for ${journey.companyName}...`;
+      statusEl.textContent = `� Generating dashboard JSON for ${journey.companyName}...`;
       statusEl.className = 'mt-3 p-3 bg-blue-900 bg-opacity-50 rounded text-xs font-mono text-blue-300';
       
       try {
-        // Try to load MCP server URL from localStorage
-        console.log('[Dashboard] Loading stored MCP server configuration...');
-        const storedSettings = await window.loadDynatraceSettings();
+        // Generate dashboard JSON (no deployment, just download)
+        console.log('[Dashboard] Generating dashboard JSON...');
         
-        if (!storedSettings || !storedSettings.mcpServerUrl) {
-          statusEl.textContent = '⚠️ No MCP server configured. Please configure in Settings.';
-          statusEl.className = 'mt-3 p-3 bg-yellow-900 bg-opacity-50 rounded text-xs font-mono text-yellow-300';
-          console.warn('[Dashboard] No MCP server URL found');
-          return;
-        }
-        
-        console.log('[Dashboard] MCP server URL:', storedSettings.mcpServerUrl);
-        console.log('[Dashboard] Environment URL:', storedSettings.environmentUrl);
-        
-        if (!storedSettings.environmentUrl) {
-          statusEl.textContent = '⚠️ No Dynatrace environment configured. Please configure in Settings.';
-          statusEl.className = 'mt-3 p-3 bg-yellow-900 bg-opacity-50 rounded text-xs font-mono text-yellow-300';
-          console.warn('[Dashboard] No environment URL found');
-          return;
-        }
-        
-        // Deploy dashboard via MCP server proxy
-        const response = await fetch('/api/dynatrace/deploy-dashboard-via-mcp', {
+        const response = await fetch('/api/dynatrace/generate-dashboard-json', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            mcpServerUrl: storedSettings.mcpServerUrl,
-            environmentUrl: storedSettings.environmentUrl,
             journeyConfig: journey
           })
         });
@@ -6359,22 +6338,29 @@ Return the response in JSON code format that can be copied from this UI
         const result = await response.json();
         console.log('[Dashboard] Response data:', result);
         
-        if (result.ok && result.success !== false) {
-          statusEl.textContent = `✅ Dashboard created successfully!\nID: ${result.dashboardId}\nURL: ${result.dashboardUrl}\n\nClick to open dashboard ↗`;
-          statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-xs font-mono text-green-300 cursor-pointer hover:bg-green-800';
-          statusEl.onclick = () => window.open(result.dashboardUrl, '_blank');
+        if (result.ok && result.dashboardJson) {
+          // Auto-download the JSON file
+          const blob = new Blob([JSON.stringify(result.dashboardJson, null, 2)], { 
+            type: 'application/json' 
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = result.fileName || 'dynatrace-dashboard.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          statusEl.textContent = `✅ Dashboard JSON downloaded: ${result.fileName}\n\n📤 To upload to Dynatrace:\n1. Go to your Dynatrace environment\n2. Navigate to Dashboards\n3. Click "Import dashboard"\n4. Upload the downloaded JSON file`;
+          statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-xs font-mono text-green-300 whitespace-pre-wrap';
         } else {
           const errorMsg = result.error || 'Unknown error';
-          statusEl.textContent = `❌ Dashboard deployment failed:\n${errorMsg}`;
+          statusEl.textContent = `❌ Dashboard generation failed:\n${errorMsg}`;
           statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
-          
-          // Check if Dynatrace is configured
-          if (errorMsg.includes('not configured') || errorMsg.includes('credentials')) {
-            statusEl.textContent += '\n\n💡 Tip: Click "Dynatrace Settings" button (top right) to configure your API token';
-          }
         }
       } catch (error) {
-        console.error('Dashboard deployment error:', error);
+        console.error('[Dashboard] Generation error:', error);
         statusEl.textContent = `❌ Request failed: ${error.message}`;
         statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
       }

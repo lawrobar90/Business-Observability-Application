@@ -495,4 +495,202 @@ async function findExistingDashboard(companyName) {
   return [];
 }
 
-export { deployJourneyDashboard, findExistingDashboard };
+/**
+ * Generate dashboard JSON (no deployment)
+ * Returns the complete dashboard JSON that can be downloaded and manually uploaded
+ */
+function generateDashboardJson(journeyConfig) {
+  const { companyName, domain, industryType, steps, journeyType } = journeyConfig;
+  
+  console.log(`📊 Generating dashboard JSON for ${companyName}`);
+  
+  const journeyName = journeyType || journeyConfig.journeyDetail || 'Customer Journey';
+  
+  // Build dashboard in version 20 format
+  const dashboard = {
+    version: 20,
+    variables: [],
+    tiles: {},
+    layouts: {},
+    importedWithCode: false,
+    settings: {
+      defaultTimeframe: {
+        value: { from: "now()-7d", to: "now()" },
+        enabled: true
+      }
+    }
+  };
+  
+  let tileId = 0;
+  
+  // Header
+  dashboard.tiles[tileId] = {
+    type: "markdown",
+    content: `# ${companyName} - ${journeyName}\n\n**Industry:** ${industryType} | **Domain:** ${domain || 'N/A'}\n\n---\n\n*Auto-generated BizObs Dashboard*`
+  };
+  dashboard.layouts[tileId] = { x: 0, y: 0, w: 24, h: 2 };
+  tileId++;
+  
+  // Total Journeys
+  dashboard.tiles[tileId] = {
+    title: "💼 Total Journeys",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize totalJourneys = count()`,
+    visualization: "singleValue",
+    visualizationSettings: {
+      singleValue: { label: "TOTAL JOURNEYS", recordField: "totalJourneys", colorThresholdTarget: "background" },
+      thresholds: [],
+      unitsOverrides: [{ identifier: "totalJourneys", unitCategory: "unspecified", baseUnit: "count", decimals: 0, delimiter: true }]
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 0, y: 2, w: 6, h: 2 };
+  tileId++;
+  
+  // Business Value
+  dashboard.tiles[tileId] = {
+    title: "💰 Total Business Value",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize totalValue = sum(businessValue)`,
+    visualization: "singleValue",
+    visualizationSettings: {
+      singleValue: { label: "REVENUE", recordField: "totalValue", colorThresholdTarget: "background", prefixIcon: "MoneyIcon" },
+      thresholds: [],
+      unitsOverrides: [{ identifier: "totalValue", unitCategory: "currency", baseUnit: "usd", decimals: 0, suffix: "$", delimiter: true }]
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 6, y: 2, w: 6, h: 2 };
+  tileId++;
+  
+  // Success Rate
+  dashboard.tiles[tileId] = {
+    title: "✅ Journey Success Rate",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize completed = countIf(journeyStatus == "completed"), total = count() | fieldsAdd successRate = (toDouble(completed) / toDouble(total)) * 100`,
+    visualization: "singleValue",
+    visualizationSettings: {
+      singleValue: { label: "SUCCESS RATE", recordField: "successRate", colorThresholdTarget: "background" },
+      thresholds: [{
+        id: 1, field: "successRate", isEnabled: true,
+        rules: [
+          { id: 1, color: { Default: "#2ab06f" }, comparator: "≥", value: 90 },
+          { id: 2, color: { Default: "#f5d30f" }, comparator: "≥", value: 70 },
+          { id: 3, color: { Default: "#dc2626" }, comparator: "<", value: 70 }
+        ]
+      }],
+      unitsOverrides: [{ identifier: "successRate", unitCategory: "percentage", baseUnit: "percent", decimals: 1, suffix: "%", delimiter: true }]
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 12, y: 2, w: 6, h: 2 };
+  tileId++;
+  
+  // Average Duration
+  dashboard.tiles[tileId] = {
+    title: "⏱️ Average Journey Duration",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize avgDuration = avg(totalDuration)`,
+    visualization: "singleValue",
+    visualizationSettings: {
+      singleValue: { label: "AVG DURATION", recordField: "avgDuration", colorThresholdTarget: "background" },
+      thresholds: [],
+      unitsOverrides: [{ identifier: "avgDuration", unitCategory: "time", baseUnit: "second", decimals: 1, suffix: " sec", delimiter: true }]
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 18, y: 2, w: 6, h: 2 };
+  tileId++;
+  
+  // Get journey-type-specific tiles
+  const journeyTiles = getJourneyTypeTiles(journeyType, companyName, tileId, 4);
+  Object.assign(dashboard.tiles, journeyTiles.tiles);
+  Object.assign(dashboard.layouts, journeyTiles.layouts);
+  tileId = journeyTiles.nextTileId;
+  let currentY = journeyTiles.nextY;
+  
+  // Journey Over Time
+  dashboard.tiles[tileId] = {
+    title: "📈 Journeys Over Time",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize journeys = count(), by: { bin(timestamp, 1h) }`,
+    visualization: "lineChart",
+    visualizationSettings: {
+      chartSettings: { 
+        gapPolicy: "connect",
+        circleChartSettings: { groupingThresholdType: "relative", groupingThresholdValue: 0 },
+        categoricalBarChartSettings: { layout: "horizontal" }
+      },
+      singleValue: { showLabel: true, label: "", prefixIcon: "", recordField: "journeys" },
+      table: { rowDensity: "condensed", enableLineWrap: false, firstVisibleRowIndex: 0, columnWidths: {} }
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 0, y: currentY, w: 12, h: 4 };
+  tileId++;
+  
+  // Journey Status Distribution
+  dashboard.tiles[tileId] = {
+    title: "📊 Journey Status Distribution",
+    type: "data",
+    query: `fetch bizevents | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | summarize count = count(), by: {journeyStatus}`,
+    visualization: "pieChart",
+    visualizationSettings: {
+      chartSettings: { 
+        gapPolicy: "connect",
+        circleChartSettings: { groupingThresholdType: "relative", groupingThresholdValue: 5 },
+        categoricalBarChartSettings: { layout: "horizontal" }
+      },
+      singleValue: { showLabel: true, label: "", recordField: "count" },
+      table: { rowDensity: "condensed", enableLineWrap: false, firstVisibleRowIndex: 0, columnWidths: {} }
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 12, y: currentY, w: 12, h: 4 };
+  tileId++;
+  currentY += 4;
+  
+  // Step Performance Table
+  dashboard.tiles[tileId] = {
+    title: "🔍 Step Performance Details",
+    type: "data",
+    query: `fetch bizevents, from: now() - 7d | filter event.type == "journey_data_persisted" | filter companyName == "${companyName}" | fields timestamp, customerId, journeyStatus, totalDuration, businessValue, stepsCompleted = arraySize(steps) | sort timestamp desc | limit 100`,
+    visualization: "table",
+    visualizationSettings: {
+      chartSettings: { 
+        gapPolicy: "connect",
+        circleChartSettings: { groupingThresholdType: "relative", groupingThresholdValue: 0 },
+        categoricalBarChartSettings: { layout: "horizontal" }
+      },
+      singleValue: { showLabel: true, label: "", recordField: "" },
+      table: { 
+        rowDensity: "condensed", 
+        enableLineWrap: false, 
+        firstVisibleRowIndex: 0, 
+        columnWidths: {
+          "timestamp": 200,
+          "customerId": 200,
+          "journeyStatus": 150,
+          "totalDuration": 150,
+          "businessValue": 150,
+          "stepsCompleted": 150
+        }
+      }
+    },
+    querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500 },
+    davis: { enabled: false, davisVisualization: { isAvailable: true } }
+  };
+  dashboard.layouts[tileId] = { x: 0, y: currentY, w: 24, h: 6 };
+  
+  console.log(`✅ Dashboard JSON generated with ${Object.keys(dashboard.tiles).length} tiles`);
+  
+  return dashboard;
+}
+
+export { deployJourneyDashboard, findExistingDashboard, generateDashboardJson };

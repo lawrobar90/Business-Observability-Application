@@ -1633,7 +1633,52 @@ app.post('/api/mcp/stop', (req, res) => {
 });
 
 // ============================================
-// Dashboard Deployment via MCP
+// Dashboard Generation - Download JSON
+// ============================================
+
+app.post('/api/dynatrace/generate-dashboard-json', async (req, res) => {
+  try {
+    const { journeyConfig } = req.body;
+    
+    if (!journeyConfig) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing journey configuration'
+      });
+    }
+    
+    console.log('[Dashboard Generator] Generating dashboard JSON for:', journeyConfig.companyName);
+    
+    // Import dashboard generator
+    const { generateDashboardJson } = await import('./scripts/dynatrace-dashboard-deployer.js');
+    
+    // Generate dashboard JSON (no deployment)
+    const dashboardJson = generateDashboardJson(journeyConfig);
+    
+    // Prepare file name
+    const fileName = `${journeyConfig.companyName.replace(/[^a-z0-9]/gi, '_')}_Dashboard.json`;
+    
+    console.log(`✅ Dashboard JSON generated: ${fileName}`);
+    
+    res.json({
+      ok: true,
+      success: true,
+      dashboardJson: dashboardJson,
+      fileName: fileName,
+      companyName: journeyConfig.companyName,
+      message: 'Dashboard JSON generated. Download and upload to Dynatrace manually.'
+    });
+  } catch (error) {
+    console.error('[Dashboard Generator] Error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ============================================
+// Dashboard Deployment via MCP (Legacy - requires platform token)
 // ============================================
 
 app.post('/api/dynatrace/deploy-dashboard-via-mcp', async (req, res) => {

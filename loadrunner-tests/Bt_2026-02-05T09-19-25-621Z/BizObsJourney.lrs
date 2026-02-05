@@ -1,0 +1,27 @@
+[General]
+Version=1
+
+[Groups]
+Group1=1
+
+[Group: Group1]
+Scripts=BizObsJourneyTest
+ScalabilityMode=1
+LoadBehavior=goal
+Goal=VUsersPerSec
+GoalValue=1
+RampUp=10
+Duration=300
+RampDown=10
+IterationDelay=30
+
+[Scripts]
+BizObsJourneyTest=/home/ec2-user/BizObs Generator/loadrunner-tests/Bt_2026-02-05T09-19-25-621Z/BizObsJourneyTest.c
+
+[Runtime Settings]
+ThinkTime=On
+IterationDelay=Fixed
+IterationDelaySeconds=30
+AutomaticTransactions=1
+FailOnHttpErrors=1
+MaxIterations=10
