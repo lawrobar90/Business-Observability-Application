@@ -897,6 +897,24 @@ router.post('/simulate-journey', async (req, res) => {
       }
     });
 
+    // Cleanup old services and ports before starting new journey
+    try {
+      // Stop any running services from previous journeys (especially other companies)
+      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
+      const { stopCustomerJourneyServices } = await import('../services/service-manager.js');
+      stopCustomerJourneyServices();
+      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
+      
+      // Clean up any stale port allocations
+      const { default: portManager } = await import('../services/port-manager.js');
+      const cleaned = await portManager.cleanupStaleAllocations();
+      if (cleaned > 0) {
+        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journey start`);
+      }
+    } catch (cleanupErr) {
+      console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
+    }
+
     for (const stepInfo of errorPlannedSteps) {
       const { stepName, serviceName, description, category } = stepInfo;
       await ensureServiceRunning(stepName, { 
@@ -1224,6 +1242,24 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
     const maxFailuresBeforeSlowdown = 3;
 
     console.log(`[journey-sim] Running ${customers} customer journeys sequentially for reliability`);
+
+    // Cleanup old services and ports before starting new journeys
+    try {
+      // Stop any running services from previous journeys (especially other companies)
+      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
+      const { stopCustomerJourneyServices } = await import('../services/service-manager.js');
+      stopCustomerJourneyServices();
+      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
+      
+      // Clean up any stale port allocations
+      const { default: portManager } = await import('../services/port-manager.js');
+      const cleaned = await portManager.cleanupStaleAllocations();
+      if (cleaned > 0) {
+        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journeys start`);
+      }
+    } catch (cleanupErr) {
+      console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
+    }
 
     // Process customers sequentially (not in parallel) to prevent service overload
     for (let customerIndex = 0; customerIndex < customers; customerIndex++) {
