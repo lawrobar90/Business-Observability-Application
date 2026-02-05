@@ -899,11 +899,11 @@ router.post('/simulate-journey', async (req, res) => {
 
     // Cleanup old services and ports before starting new journey
     try {
-      // Stop any running services from previous journeys (especially other companies)
-      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
-      const { stopCustomerJourneyServices } = await import('../services/service-manager.js');
-      stopCustomerJourneyServices();
-      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
+      // Stop ANY running services (including zombies from previous server runs)
+      console.log(`[journey-sim] 🧹 Stopping ALL journey services (including zombies)...`);
+      const { stopAllServices } = await import('../services/service-manager.js');
+      await stopAllServices();
+      await new Promise(r => setTimeout(r, 1500)); // Wait for services to stop
       
       // Clean up any stale port allocations
       const { default: portManager } = await import('../services/port-manager.js');
@@ -1245,11 +1245,11 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
 
     // Cleanup old services and ports before starting new journeys
     try {
-      // Stop any running services from previous journeys (especially other companies)
-      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
-      const { stopCustomerJourneyServices } = await import('../services/service-manager.js');
-      stopCustomerJourneyServices();
-      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
+      // Stop ANY running services (including zombies from previous server runs)
+      console.log(`[journey-sim] 🧹 Stopping ALL journey services (including zombies)...`);
+      const { stopAllServices } = await import('../services/service-manager.js');
+      await stopAllServices();
+      await new Promise(r => setTimeout(r, 1500)); // Wait for services to stop
       
       // Clean up any stale port allocations
       const { default: portManager } = await import('../services/port-manager.js');
