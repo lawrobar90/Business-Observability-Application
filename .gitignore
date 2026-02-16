@@ -8,6 +8,9 @@ yarn-debug.log*
 .npm
 package-lock.json
 
+# TypeScript compiled output
+dist/
+
 # Environment and secrets
 .env
 .env.*

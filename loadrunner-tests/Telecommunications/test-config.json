@@ -28,7 +28,7 @@
         "errorType": "generic_error",
         "httpStatus": 500,
         "likelihood": 0.1,
-        "shouldSimulateError": true
+        "shouldSimulateError": false
       }
     },
     {
@@ -37,7 +37,7 @@
       "serviceName": "GuidedTroubleshootingService",
       "description": "App provides step-by-step troubleshooting such as router reboot, channel optimisation, and interference checks.",
       "category": "SelfService",
-      "timestamp": "2026-02-16T13:10:00.504Z",
+      "timestamp": "2026-02-16T16:30:13.202Z",
       "estimatedDuration": 6,
       "businessRationale": "Effective troubleshooting reduces the need for agent contact and engineer visits, lowering operational cost.",
       "substeps": [
@@ -65,7 +65,7 @@
       "serviceName": "ChatSupportService",
       "description": "Customer escalates to live chat for deeper diagnostics and confirmation of issue severity.",
       "category": "AssistedSupport",
-      "timestamp": "2026-02-16T13:10:00.504Z",
+      "timestamp": "2026-02-16T16:30:13.202Z",
       "estimatedDuration": 12,
       "businessRationale": "Chat support is cheaper than phone support; resolving issues here prevents costly engineer dispatch.",
       "substeps": [
@@ -93,7 +93,7 @@
       "serviceName": "EngineerBookingService",
       "description": "Chat agent books an engineer visit after diagnostics confirm a line or router fault.",
       "category": "Scheduling",
-      "timestamp": "2026-02-16T13:10:00.504Z",
+      "timestamp": "2026-02-16T16:30:13.202Z",
       "estimatedDuration": 5,
       "businessRationale": "Engineer scheduling requires backend availability checks; delays increase customer frustration and churn likelihood.",
       "substeps": [
@@ -121,7 +121,7 @@
       "serviceName": "EngineerVisitService",
       "description": "Engineer visits the customer’s home, diagnoses the root cause, and resolves Wi‑Fi issues.",
       "category": "FieldService",
-      "timestamp": "2026-02-16T13:10:00.504Z",
+      "timestamp": "2026-02-16T16:30:13.202Z",
       "estimatedDuration": 90,
       "businessRationale": "Engineer visits are high-cost operations; duration impacts scheduling efficiency and customer satisfaction.",
       "substeps": [
@@ -149,7 +149,7 @@
       "serviceName": "PostFixMonitoringService",
       "description": "the provider monitors Wi‑Fi stability and customer experience for 24 hours after engineer resolution.",
       "category": "Retention",
-      "timestamp": "2026-02-16T13:10:00.504Z",
+      "timestamp": "2026-02-16T16:30:13.202Z",
       "estimatedDuration": 1440,
       "businessRationale": "Post-fix monitoring reduces repeat faults and improves retention; early detection prevents additional support costs.",
       "substeps": [
@@ -173,5 +173,5 @@
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-16T13:10:26.187Z"
+  "timestamp": "2026-02-16T16:30:31.618Z"
 }

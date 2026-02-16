@@ -37,7 +37,7 @@
       "serviceName": "IdentityVerificationService",
       "description": "Customer completes KYC checks including document upload, biometric verification, and fraud screening.",
       "category": "Compliance",
-      "timestamp": "2026-02-12T22:07:02.676Z",
+      "timestamp": "2026-02-16T15:59:04.479Z",
       "estimatedDuration": 7,
       "businessRationale": "KYC and AML checks typically take 6–10 minutes depending on document verification and fraud model latency. This step is critical for regulatory compliance.",
       "substeps": [
@@ -65,7 +65,7 @@
       "serviceName": "AccountCreationService",
       "description": "Barclays creates the new current account, assigns sort code and account number, and provisions digital access.",
       "category": "Fulfilment",
-      "timestamp": "2026-02-12T22:07:02.676Z",
+      "timestamp": "2026-02-16T15:59:04.479Z",
       "estimatedDuration": 4,
       "businessRationale": "Core banking provisioning typically takes 3–5 minutes. Delays here directly impact onboarding completion and customer satisfaction.",
       "substeps": [
@@ -93,7 +93,7 @@
       "serviceName": "CardIssuanceAndDeliveryService",
       "description": "Barclays issues a debit card, triggers manufacturing, and initiates postal delivery.",
       "category": "Fulfilment",
-      "timestamp": "2026-02-12T22:07:02.676Z",
+      "timestamp": "2026-02-16T15:59:04.479Z",
       "estimatedDuration": 4320,
       "businessRationale": "Debit card production and delivery in the UK typically takes 2–4 days (2880–5760 minutes). This step is essential for enabling spending and interchange revenue.",
       "substeps": [
@@ -121,7 +121,7 @@
       "serviceName": "AppSetupAndActivationService",
       "description": "Customer downloads the Barclays app, registers their device, and activates mobile banking.",
       "category": "Activation",
-      "timestamp": "2026-02-12T22:07:02.676Z",
+      "timestamp": "2026-02-16T15:59:04.479Z",
       "estimatedDuration": 5,
       "businessRationale": "Mobile banking activation typically takes 4–6 minutes. App activation strongly correlates with long-term engagement and retention.",
       "substeps": [
@@ -149,7 +149,7 @@
       "serviceName": "FirstTransactionService",
       "description": "Customer performs their first transaction (e.g., debit card purchase, bank transfer, or ATM withdrawal).",
       "category": "Revenue",
-      "timestamp": "2026-02-12T22:07:02.677Z",
+      "timestamp": "2026-02-16T15:59:04.479Z",
       "estimatedDuration": 2,
       "businessRationale": "First transaction is a key activation milestone. It generates interchange or payment fees and signals successful onboarding.",
       "substeps": [
@@ -168,10 +168,10 @@
         "errorType": "generic_error",
         "httpStatus": 500,
         "likelihood": 0.1,
-        "shouldSimulateError": false
+        "shouldSimulateError": true
       }
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-12T22:07:39.540Z"
+  "timestamp": "2026-02-16T15:59:17.539Z"
 }

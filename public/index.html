@@ -391,11 +391,11 @@
             </button>
             <button class="tab-button flex flex-col items-center space-y-2 px-4 py-3 rounded-xl transition-all duration-200 bg-dtcard border border-dtgray hover:border-dtcyan" data-tab="step3">
               <div class="flex items-center justify-center w-8 h-8 rounded-full bg-dtgray text-white font-bold text-sm">3</div>
-              <span class="text-xs font-medium text-center">Process<br>Check</span>
+              <span class="text-xs font-medium text-center">Generate<br>Data</span>
             </button>
             <button class="tab-button flex flex-col items-center space-y-2 px-4 py-3 rounded-xl transition-all duration-200 bg-dtcard border border-dtgray hover:border-dtcyan" data-tab="step4">
               <div class="flex items-center justify-center w-8 h-8 rounded-full bg-dtgray text-white font-bold text-sm">4</div>
-              <span class="text-xs font-medium text-center">Generate<br>Data</span>
+              <span class="text-xs font-medium text-center">AI<br>Agents</span>
             </button>
           </nav>
         </div>
@@ -611,7 +611,7 @@
                         ← Back to Details
                       </button>
                       <button onclick="switchTab('step3')" class="bg-dtpurple text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-dtcyan hover:text-black transition-all">
-                        Skip to Process →
+                        Skip to Generate →
                       </button>
                     </div>
                   </div>
@@ -626,74 +626,20 @@
           </div>
         </div>
 
-        <!-- Step 3 Tab - Process Check -->
+        <!-- Hidden container for processed journey data (used by JS) -->
+        <div id="step3-data-store" style="display:none;">
+          <pre id="journey-output-step3"></pre>
+          <span id="step-count">0</span>
+          <span id="field-count">0</span>
+          <div id="generated-fields-preview"></div>
+        </div>
+
+        <!-- Step 3 Tab - Generate Data -->
         <div class="tab-pane" id="step3-tab">
           <div class="max-w-6xl mx-auto">
             <div class="p-6 rounded-2xl bg-dtcard border border-dtborder shadow-card">
-              <h2 class="text-2xl mb-4 text-dtcyan font-bold tracking-tight">⚡ Step 3 - Process Check</h2>
-              
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Left Column: Journey Data -->
-                <div class="space-y-4">
-                  <div>
-                    <h4 class="text-base font-bold text-white mb-2">Processed Journey Data</h4>
-                    <pre id="journey-output-step3" class="w-full h-64 p-3 border border-dtcyan rounded-lg bg-black text-white text-sm font-mono overflow-auto">Processed journey data will appear here after Step 2...</pre>
-                  </div>
-                  
-                  <div class="grid grid-cols-2 gap-4">
-                    <div class="p-3 bg-dtblue bg-opacity-20 rounded-lg border border-dtblue">
-                      <h5 class="text-dtblue font-semibold text-sm mb-1">Journey Steps</h5>
-                      <p id="step-count" class="text-lg font-bold text-white">0</p>
-                      <p class="text-xs text-gray-400">Customer touchpoints</p>
-                    </div>
-                    <div class="p-3 bg-dtgreen bg-opacity-20 rounded-lg border border-dtgreen">
-                      <h5 class="text-dtgreen font-semibold text-sm mb-1">Business Fields</h5>
-                      <p id="field-count" class="text-lg font-bold text-white">0</p>
-                      <p class="text-xs text-gray-400">Revenue & KPI metrics</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Right Column: Configuration & Fields -->
-                <div class="space-y-4">
-                  <div>
-                    <h4 class="text-base font-bold text-white mb-2">Generated Fields Preview</h4>
-                    <div id="generated-fields-preview" class="max-h-40 overflow-y-auto p-3 bg-dtgray rounded-lg text-sm">
-                      <p class="text-gray-400 text-center">Field data will appear after processing journey response</p>
-                    </div>
-                  </div>
-                  
-                  <div class="space-y-2">
-                    <button onclick="switchTab('step4')" class="bg-dtgreen text-black px-6 py-3 rounded-lg text-base font-bold shadow-card hover:bg-dtcyan transition-all w-full">
-                      📊 Continue to Generate Data →
-                    </button>
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                      <button onclick="switchTab('step2')" class="bg-dtgray text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-dtpurple transition-all">
-                        ← Back to Prompts
-                      </button>
-                      <button onclick="validateProcessing()" class="bg-dtblue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-dtcyan hover:text-black transition-all">
-                        🔍 Validate Data
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div class="p-3 bg-dtyellow bg-opacity-20 rounded-lg border border-dtyellow">
-                    <h5 class="text-dtyellow font-semibold mb-2">🎯 Business Intelligence</h5>
-                    <p class="text-xs text-gray-400">Generated journey includes revenue metrics, KPIs, and competitive insights for realistic demos.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 4 Tab - Generate Data -->
-        <div class="tab-pane" id="step4-tab">
-          <div class="max-w-6xl mx-auto">
-            <div class="p-6 rounded-2xl bg-dtcard border border-dtborder shadow-card">
               <div class="flex items-center justify-between mb-4">
-                <h2 class="text-2xl text-dtcyan font-bold tracking-tight">📊 Step 4 - Generate Data</h2>
+                <h2 class="text-2xl text-dtcyan font-bold tracking-tight">📊 Step 3 - Generate Data</h2>
                 <div class="text-xs text-gray-400">
                   Multi-tenant: Services persist across journeys
                 </div>
@@ -876,13 +822,12 @@
               
               <!-- Navigation -->
               <div class="mt-6 flex justify-between">
-                <button onclick="switchTab('step3')" class="bg-dtgray text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-dtpurple transition-all">
-                  ← Back to Process Check
+                <button onclick="switchTab('step2')" class="bg-dtgray text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-dtpurple transition-all">
+                  ← Back to Prompts
                 </button>
-                <div class="text-center">
-                  <p class="text-sm text-gray-400 mb-2">🎉 Journey Complete!</p>
-                  <p class="text-xs text-gray-400">You can now generate realistic customer data and business scenarios</p>
-                </div>
+                <button onclick="switchTab('step4')" class="bg-dtpurple text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-dtcyan hover:text-black transition-all">
+                  AI Agents →
+                </button>
               </div>
               
               <!-- ⚠️ DANGER ZONE - Kill All Services -->
@@ -923,6 +868,289 @@
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Step 4 Tab - AI Agents -->
+        <div class="tab-pane" id="step4-tab">
+          <div class="max-w-6xl mx-auto space-y-6">
+
+            <!-- Header -->
+            <div class="p-6 rounded-2xl bg-dtcard border border-dtborder shadow-card">
+              <div class="flex items-center justify-between mb-2">
+                <h2 class="text-2xl text-dtcyan font-bold tracking-tight">🤖 Step 4 - AI Agents</h2>
+                <span class="text-xs text-gray-500 font-mono" id="agents-status-badge">Ready</span>
+              </div>
+              <p class="text-sm text-gray-400">Four AI agents — inject chaos, auto-remediate, review operational history, and generate Dynatrace dashboards.</p>
+              <div class="flex gap-2 mt-3 flex-wrap">
+                <a href="#agent-gremlin" onclick="document.getElementById('agent-gremlin').scrollIntoView({behavior:'smooth'})" class="text-xs bg-red-900 bg-opacity-40 text-red-400 border border-red-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">👹 Gremlin</a>
+                <a href="#agent-fixit" onclick="document.getElementById('agent-fixit').scrollIntoView({behavior:'smooth'})" class="text-xs bg-green-900 bg-opacity-40 text-dtgreen border border-green-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">🔧 Fix-It</a>
+                <a href="#agent-librarian" onclick="document.getElementById('agent-librarian').scrollIntoView({behavior:'smooth'})" class="text-xs bg-blue-900 bg-opacity-40 text-dtblue border border-blue-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">📚 Librarian</a>
+                <a href="#agent-dashboard" onclick="document.getElementById('agent-dashboard').scrollIntoView({behavior:'smooth'})" class="text-xs bg-purple-900 bg-opacity-40 text-dtpurple border border-purple-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">📊 Dashboard</a>
+              </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  GREMLIN AGENT                                 -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div id="agent-gremlin" class="p-6 rounded-2xl bg-dtcard border-2 border-red-800 shadow-card">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-3xl">👹</span>
+                <div class="flex-1">
+                  <h3 class="text-lg font-bold text-red-400">Gremlin &mdash; Chaos Agent</h3>
+                  <p class="text-xs text-gray-500">Inject feature-flag-based faults into running services</p>
+                </div>
+                <span class="text-[10px] bg-red-900 text-red-300 px-2 py-0.5 rounded-full border border-red-700 uppercase tracking-widest">Chaos</span>
+              </div>
+              <div class="border-b border-red-900 mb-4"></div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left: Controls -->
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Chaos Recipe</label>
+                    <select id="gremlin-recipe" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none">
+                      <option value="">Loading recipes...</option>
+                    </select>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-sm font-semibold text-gray-300 mb-1">Intensity (1-10)</label>
+                      <input id="gremlin-intensity" type="number" min="1" max="10" value="5" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-semibold text-gray-300 mb-1">Duration (sec)</label>
+                      <input id="gremlin-duration" type="number" min="10" max="600" value="120" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none">
+                    </div>
+                  </div>
+                  <button onclick="window._agentInjectChaos()" class="w-full bg-red-600 text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-red-500 transition-all shadow-card">
+                    👹 Inject Chaos
+                  </button>
+
+                  <!-- Smart Chaos -->
+                  <div class="border-t border-dtborder pt-4">
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Smart Chaos (Natural Language)</label>
+                    <textarea id="gremlin-smart-input" rows="2" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none" placeholder="e.g. Simulate a payment outage for 2 minutes"></textarea>
+                    <button onclick="window._agentSmartChaos()" class="mt-2 w-full bg-dtorange text-black px-4 py-2 rounded-lg text-sm font-bold hover:bg-dtyellow transition-all">
+                      🧠 Smart Chaos
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Right: Active Faults -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-bold text-gray-300">Active Faults</h4>
+                    <div class="flex gap-2">
+                      <button onclick="window._agentRefreshFaults()" class="text-xs text-dtcyan hover:underline">↻ Refresh</button>
+                      <button onclick="window._agentRevertAll()" class="text-xs text-red-400 hover:underline">⏹ Revert All</button>
+                    </div>
+                  </div>
+                  <div id="gremlin-active-faults" class="bg-black rounded-lg border border-dtborder p-3 min-h-[200px] max-h-[300px] overflow-y-auto text-sm">
+                    <p class="text-gray-500 text-center text-xs">No active faults</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Gremlin Results -->
+              <div id="gremlin-result" class="mt-4 hidden">
+                <pre class="bg-black rounded-lg border border-red-900 p-3 text-xs text-green-400 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
+              </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  FIX-IT AGENT                                  -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div id="agent-fixit" class="p-6 rounded-2xl bg-dtcard border-2 border-green-800 shadow-card">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-3xl">🔧</span>
+                <div class="flex-1">
+                  <h3 class="text-lg font-bold text-dtgreen">Fix-It &mdash; Remediation Agent</h3>
+                  <p class="text-xs text-gray-500">Diagnose problems and auto-remediate via feature flags</p>
+                </div>
+                <span class="text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded-full border border-green-700 uppercase tracking-widest">Remediation</span>
+              </div>
+              <div class="border-b border-green-900 mb-4"></div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- Auto-Fix -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
+                  <h4 class="text-sm font-bold text-gray-300">⚡ Auto Fix</h4>
+                  <p class="text-xs text-gray-500">Scans active problems and remediates automatically.</p>
+                  <button onclick="window._agentAutoFix()" class="w-full bg-dtgreen text-black px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan transition-all shadow-card">
+                    ⚡ Auto Fix
+                  </button>
+                </div>
+
+                <!-- Diagnose -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
+                  <h4 class="text-sm font-bold text-gray-300">🔍 Diagnose Problem</h4>
+                  <input id="fixit-problem-id" type="text" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-dtgreen focus:outline-none" placeholder="Problem ID (optional)">
+                  <button onclick="window._agentDiagnose()" class="w-full bg-dtblue text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan hover:text-black transition-all shadow-card">
+                    🔍 Diagnose
+                  </button>
+                </div>
+
+                <!-- Agentic -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
+                  <h4 class="text-sm font-bold text-gray-300">🤖 Agentic (Natural Language)</h4>
+                  <input id="fixit-agentic-input" type="text" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-dtgreen focus:outline-none" placeholder="e.g. Fix the payment errors">
+                  <button onclick="window._agentAgenticFix()" class="w-full bg-dtpurple text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan hover:text-black transition-all shadow-card">
+                    🤖 Agentic Fix
+                  </button>
+                </div>
+              </div>
+
+              <!-- Fix-It Results -->
+              <div id="fixit-result" class="mt-4 hidden">
+                <pre class="bg-black rounded-lg border border-green-900 p-3 text-xs text-green-400 max-h-60 overflow-y-auto whitespace-pre-wrap"></pre>
+              </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  LIBRARIAN AGENT                               -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div id="agent-librarian" class="p-6 rounded-2xl bg-dtcard border-2 border-blue-800 shadow-card">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-3xl">📚</span>
+                <div class="flex-1">
+                  <h3 class="text-lg font-bold text-dtblue">Librarian &mdash; Operational Memory</h3>
+                  <p class="text-xs text-gray-500">Search incident history, view timelines, and review operational stats</p>
+                </div>
+                <span class="text-[10px] bg-blue-900 text-blue-300 px-2 py-0.5 rounded-full border border-blue-700 uppercase tracking-widest">Memory</span>
+              </div>
+              <div class="border-b border-blue-900 mb-4"></div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Stats -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <h4 class="text-sm font-bold text-dtblue mb-2">📊 Stats</h4>
+                  <div id="librarian-stats" class="text-xs text-gray-400 min-h-[60px]">
+                    <p>Loading...</p>
+                  </div>
+                  <button onclick="window._agentLibStats()" class="mt-2 text-xs text-dtcyan hover:underline">↻ Refresh</button>
+                </div>
+
+                <!-- Search -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <h4 class="text-sm font-bold text-dtblue mb-2">🔍 Search</h4>
+                  <input id="librarian-search-input" type="text" class="w-full p-2 bg-dtdark border border-dtborder rounded-lg text-white text-xs mb-2 focus:border-dtblue focus:outline-none" placeholder="Search incidents...">
+                  <button onclick="window._agentLibSearch()" class="w-full bg-dtblue text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-dtcyan hover:text-black transition-all">
+                    Search
+                  </button>
+                </div>
+
+                <!-- Timeline Lookup -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <h4 class="text-sm font-bold text-dtblue mb-2">📅 Timeline</h4>
+                  <input id="librarian-timeline-id" type="text" class="w-full p-2 bg-dtdark border border-dtborder rounded-lg text-white text-xs mb-2 focus:border-dtblue focus:outline-none" placeholder="Incident ID...">
+                  <button onclick="window._agentLibTimeline()" class="w-full bg-dtblue text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-dtcyan hover:text-black transition-all">
+                    View Timeline
+                  </button>
+                </div>
+              </div>
+
+              <!-- History Feed -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="text-sm font-bold text-gray-300">Recent History</h4>
+                  <button onclick="window._agentLibHistory()" class="text-xs text-dtcyan hover:underline">↻ Refresh</button>
+                </div>
+                <div id="librarian-history" class="bg-black rounded-lg border border-dtborder p-3 min-h-[100px] max-h-[200px] overflow-y-auto text-xs">
+                  <p class="text-gray-500 text-center">Loading history...</p>
+                </div>
+              </div>
+
+              <!-- Librarian Results -->
+              <div id="librarian-result" class="mt-4 hidden">
+                <pre class="bg-black rounded-lg border border-blue-900 p-3 text-xs text-green-400 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
+              </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  DASHBOARD AGENT                               -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div id="agent-dashboard" class="p-6 rounded-2xl bg-dtcard border-2 border-purple-800 shadow-card">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-3xl">📊</span>
+                <div class="flex-1">
+                  <h3 class="text-lg font-bold text-dtpurple">Dashboard &mdash; AI Generator</h3>
+                  <p class="text-xs text-gray-500">Generate & deploy Dynatrace dashboards from journey data using AI</p>
+                </div>
+                <span id="dashboard-ai-status" class="text-[10px] bg-purple-900 text-purple-300 px-2 py-0.5 rounded-full border border-purple-700 uppercase tracking-widest">Generator</span>
+              </div>
+              <div class="border-b border-purple-900 mb-4"></div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left: Controls -->
+                <div class="space-y-4">
+                  <!-- AI Toggle -->
+                  <div class="flex items-center justify-between p-3 bg-black bg-opacity-40 rounded-xl border border-dtborder">
+                    <div>
+                      <h4 class="text-sm font-bold text-gray-300">Use AI (Ollama)</h4>
+                      <p class="text-xs text-gray-500">Uses LLM to select optimal tiles; falls back to rules if unavailable</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="dashboard-use-ai" checked class="sr-only peer">
+                      <div class="w-11 h-6 bg-dtborder rounded-full peer peer-checked:bg-dtpurple peer-focus:ring-2 peer-focus:ring-dtpurple after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                    </label>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="grid grid-cols-2 gap-3">
+                    <button onclick="window._agentDashPreview()" class="bg-dtpurple bg-opacity-30 text-dtpurple border border-dtpurple px-4 py-3 rounded-lg text-sm font-bold hover:bg-opacity-60 transition-all">
+                      👁️ Preview Fields
+                    </button>
+                    <button onclick="window._agentDashGenerate()" class="bg-dtpurple text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan hover:text-black transition-all shadow-card">
+                      🧠 Generate Dashboard
+                    </button>
+                  </div>
+
+                  <!-- Deploy -->
+                  <div class="border-t border-dtborder pt-4 space-y-3">
+                    <button onclick="window._agentDashDeploy()" class="w-full bg-dtgreen text-black px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan transition-all shadow-card">
+                      🚀 Deploy to Dynatrace
+                    </button>
+                    <button onclick="window._agentDashDownload()" class="w-full bg-dtgray text-white px-4 py-2 rounded-lg text-xs font-medium hover:bg-dtpurple transition-all border border-dtborder">
+                      💾 Download JSON
+                    </button>
+                  </div>
+
+                  <!-- Health -->
+                  <button onclick="window._agentDashHealth()" class="text-xs text-gray-500 hover:text-dtcyan underline">Check Ollama Health</button>
+                </div>
+
+                <!-- Right: Preview/Info -->
+                <div class="space-y-3">
+                  <div class="bg-black bg-opacity-40 rounded-xl border border-dtborder p-4">
+                    <h4 class="text-sm font-bold text-dtpurple mb-2">Dashboard Preview</h4>
+                    <div id="dashboard-preview" class="text-xs text-gray-400 min-h-[120px]">
+                      <p class="text-gray-500 text-center">Generate or preview to see dashboard details</p>
+                    </div>
+                  </div>
+                  <div id="dashboard-deploy-status" class="hidden bg-black bg-opacity-40 rounded-xl border border-dtgreen p-3">
+                    <p class="text-xs text-dtgreen font-semibold">Deployment status will appear here</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Dashboard Results -->
+              <div id="dashboard-result" class="mt-4 hidden">
+                <pre class="bg-black rounded-lg border border-purple-900 p-3 text-xs text-green-400 max-h-60 overflow-y-auto whitespace-pre-wrap"></pre>
+              </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between mt-2">
+              <button onclick="switchTab('step3')" class="bg-dtgray text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-dtpurple transition-all">
+                ← Back to Generate Data
+              </button>
+              <div class="text-center">
+                <p class="text-sm text-gray-400 mb-1">🤖 AI Agents Ready</p>
+                <p class="text-xs text-gray-500">Gremlin · Fix-It · Librarian · Dashboard</p>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -9579,6 +9807,546 @@ Return the response in JSON code format that can be copied from this UI
       const settingsExist = localStorage.getItem(window.DT_SETTINGS_KEY);
       updateSettingsIndicator(!!settingsExist);
     }, 500);
+
+  </script>
+  <script>
+    // ==========================================
+    // AI AGENTS — Gremlin / Fix-It / Librarian / Dashboard
+    // Isolated in own script block so main-script errors can't block registration
+    // ==========================================
+    (function() {
+      'use strict';
+      console.log('[AI Agents] Registering agent functions...');
+
+      // --- Helpers ---
+      function showResult(id, text) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('hidden');
+        el.querySelector('pre').textContent = typeof text === 'string' ? text : JSON.stringify(text, null, 2);
+      }
+
+      async function agentFetch(url, opts) {
+        var res = await fetch(url, opts);
+        return await res.json();
+      }
+
+      // ============ GREMLIN ============
+
+      async function loadGremlinRecipes() {
+        try {
+          var data = await agentFetch('/api/gremlin/recipes');
+          var sel = document.getElementById('gremlin-recipe');
+          if (!sel || !Array.isArray(data)) return;
+          sel.innerHTML = data.map(function(r) {
+            return '<option value="' + (r.type || r.id) + '">' + r.name + ' — ' + (r.description || '') + '</option>';
+          }).join('');
+        } catch (e) { console.warn('Failed to load gremlin recipes', e); }
+      }
+
+      window._agentInjectChaos = async function() {
+        var recipe = document.getElementById('gremlin-recipe');
+        var val = recipe ? recipe.value : '';
+        var intensity = parseInt((document.getElementById('gremlin-intensity') || {}).value || '5');
+        var duration = parseInt((document.getElementById('gremlin-duration') || {}).value || '120');
+        if (!val) return alert('Select a recipe first');
+        var company = (document.getElementById('companyName') || {}).value || 'Demo Company';
+        showResult('gremlin-result', '⏳ Injecting chaos...');
+        try {
+          var data = await agentFetch('/api/gremlin/inject', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ type: val, target: 'default', intensity: intensity, duration: duration, company: company })
+          });
+          showResult('gremlin-result', data);
+          window._agentRefreshFaults();
+        } catch (e) { showResult('gremlin-result', '❌ ' + e.message); }
+      };
+
+      window._agentSmartChaos = async function() {
+        var input = (document.getElementById('gremlin-smart-input') || {}).value;
+        if (!input || !input.trim()) return alert('Describe the chaos scenario');
+        showResult('gremlin-result', '⏳ Processing smart chaos...');
+        try {
+          var data = await agentFetch('/api/gremlin/smart', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ goal: input.trim() })
+          });
+          showResult('gremlin-result', data);
+          window._agentRefreshFaults();
+        } catch (e) { showResult('gremlin-result', '❌ ' + e.message); }
+      };
+
+      window._agentRefreshFaults = async function() {
+        try {
+          var data = await agentFetch('/api/gremlin/active');
+          var container = document.getElementById('gremlin-active-faults');
+          if (!container) return;
+          var faults = data.activeFaults || data || [];
+          if (!Array.isArray(faults) || faults.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center text-xs py-4">No active faults</p>';
+            return;
+          }
+          container.innerHTML = faults.map(function(f) {
+            return '<div class="flex items-center justify-between py-2 border-b border-dtborder last:border-0">' +
+              '<div><span class="text-red-400 font-semibold text-xs">' + (f.recipe || f.recipeId || f.type || 'unknown') + '</span>' +
+              '<span class="text-gray-600 text-[10px] ml-2">' + (f.id || '') + '</span></div>' +
+              '<button onclick="window._agentRevertOne(\'' + (f.id || '') + '\')" class="text-[10px] bg-dtgray text-white px-2 py-1 rounded hover:bg-red-600 transition-all">Revert</button></div>';
+          }).join('');
+        } catch (e) { console.warn('Failed to refresh active faults', e); }
+      };
+
+      window._agentRevertOne = async function(id) {
+        try {
+          var data = await agentFetch('/api/gremlin/revert/' + id, { method: 'POST' });
+          showResult('gremlin-result', data);
+          window._agentRefreshFaults();
+        } catch (e) { showResult('gremlin-result', '❌ ' + e.message); }
+      };
+
+      window._agentRevertAll = async function() {
+        if (!confirm('Revert ALL active faults?')) return;
+        try {
+          var data = await agentFetch('/api/gremlin/revert-all', { method: 'POST' });
+          showResult('gremlin-result', data);
+          window._agentRefreshFaults();
+        } catch (e) { showResult('gremlin-result', '❌ ' + e.message); }
+      };
+
+      // ============ FIX-IT ============
+
+      window._agentAutoFix = async function() {
+        showResult('fixit-result', '⏳ Running auto-fix...');
+        try {
+          var data = await agentFetch('/api/fixit/auto', { method: 'POST' });
+          showResult('fixit-result', data);
+        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
+      };
+
+      window._agentDiagnose = async function() {
+        var problemId = (document.getElementById('fixit-problem-id') || {}).value || '';
+        showResult('fixit-result', '⏳ Diagnosing...');
+        try {
+          var data = await agentFetch('/api/fixit/diagnose', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ problemId: problemId.trim() || undefined })
+          });
+          showResult('fixit-result', data);
+        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
+      };
+
+      window._agentAgenticFix = async function() {
+        var input = (document.getElementById('fixit-agentic-input') || {}).value;
+        if (!input || !input.trim()) return alert('Describe the problem to diagnose');
+        showResult('fixit-result', '⏳ Agentic diagnosis in progress...');
+        try {
+          var data = await agentFetch('/api/fixit/agentic', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ description: input.trim() })
+          });
+          showResult('fixit-result', data);
+        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
+      };
+
+      // ============ LIBRARIAN ============
+
+      window._agentLibHistory = async function() {
+        try {
+          var data = await agentFetch('/api/librarian/history');
+          var container = document.getElementById('librarian-history');
+          if (!container) return;
+          var items = data.history || data.entries || data.events || [];
+          if (!Array.isArray(items) || items.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center text-xs py-4">No history entries yet</p>';
+            return;
+          }
+          container.innerHTML = items.slice(0, 50).map(function(item) {
+            var ts = item.timestamp ? new Date(item.timestamp).toLocaleString() : '';
+            var summary = item.summary || item.description || item.action || JSON.stringify(item).substring(0, 120);
+            return '<div class="py-2 border-b border-dtborder last:border-0">' +
+              '<div class="flex justify-between"><span class="font-semibold text-dtcyan">' + (item.type || item.kind || item.action || 'event') + '</span>' +
+              '<span class="text-gray-600 text-[10px]">' + ts + '</span></div>' +
+              '<p class="text-gray-400 mt-0.5">' + summary + '</p></div>';
+          }).join('');
+        } catch (e) { console.warn('Failed to load librarian history', e); }
+      };
+
+      window._agentLibStats = async function() {
+        try {
+          var data = await agentFetch('/api/librarian/stats');
+          var container = document.getElementById('librarian-stats');
+          if (!container) return;
+          var stats = data.stats || data;
+          container.innerHTML = Object.entries(stats).map(function(pair) {
+            return '<div class="flex justify-between py-0.5"><span class="text-gray-500">' + pair[0] + '</span><span class="text-white font-semibold">' + pair[1] + '</span></div>';
+          }).join('');
+        } catch (e) { console.warn('Failed to load librarian stats', e); }
+      };
+
+      window._agentLibSearch = async function() {
+        var query = (document.getElementById('librarian-search-input') || {}).value;
+        if (!query || !query.trim()) return alert('Enter a search term');
+        showResult('librarian-result', '⏳ Searching...');
+        try {
+          var data = await agentFetch('/api/librarian/search', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ query: query.trim() })
+          });
+          showResult('librarian-result', data);
+        } catch (e) { showResult('librarian-result', '❌ ' + e.message); }
+      };
+
+      window._agentLibTimeline = async function() {
+        var id = (document.getElementById('librarian-timeline-id') || {}).value;
+        if (!id || !id.trim()) return alert('Enter an incident ID');
+        showResult('librarian-result', '⏳ Loading timeline...');
+        try {
+          var data = await agentFetch('/api/librarian/timeline/' + encodeURIComponent(id.trim()));
+          showResult('librarian-result', data);
+        } catch (e) { showResult('librarian-result', '❌ ' + e.message); }
+      };
+
+      // ============ DASHBOARD ============
+
+      // Get journey data from the app's current state
+      function getJourneyData() {
+        var storedConfig = null;
+
+        // Priority 1: window.lastJourney — set by main app after prompt generation
+        // Contains { company, industry, journeyType, steps, additionalFields, customerProfile, traceMetadata }
+        if (window.lastJourney && window.lastJourney.steps && window.lastJourney.steps.length > 0) {
+          storedConfig = {
+            company: window.lastJourney.companyName || window.lastJourney.company || '',
+            industry: window.lastJourney.industryType || window.lastJourney.industry || '',
+            journeyType: window.lastJourney.journeyType || '',
+            steps: window.lastJourney.steps || [],
+            additionalFields: window.lastJourney.additionalFields || {},
+            customerProfile: window.lastJourney.customerProfile || {},
+            traceMetadata: window.lastJourney.traceMetadata || {}
+          };
+          console.log('[AI Agents] Journey data from window.lastJourney:', storedConfig.company, storedConfig.steps.length, 'steps');
+        }
+
+        // Priority 2: window.currentJourneyData — the full parsed LLM response
+        if (!storedConfig && window.currentJourneyData) {
+          var cjd = window.currentJourneyData;
+          var journey = cjd.journey || cjd;
+          storedConfig = {
+            company: journey.companyName || journey.company || cjd.companyName || '',
+            industry: journey.industryType || journey.industry || cjd.industryType || '',
+            journeyType: journey.journeyType || cjd.journeyType || '',
+            steps: journey.steps || [],
+            additionalFields: cjd.additionalFields || journey.additionalFields || {},
+            customerProfile: cjd.customerProfile || journey.customerProfile || {},
+            traceMetadata: cjd.traceMetadata || journey.traceMetadata || {}
+          };
+          console.log('[AI Agents] Journey data from window.currentJourneyData:', storedConfig.company, storedConfig.steps.length, 'steps');
+        }
+
+        // Priority 3: Try parsing the Step 3 output textarea/pre
+        if (!storedConfig) {
+          try {
+            var raw = document.getElementById('journey-output-step3');
+            if (raw && raw.textContent && raw.textContent.trim().startsWith('{')) {
+              var parsed = JSON.parse(raw.textContent);
+              var j = parsed.journey || parsed;
+              storedConfig = {
+                company: j.companyName || j.company || parsed.companyName || '',
+                industry: j.industryType || j.industry || parsed.industryType || '',
+                journeyType: j.journeyType || parsed.journeyType || '',
+                steps: j.steps || [],
+                additionalFields: parsed.additionalFields || j.additionalFields || {},
+                customerProfile: parsed.customerProfile || j.customerProfile || {},
+                traceMetadata: parsed.traceMetadata || j.traceMetadata || {}
+              };
+              console.log('[AI Agents] Journey data from step3 output:', storedConfig.company, storedConfig.steps.length, 'steps');
+            }
+          } catch(e) { console.warn('[AI Agents] Could not parse step3 output:', e.message); }
+        }
+
+        // Fallback: Build minimal config from Step 1 inputs
+        if (!storedConfig) {
+          var company = (document.getElementById('companyName') || {}).value || 'Demo Company';
+          var industry = (document.getElementById('industryType') || {}).value || 'Technology';
+          var journey = (document.getElementById('journeyType') || {}).value || 'E-Commerce';
+          storedConfig = { company: company, industry: industry, journeyType: journey, steps: [], additionalFields: {}, customerProfile: {}, traceMetadata: {} };
+          console.log('[AI Agents] Journey data from Step 1 inputs (fallback):', company);
+        }
+
+        return storedConfig;
+      }
+
+      window._agentDashPreview = async function() {
+        var journeyData = getJourneyData();
+        showResult('dashboard-result', '⏳ Previewing fields...');
+        try {
+          var data = await agentFetch('/api/ai-dashboard/preview', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ journeyData: journeyData })
+          });
+          // Show detected fields in the preview panel
+          var previewEl = document.getElementById('dashboard-preview');
+          if (previewEl && data.preview) {
+            var p = data.preview;
+            var html = '<div class="space-y-2">';
+            html += '<p class="text-dtpurple font-semibold">' + (p.name || 'Dashboard') + '</p>';
+            html += '<p class="text-gray-400">Industry: ' + (p.industry || '—') + '</p>';
+            if (p.detectedFields) {
+              var df = p.detectedFields;
+              html += '<div class="mt-2"><span class="text-gray-500">String fields:</span> <span class="text-white">' + (df.stringFields || []).length + '</span></div>';
+              html += '<div><span class="text-gray-500">Numeric fields:</span> <span class="text-white">' + (df.numericFields || []).length + '</span></div>';
+              html += '<div><span class="text-gray-500">Boolean fields:</span> <span class="text-white">' + (df.booleanFields || []).length + '</span></div>';
+            }
+            html += '<p class="text-dtgreen mt-2 font-semibold">' + (p.dynamicTileCount || 0) + ' dynamic tiles detected</p>';
+            html += '</div>';
+            previewEl.innerHTML = html;
+          }
+          showResult('dashboard-result', data);
+        } catch (e) { showResult('dashboard-result', '❌ ' + e.message); }
+      };
+
+      var _lastGeneratedDashboard = null;
+
+      window._agentDashGenerate = async function() {
+        // Use the same proven data extraction as the working generateAIDashboard()
+        var cjd = window.currentJourneyData;
+        var lj = window.lastJourney;
+        var journey = null;
+        var addFields = {};
+        var custProfile = {};
+        var traceMeta = {};
+
+        // Priority 1: window.currentJourneyData.journey (same as working button)
+        if (cjd && cjd.journey && cjd.journey.steps && cjd.journey.steps.length > 0) {
+          journey = cjd.journey;
+          addFields = cjd.additionalFields || {};
+          custProfile = cjd.customerProfile || {};
+          traceMeta = cjd.traceMetadata || {};
+          console.log('[AI Agents] Dashboard data from currentJourneyData.journey');
+        }
+        // Priority 2: window.lastJourney
+        else if (lj && lj.steps && lj.steps.length > 0) {
+          journey = lj;
+          addFields = lj.additionalFields || {};
+          custProfile = lj.customerProfile || {};
+          traceMeta = lj.traceMetadata || {};
+          console.log('[AI Agents] Dashboard data from lastJourney');
+        }
+        // Priority 3: Try parsing Step 3 output
+        else {
+          try {
+            var raw = document.getElementById('journey-output-step3');
+            if (raw && raw.textContent && raw.textContent.trim().startsWith('{')) {
+              var parsed = JSON.parse(raw.textContent);
+              journey = parsed.journey || parsed;
+              addFields = parsed.additionalFields || journey.additionalFields || {};
+              custProfile = parsed.customerProfile || journey.customerProfile || {};
+              traceMeta = parsed.traceMetadata || journey.traceMetadata || {};
+              console.log('[AI Agents] Dashboard data from step3 output');
+            }
+          } catch(e) {}
+        }
+
+        if (!journey || !journey.steps || journey.steps.length === 0) {
+          return alert('No journey loaded. Please generate or load a journey first (Step 2 → Step 3).');
+        }
+
+        var companyName = journey.companyName || journey.company || 'Dashboard';
+        var journeyType = journey.journeyType || 'Journey';
+        showResult('dashboard-result', '⏳ AI generating dashboard for ' + companyName + ' ' + journeyType + '...');
+
+        try {
+          var startTime = Date.now();
+          var data = await agentFetch('/api/ai-dashboard/generate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+              journeyData: {
+                company: companyName,
+                industry: journey.industryType || journey.industry || 'Technology',
+                journeyType: journeyType,
+                steps: journey.steps.map(function(s) {
+                  return {
+                    name: s.stepName || s.name,
+                    serviceName: s.serviceName || '',
+                    category: s.category || '',
+                    description: s.description || '',
+                    estimatedDuration: s.estimatedDuration || 0,
+                    hasError: s.hasError || false
+                  };
+                }),
+                additionalFields: addFields,
+                customerProfile: custProfile,
+                traceMetadata: traceMeta
+              }
+            })
+          });
+
+          var duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+          if (data.success && data.dashboard) {
+            _lastGeneratedDashboard = data.dashboard;
+
+            // Download the inner content (the actual dashboard JSON), same as working button
+            var dashboardJson = data.dashboard.content || data.dashboard;
+            var blob = new Blob([JSON.stringify(dashboardJson, null, 2)], { type: 'application/json' });
+            var dlUrl = URL.createObjectURL(blob);
+            var dlLink = document.createElement('a');
+            dlLink.href = dlUrl;
+            dlLink.download = (companyName + '-' + journeyType + '-ai-dashboard.json').replace(/\s+/g, '-').toLowerCase();
+            document.body.appendChild(dlLink);
+            dlLink.click();
+            document.body.removeChild(dlLink);
+            URL.revokeObjectURL(dlUrl);
+
+            var method = data.generationMethod || 'unknown';
+            var tilesCount = Object.keys(dashboardJson.tiles || {}).length;
+
+            // Update preview panel
+            var previewEl = document.getElementById('dashboard-preview');
+            if (previewEl) {
+              previewEl.innerHTML = '<div class="space-y-1">' +
+                '<p class="text-dtpurple font-semibold">' + companyName + ' — ' + journeyType + '</p>' +
+                '<p class="text-gray-500 text-[10px]">Method: <span class="text-dtcyan">' + method + '</span> | Generated in ' + duration + 's</p>' +
+                '<p class="text-gray-500 text-[10px]">Tiles: <span class="text-white font-bold">' + tilesCount + '</span></p>' +
+                '<p class="text-dtgreen text-xs mt-2 font-semibold">✅ Dashboard downloaded</p></div>';
+            }
+            showResult('dashboard-result', '✅ AI Dashboard generated in ' + duration + 's (' + method + ')\n📊 ' + tilesCount + ' tiles created\n\n📤 To upload to Dynatrace:\n1. Go to your Dynatrace environment\n2. Navigate to Dashboards → Import\n3. Upload the downloaded JSON file');
+          } else {
+            showResult('dashboard-result', '❌ ' + (data.error || data.message || 'Generation failed'));
+          }
+        } catch (e) { showResult('dashboard-result', '❌ ' + e.message); }
+      };
+
+      window._agentDashDeploy = async function() {
+        var journeyData = getJourneyData();
+        var journeyConfig = {
+          companyName: journeyData.company || journeyData.companyName || 'Demo',
+          steps: journeyData.steps || [],
+          industry: journeyData.industry || '',
+          journeyType: journeyData.journeyType || ''
+        };
+
+        // Build request body — if we have a pre-generated dashboard, send it for direct deployment
+        var requestBody = { journeyConfig: journeyConfig };
+        if (_lastGeneratedDashboard) {
+          requestBody.dashboardDocument = _lastGeneratedDashboard;
+          console.log('[AI Agents] Deploying pre-built dashboard:', _lastGeneratedDashboard.name, '(' + (_lastGeneratedDashboard.metadata?.totalTiles || '?') + ' tiles)');
+        } else {
+          // No pre-generated dashboard — auto-generate first, then deploy
+          if (!journeyData.steps || journeyData.steps.length === 0) {
+            return alert('No journey steps found. Generate journey data first (Step 2 → Step 3), then click Generate Dashboard.');
+          }
+          console.log('[AI Agents] No pre-built dashboard — generating first...');
+          showResult('dashboard-result', '⏳ Generating dashboard first...');
+          try {
+            // Use proper step mapping like the working generateAIDashboard()
+            var mappedJourney = {
+              company: journeyData.company || journeyData.companyName || 'Demo',
+              industry: journeyData.industry || 'Technology',
+              journeyType: journeyData.journeyType || 'Journey',
+              steps: (journeyData.steps || []).map(function(s) {
+                return { name: s.stepName || s.name, serviceName: s.serviceName || '', category: s.category || '', description: s.description || '', estimatedDuration: s.estimatedDuration || 0, hasError: s.hasError || false };
+              }),
+              additionalFields: journeyData.additionalFields || {},
+              customerProfile: journeyData.customerProfile || {},
+              traceMetadata: journeyData.traceMetadata || {}
+            };
+            var genData = await agentFetch('/api/ai-dashboard/generate', {
+              method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ journeyData: mappedJourney })
+            });
+            if (genData.dashboard) {
+              _lastGeneratedDashboard = genData.dashboard;
+              requestBody.dashboardDocument = genData.dashboard;
+              console.log('[AI Agents] Auto-generated dashboard:', genData.dashboard.name);
+            }
+          } catch (genErr) {
+            console.warn('[AI Agents] Auto-generate failed, deploying via legacy path:', genErr.message);
+          }
+        }
+
+        showResult('dashboard-result', '⏳ Deploying dashboard to Dynatrace...');
+        var statusEl = document.getElementById('dashboard-deploy-status');
+        if (statusEl) { statusEl.classList.remove('hidden'); statusEl.innerHTML = '<p class="text-xs text-dtyellow">⏳ Deploying...</p>'; }
+        try {
+          var data = await agentFetch('/api/dynatrace/deploy-dashboard', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(requestBody)
+          });
+          if (data.ok || data.success) {
+            if (statusEl) statusEl.innerHTML = '<p class="text-xs text-dtgreen font-semibold">✅ Deployed!</p>' +
+              (data.dashboardUrl ? '<a href="' + data.dashboardUrl + '" target="_blank" class="text-dtcyan text-xs underline">Open Dashboard →</a>' : '') +
+              '<p class="text-[10px] text-gray-500 mt-1">ID: ' + (data.dashboardId || '—') + '</p>';
+          } else if (data.needsOAuthLogin) {
+            if (statusEl) statusEl.innerHTML = '<p class="text-xs text-dtyellow font-semibold">⚠️ OAuth login required</p><p class="text-[10px] text-gray-400">Go to Settings and sign in with OAuth SSO first.</p>';
+          } else {
+            if (statusEl) statusEl.innerHTML = '<p class="text-xs text-red-400 font-semibold">❌ ' + (data.error || 'Deploy failed') + '</p>';
+          }
+          showResult('dashboard-result', data);
+        } catch (e) {
+          if (statusEl) statusEl.innerHTML = '<p class="text-xs text-red-400">❌ ' + e.message + '</p>';
+          showResult('dashboard-result', '❌ ' + e.message);
+        }
+      };
+
+      window._agentDashDownload = function() {
+        if (!_lastGeneratedDashboard) {
+          return alert('Generate a dashboard first before downloading.');
+        }
+        // Download the inner content (actual Dynatrace-importable dashboard), not the wrapper
+        var dashboardJson = _lastGeneratedDashboard.content || _lastGeneratedDashboard;
+        var blob = new Blob([JSON.stringify(dashboardJson, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (_lastGeneratedDashboard.name || 'dashboard').replace(/\s+/g, '-').toLowerCase() + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      window._agentDashHealth = async function() {
+        showResult('dashboard-result', '⏳ Checking Ollama health...');
+        try {
+          var data = await agentFetch('/api/ai-dashboard/health');
+          var badge = document.getElementById('dashboard-ai-status');
+          if (badge) {
+            if (data.ollamaAvailable) {
+              badge.textContent = '🟢 AI Online';
+              badge.className = 'text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded-full border border-green-700 uppercase tracking-widest';
+            } else {
+              badge.textContent = '🔴 AI Offline';
+              badge.className = 'text-[10px] bg-red-900 text-red-300 px-2 py-0.5 rounded-full border border-red-700 uppercase tracking-widest';
+            }
+          }
+          showResult('dashboard-result', data);
+        } catch (e) { showResult('dashboard-result', '❌ ' + e.message); }
+      };
+
+      // ============ AUTO-LOAD ON TAB SWITCH ============
+
+      function hookSwitchTab() {
+        if (typeof window.switchTab !== 'function') {
+          // Main script hasn't defined switchTab yet, retry shortly
+          setTimeout(hookSwitchTab, 200);
+          return;
+        }
+        var _orig = window.switchTab;
+        window.switchTab = function(tabName) {
+          _orig(tabName);
+          if (tabName === 'step4') {
+            loadGremlinRecipes();
+            window._agentRefreshFaults();
+            window._agentLibHistory();
+            window._agentLibStats();
+            window._agentDashHealth();
+          }
+        };
+      }
+      hookSwitchTab();
+
+      console.log('[AI Agents] ✅ All agent functions registered');
+    })();
 
   </script>
 </body>

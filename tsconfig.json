@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@agents/*": ["agents/*"],
+      "@tools/*": ["tools/*"],
+      "@memory/*": ["memory/*"],
+      "@utils/*": ["utils/*"]
+    }
+  },
+  "include": [
+    "agents/**/*.ts",
+    "tools/**/*.ts",
+    "memory/**/*.ts",
+    "utils/**/*.ts",
+    "routes/gremlin.ts",
+    "routes/fixit.ts",
+    "routes/librarian.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "Archive Folder"
+  ]
+}

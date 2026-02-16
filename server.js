@@ -33,6 +33,10 @@ import loadrunnerRouter from './routes/loadrunner-integration.js';
 import loadrunnerServiceRouter from './routes/loadrunner-service.js';
 import oauthRouter from './routes/oauth.js';
 import aiDashboardRouter from './routes/ai-dashboard.js';
+// AI Agent Routes (compiled from TypeScript in dist/)
+import gremlinRouter from './dist/routes/gremlin.js';
+import fixitRouter from './dist/routes/fixit.js';
+import librarianRouter from './dist/routes/librarian.js';
 // MCP integration removed - not needed for core functionality
 import { injectDynatraceMetadata, injectErrorMetadata, propagateMetadata, validateMetadata } from './middleware/dynatrace-metadata.js';
 import { performComprehensiveHealthCheck } from './middleware/observability-hygiene.js';
@@ -401,6 +405,10 @@ app.use('/api/loadrunner', loadrunnerRouter);
 app.use('/api/loadrunner-service', loadrunnerServiceRouter);
 app.use('/api/oauth', oauthRouter);
 app.use('/api/ai-dashboard', aiDashboardRouter);
+// AI Agent Routes
+app.use('/api/gremlin', gremlinRouter.default || gremlinRouter);
+app.use('/api/fixit', fixitRouter.default || fixitRouter);
+app.use('/api/librarian', librarianRouter.default || librarianRouter);
 // MCP routes removed - not needed
 
 // 🚦 FEATURE FLAG API - Generic, scalable, future-proof
@@ -2054,12 +2062,16 @@ app.get('/api/oauth/token-status', (req, res) => {
 // Dynatrace Dashboard Deployment Endpoint
 app.post('/api/dynatrace/deploy-dashboard', async (req, res) => {
   try {
-    const { journeyConfig } = req.body;
+    const { journeyConfig, dashboardDocument } = req.body;
     
-    if (!journeyConfig || !journeyConfig.companyName || !journeyConfig.steps) {
+    // If a pre-built dashboard document is provided (from AI Dashboard generator),
+    // deploy it directly via the Document API instead of rebuilding from scratch
+    const usePrebuilt = !!dashboardDocument;
+    
+    if (!usePrebuilt && (!journeyConfig || !journeyConfig.companyName || !journeyConfig.steps)) {
       return res.status(400).json({
         ok: false,
-        error: 'Missing required journeyConfig with companyName and steps'
+        error: 'Missing required journeyConfig with companyName and steps, or provide dashboardDocument'
       });
     }
     
@@ -2069,6 +2081,7 @@ app.post('/api/dynatrace/deploy-dashboard', async (req, res) => {
     console.log('[dynatrace-deploy] Checking for OAuth token...');
     console.log('[dynatrace-deploy] activeOAuthToken exists:', !!activeOAuthToken);
     console.log('[dynatrace-deploy] tokenEnvironment:', tokenEnvironment);
+    console.log('[dynatrace-deploy] Using pre-built dashboard:', usePrebuilt);
     
     if (activeOAuthToken && tokenEnvironment) {
       console.log('[dynatrace-deploy] ✅ Using stored OAuth token');
@@ -2118,18 +2131,145 @@ app.post('/api/dynatrace/deploy-dashboard', async (req, res) => {
           message: 'Sprint environment requires OAuth SSO authentication'
         });
       } else {
-        console.log('[dynatrace-deploy] No OAuth credentials - will try Config API fallback');
+        console.log('[dynatrace-deploy] No OAuth credentials - will try deployment');
       }
     } else if (isOAuthToken) {
       console.log('[dynatrace-deploy] ✅ OAuth token detected - proceeding with deployment');
     }
     
-    // Set environment variables for deployer script
+    // Set environment variables
     process.env.DT_ENVIRONMENT = DT_ENVIRONMENT;
     process.env.DT_PLATFORM_TOKEN = DT_TOKEN;
     process.env.DT_GRAIL_BUDGET = DT_BUDGET;
     
-    // Import deployer dynamically
+    // ========== PRE-BUILT DASHBOARD (from AI Dashboard Generator) ==========
+    if (usePrebuilt) {
+      console.log('[dynatrace-deploy] 📊 Deploying pre-built AI dashboard via Document API...');
+      
+      const companyName = dashboardDocument.metadata?.company || journeyConfig?.companyName || 'Dashboard';
+      const dashboardName = dashboardDocument.name || `${companyName} Dashboard`;
+      const dashboardContent = dashboardDocument.content;
+      
+      // Normalize environment URL for API calls
+      let apiBaseUrl = DT_ENVIRONMENT;
+      if (apiBaseUrl.includes('.sprint.apps.dynatracelabs.com')) {
+        apiBaseUrl = apiBaseUrl.replace('.sprint.apps.dynatracelabs.com', '.sprint.dynatracelabs.com');
+      }
+      
+      const authHeader = isOAuthToken ? `Bearer ${DT_TOKEN}` : `Api-Token ${DT_TOKEN}`;
+      
+      // Try Document API first (for v21 dashboards / Grail Dashboards)
+      try {
+        console.log('[dynatrace-deploy] Trying Document API (platform/document/v1/documents)...');
+        
+        // Create the document payload
+        const documentPayload = {
+          name: dashboardName,
+          type: 'dashboard',
+          content: JSON.stringify(dashboardContent),
+          isPrivate: false
+        };
+        
+        const docResponse = await fetch(
+          `${apiBaseUrl}/platform/document/v1/documents`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(documentPayload)
+          }
+        );
+        
+        if (docResponse.ok) {
+          const docResult = await docResponse.json();
+          const dashboardId = docResult.id;
+          const dashboardUrl = `${DT_ENVIRONMENT}/ui/apps/dynatrace.dashboards/dashboard/${dashboardId}`;
+          
+          console.log(`[dynatrace-deploy] ✅ Dashboard deployed via Document API!`);
+          console.log(`[dynatrace-deploy]    ID: ${dashboardId}`);
+          console.log(`[dynatrace-deploy]    URL: ${dashboardUrl}`);
+          
+          return res.json({
+            ok: true,
+            success: true,
+            dashboardId,
+            dashboardUrl,
+            companyName,
+            message: `Dashboard "${dashboardName}" deployed successfully`
+          });
+        }
+        
+        // Document API failed — log and try classic API fallback
+        const docError = await docResponse.text();
+        console.warn(`[dynatrace-deploy] ⚠️ Document API returned ${docResponse.status}: ${docError.substring(0, 200)}`);
+        console.log('[dynatrace-deploy] Falling back to classic Dashboard API...');
+      } catch (docErr) {
+        console.warn(`[dynatrace-deploy] ⚠️ Document API error: ${docErr.message}`);
+        console.log('[dynatrace-deploy] Falling back to classic Dashboard API...');
+      }
+      
+      // Fallback: Try classic dashboard API v2 (convert v21 → v20 format)
+      try {
+        // Strip version 21 features for v2 API compatibility
+        const classicDashboard = {
+          dashboardMetadata: {
+            name: dashboardName,
+            owner: 'BizObs Generator',
+            shared: true
+          },
+          ...dashboardContent
+        };
+        // Downgrade version for classic API
+        if (classicDashboard.version > 20) {
+          classicDashboard.version = 20;
+        }
+        
+        const classicResponse = await fetch(
+          `${apiBaseUrl}/platform/classic/environment-api/v2/dashboards`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(classicDashboard)
+          }
+        );
+        
+        if (classicResponse.ok) {
+          const classicResult = await classicResponse.json();
+          const dashboardId = classicResult.id;
+          const dashboardUrl = `${DT_ENVIRONMENT}/ui/dashboards/${dashboardId}`;
+          
+          console.log(`[dynatrace-deploy] ✅ Dashboard deployed via classic API!`);
+          console.log(`[dynatrace-deploy]    ID: ${dashboardId}`);
+          console.log(`[dynatrace-deploy]    URL: ${dashboardUrl}`);
+          
+          return res.json({
+            ok: true,
+            success: true,
+            dashboardId,
+            dashboardUrl,
+            companyName,
+            message: `Dashboard "${dashboardName}" deployed successfully (classic API)`
+          });
+        }
+        
+        const classicError = await classicResponse.text();
+        throw new Error(`Both Document API and classic API failed. Classic: ${classicResponse.status} - ${classicError.substring(0, 300)}`);
+      } catch (classicErr) {
+        console.error('[dynatrace-deploy] ❌ Classic API fallback failed:', classicErr.message);
+        return res.status(500).json({
+          ok: false,
+          error: classicErr.message,
+          companyName
+        });
+      }
+    }
+    
+    // ========== LEGACY: Build dashboard from journeyConfig via deployer script ==========
     const { deployJourneyDashboard } = await import('./scripts/dynatrace-dashboard-deployer.js');
     
     const result = await deployJourneyDashboard(journeyConfig);

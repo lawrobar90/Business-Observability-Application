@@ -5,21 +5,21 @@
   "steps": [
     {
       "stepIndex": 1,
-      "stepName": "CorporateSearch",
-      "serviceName": "CorporateSearchService",
-      "description": "Corporate traveller or TMC searches availability and negotiated corporate rates via Direct Connect API or corporate portal (dates, location, corporate rate code).",
+      "stepName": "SearchAvailability",
+      "serviceName": "SearchAvailabilityService",
+      "description": "Customer searches for hotel availability by location, dates, and number of guests.",
       "category": "Discovery",
       "timestamp": "2025-11-21T00:00:00.000Z",
-      "estimatedDuration": 2,
-      "businessRationale": "Search latency and accuracy determine whether corporate inventory and negotiated rates are visible; slow or zero results cause immediate abandonment and lost corporate revenue.",
+      "estimatedDuration": 3,
+      "businessRationale": "Search is the highest-volume and most revenue-sensitive operation; customers expect fast results to avoid abandonment.",
       "substeps": [
         {
-          "substepName": "APIAvailabilityRequest",
+          "substepName": "EnterSearchCriteria",
           "duration": 1
         },
         {
-          "substepName": "DisplayNegotiatedRates",
-          "duration": 1
+          "substepName": "ViewSearchResults",
+          "duration": 2
         }
       ],
       "hasError": false,
@@ -33,21 +33,21 @@
     },
     {
       "stepIndex": 2,
-      "stepName": "RateSelectionAndApproval",
-      "serviceName": "RateSelectionAndApprovalService",
-      "description": "Traveller or travel manager selects a negotiated rate plan (corporate flexible, corporate non-refundable) and, if required, triggers internal approval workflow for higher-value bookings.",
+      "stepName": "SelectRoomAndRate",
+      "serviceName": "SelectRoomAndRateService",
+      "description": "Customer selects a room type and rate plan (Standard, Flex, Meal Deal).",
       "category": "Consideration",
-      "timestamp": "2026-02-14T00:10:36.291Z",
-      "estimatedDuration": 6,
-      "businessRationale": "Corporate bookings often require approval or policy checks; this step converts search intent into a committed booking and enables revenue capture and policy compliance.",
+      "timestamp": "2026-02-16T16:16:58.868Z",
+      "estimatedDuration": 4,
+      "businessRationale": "Room and rate selection directly influence revenue; add-ons and flexible rates increase margin.",
       "substeps": [
         {
-          "substepName": "SelectCorporateRate",
-          "duration": 3
+          "substepName": "RoomTypeSelection",
+          "duration": 2
         },
         {
-          "substepName": "TriggerApprovalWorkflow",
-          "duration": 3
+          "substepName": "RatePlanSelection",
+          "duration": 2
         }
       ],
       "hasError": false,
@@ -61,21 +61,21 @@
     },
     {
       "stepIndex": 3,
-      "stepName": "DirectConnectBooking",
-      "serviceName": "DirectConnectBookingService",
-      "description": "Booking request submitted via Direct Connect API or corporate portal; system reserves room, processes corporate billing instructions or card on file, and returns booking confirmation with booking reference.",
+      "stepName": "CheckoutAndPayment",
+      "serviceName": "CheckoutAndPaymentService",
+      "description": "Customer enters personal details, payment information, and confirms the booking.",
       "category": "Purchase",
-      "timestamp": "2026-02-14T00:10:36.291Z",
-      "estimatedDuration": 4,
-      "businessRationale": "This is the revenue event: successful reservation creates recognized revenue potential; API reliability and payment processing determine confirmed bookings and downstream invoicing.",
+      "timestamp": "2026-02-16T16:16:58.868Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Payment is the highest-value conversion step; failures directly reduce revenue.",
       "substeps": [
         {
-          "substepName": "ReserveRoomInCRS",
+          "substepName": "EnterGuestDetails",
           "duration": 2
         },
         {
-          "substepName": "ProcessCorporateBilling",
-          "duration": 2
+          "substepName": "ProcessPayment",
+          "duration": 3
         }
       ],
       "hasError": false,
@@ -89,21 +89,21 @@
     },
     {
       "stepIndex": 4,
-      "stepName": "DigitalPreCheckIn",
-      "serviceName": "DigitalPreCheckInService",
-      "description": "Traveller receives confirmation, completes digital check-in (ID upload optional), selects room preferences and adds extras (breakfast, parking) via app or email link prior to arrival.",
+      "stepName": "PreStayEngagement",
+      "serviceName": "PreStayEngagementService",
+      "description": "Customer receives confirmation, checks booking details, and may add extras such as breakfast or parking.",
       "category": "Engagement",
-      "timestamp": "2026-02-14T00:10:36.291Z",
-      "estimatedDuration": 3,
-      "businessRationale": "Pre-check-in increases on-site efficiency and incremental revenue from add-ons; it also reduces front-desk load and improves NPS for corporate clients.",
+      "timestamp": "2026-02-16T16:16:58.868Z",
+      "estimatedDuration": 2,
+      "businessRationale": "Pre-stay engagement increases add-on revenue and reduces customer support load.",
       "substeps": [
         {
-          "substepName": "OpenConfirmationAndCheckIn",
+          "substepName": "ViewBookingConfirmation",
           "duration": 1
         },
         {
-          "substepName": "AddExtrasAndPreferences",
-          "duration": 2
+          "substepName": "AddExtras",
+          "duration": 1
         }
       ],
       "hasError": false,
@@ -112,26 +112,26 @@
         "errorType": "generic_error",
         "httpStatus": 500,
         "likelihood": 0.1,
-        "shouldSimulateError": false
+        "shouldSimulateError": true
       }
     },
     {
       "stepIndex": 5,
-      "stepName": "DigitalCheckInAndStay",
-      "serviceName": "DigitalCheckInAndStayService",
-      "description": "Traveller completes digital or kiosk check-in, receives room access (mobile key or front-desk key), consumes stay services (breakfast, meeting room), and any incidental charges are recorded to folio.",
+      "stepName": "CheckInAndStayExperience",
+      "serviceName": "CheckInAndStayExperienceService",
+      "description": "Customer checks in at the hotel and experiences their stay.",
       "category": "Fulfillment",
-      "timestamp": "2026-02-14T00:10:36.291Z",
-      "estimatedDuration": 12,
-      "businessRationale": "On-property experience affects retention and future corporate spend; accurate folio capture ensures correct invoicing and reduces disputes that delay revenue recognition.",
+      "timestamp": "2026-02-16T16:16:58.868Z",
+      "estimatedDuration": 10,
+      "businessRationale": "Check-in experience strongly influences satisfaction and future booking likelihood.",
       "substeps": [
         {
-          "substepName": "CompleteDigitalCheckIn",
-          "duration": 2
+          "substepName": "CheckInProcess",
+          "duration": 3
         },
         {
-          "substepName": "StayAndIncidentalCharges",
-          "duration": 10
+          "substepName": "StayExperience",
+          "duration": 7
         }
       ],
       "hasError": false,
@@ -145,21 +145,21 @@
     },
     {
       "stepIndex": 6,
-      "stepName": "InvoiceRetrievalAndReconciliation",
-      "serviceName": "InvoiceRetrievalAndReconciliationService",
-      "description": "Corporate traveller or accounts payable retrieves invoice via corporate portal or email, validates charges against folio, downloads invoice PDF, and submits to corporate expense system or AP for payment.",
-      "category": "PostStay",
-      "timestamp": "2026-02-14T00:10:36.291Z",
-      "estimatedDuration": 5,
-      "businessRationale": "Timely, accurate invoicing reduces days sales outstanding (DSO) and prevents revenue leakage; poor invoice delivery increases disputes and administrative cost.",
+      "stepName": "PostStayFeedback",
+      "serviceName": "PostStayFeedbackService",
+      "description": "Customer receives a post-stay email and submits feedback or a review.",
+      "category": "Retention",
+      "timestamp": "2026-02-16T16:16:58.868Z",
+      "estimatedDuration": 3,
+      "businessRationale": "Feedback drives reputation, NPS, and future conversion rates; reviews influence organic acquisition.",
       "substeps": [
         {
-          "substepName": "GenerateAndSendInvoice",
-          "duration": 2
+          "substepName": "ReceiveFeedbackEmail",
+          "duration": 1
         },
         {
-          "substepName": "DownloadAndSubmitToAP",
-          "duration": 3
+          "substepName": "SubmitReview",
+          "duration": 2
         }
       ],
       "hasError": false,
@@ -173,5 +173,5 @@
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-14T00:11:09.792Z"
+  "timestamp": "2026-02-16T16:17:29.881Z"
 }

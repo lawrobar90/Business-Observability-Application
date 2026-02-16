@@ -2,8 +2,6 @@
   "companyName": "Financial Services",
   "domain": "https://www.finance.com",
   "industryType": "Wealth Management & Retail Investment Platform",
-  "journeyType": "Investment Account Opening",
-  "description": "Digital investment account opening journey from application through portfolio setup",
   "steps": [
     {
       "stepIndex": 1,
@@ -26,7 +24,10 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     },
@@ -36,7 +37,7 @@
       "serviceName": "TransferAuthorisationService",
       "description": "Customer signs digital transfer authority forms and HL submits the request to the existing ISA provider.",
       "category": "Compliance",
-      "timestamp": "2026-02-05T21:36:20.046Z",
+      "timestamp": "2026-02-16T16:06:02.733Z",
       "estimatedDuration": 6,
       "businessRationale": "Digital signatures and regulatory confirmations require secure workflows. This step is critical for legal compliance and transfer acceptance.",
       "substeps": [
@@ -51,7 +52,10 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     },
@@ -61,7 +65,7 @@
       "serviceName": "ProviderProcessingService",
       "description": "The existing ISA provider processes the transfer request, validates holdings, and prepares funds for movement.",
       "category": "ExternalProcessing",
-      "timestamp": "2026-02-05T21:36:20.046Z",
+      "timestamp": "2026-02-16T16:06:02.733Z",
       "estimatedDuration": 1440,
       "businessRationale": "ISA transfers typically take 1–2 weeks depending on provider responsiveness. HL must track SLAs and notify customers of delays.",
       "substeps": [
@@ -76,7 +80,10 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     },
@@ -86,7 +93,7 @@
       "serviceName": "FundsMovementService",
       "description": "Funds are transferred from the old provider to HL, either as cash or re-registered assets.",
       "category": "Settlement",
-      "timestamp": "2026-02-05T21:36:20.046Z",
+      "timestamp": "2026-02-16T16:06:02.733Z",
       "estimatedDuration": 180,
       "businessRationale": "Settlement and reconciliation require coordination between custodians. Delays directly impact customer satisfaction and AUM growth.",
       "substeps": [
@@ -101,7 +108,10 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     },
@@ -111,7 +121,7 @@
       "serviceName": "TransferCompletionConfirmationService",
       "description": "HL confirms transfer completion, updates the customer’s ISA balance, and sends notifications.",
       "category": "Notification",
-      "timestamp": "2026-02-05T21:36:20.046Z",
+      "timestamp": "2026-02-16T16:06:02.733Z",
       "estimatedDuration": 5,
       "businessRationale": "Timely confirmation improves trust and reduces support queries. This step triggers AUM recognition for HL.",
       "substeps": [
@@ -126,7 +136,10 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     },
@@ -136,7 +149,7 @@
       "serviceName": "PortfolioReviewService",
       "description": "Customer reviews transferred funds, explores investment options, and may set up recurring investments.",
       "category": "PortfolioManagement",
-      "timestamp": "2026-02-05T21:36:20.046Z",
+      "timestamp": "2026-02-16T16:06:02.733Z",
       "estimatedDuration": 9,
       "businessRationale": "Portfolio review is a high‑value engagement moment that drives future trades, recurring investments, and long-term retention.",
       "substeps": [
@@ -151,11 +164,14 @@
       ],
       "hasError": false,
       "errorSimulationConfig": {
-        "enabled": false,
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
         "shouldSimulateError": false
       }
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-09T14:34:49.813Z"
+  "timestamp": "2026-02-16T16:06:25.012Z"
 }

@@ -21,7 +21,7 @@ router.post('/runFlow', async (req, res) => {
   const correlationId = req.correlationId;
   try {
     const { payload = {}, port } = req.body || {};
-    const PORT = port || process.env.PORT || 4000;
+    const PORT = port || process.env.PORT || 8080;
   const baseUrl = `http://127.0.0.1:${PORT}/api/steps`;
     // Default: use child-service chaining across the service flow (Service A -> B -> C ...)
     if (!payload.forceLegacy) {
