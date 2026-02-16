@@ -17,6 +17,200 @@ const {
 const http = require('http');
 const crypto = require('crypto');
 
+// 🚦 FEATURE FLAG AUTO-REGENERATION TRACKER
+let correlationIdCounter = 0;
+let currentFeatureFlags = {};
+let journeySteps = [];
+let lastRegenerationCount = 0;
+
+// Default error rate configuration (can be overridden via payload or global API)
+const DEFAULT_ERROR_CONFIG = {
+  errors_per_transaction: 0.1,  // 10% of transactions have errors
+  errors_per_visit: 0.001,      // 0.1% of visits have errors (lower for journey-level)
+  errors_per_minute: 0.5,       // 0.5 errors per minute baseline
+  regenerate_every_n_transactions: 100  // Regenerate flags every 100 transactions
+};
+
+// Fetch global error config from main server (for Dynatrace workflow control)
+async function fetchGlobalErrorConfig() {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: '127.0.0.1',
+      port: process.env.MAIN_SERVER_PORT || 8080,
+      path: '/api/feature_flag',
+      method: 'GET',
+      timeout: 500
+    };
+    
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          if (response.success && response.flags) {
+            console.log('📥 [Feature Flags] Fetched from main server:', response.flags);
+            resolve(response.flags);
+          } else {
+            resolve(DEFAULT_ERROR_CONFIG);
+          }
+        } catch (e) {
+          resolve(DEFAULT_ERROR_CONFIG);
+        }
+      });
+    });
+    
+    req.on('error', () => {
+      // Silently fall back to defaults if main server not available
+      resolve(DEFAULT_ERROR_CONFIG);
+    });
+    
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(DEFAULT_ERROR_CONFIG);
+    });
+    
+    req.end();
+  });
+}
+
+// Auto-regenerate feature flags based on volume
+function checkAndRegenerateFeatureFlags(journeyData, errorConfig = DEFAULT_ERROR_CONFIG) {
+  correlationIdCounter++;
+  
+  // Store journey steps for first request - check multiple payload shapes
+  if (journeySteps.length === 0) {
+    const steps = journeyData?.journey?.steps || journeyData?.steps || [];
+    if (steps.length > 0) {
+      journeySteps = steps;
+      console.log(`📋 [Feature Flags] Captured ${journeySteps.length} journey steps for flag generation`);
+    }
+  }
+  
+  // Calculate if we should regenerate based on transaction volume
+  const transactionsSinceRegen = correlationIdCounter - lastRegenerationCount;
+  const shouldRegenerate = transactionsSinceRegen >= errorConfig.regenerate_every_n_transactions;
+  
+  // Generate initial flags on first request
+  if (correlationIdCounter === 1 && journeySteps.length > 0) {
+    console.log(`🎯 [Feature Flags] Initial generation (volume-based, regenerate every ${errorConfig.regenerate_every_n_transactions} transactions)`);
+    currentFeatureFlags = autoGenerateFeatureFlagsServer(journeySteps, journeyData, errorConfig);
+    console.log(`✅ [Feature Flags] Generated ${Object.keys(currentFeatureFlags).length} initial flags`);
+    lastRegenerationCount = correlationIdCounter;
+  }
+  
+  // Regenerate based on transaction volume
+  if (shouldRegenerate && journeySteps.length > 0 && correlationIdCounter > 1) {
+    console.log(`🔄 [Feature Flags] Regenerating after ${transactionsSinceRegen} transactions (correlationId: ${correlationIdCounter})`);
+    currentFeatureFlags = autoGenerateFeatureFlagsServer(journeySteps, journeyData, errorConfig);
+    console.log(`✅ [Feature Flags] Generated ${Object.keys(currentFeatureFlags).length} new flags`);
+    lastRegenerationCount = correlationIdCounter;
+  }
+  
+  return currentFeatureFlags;
+}
+
+// Server-side auto-generation (mirrors client logic)
+function autoGenerateFeatureFlagsServer(steps, journeyData, errorConfig = DEFAULT_ERROR_CONFIG) {
+  const stepNames = steps.map(s => (s.stepName || s.name || '').toLowerCase());
+  const allStepText = stepNames.join(' ');
+  const possibleFlags = [];
+  
+  // Use errors_per_transaction as base error rate (default 0.1 = 10%)
+  const baseErrorRate = errorConfig.errors_per_transaction || 0.1;
+  
+  // Payment/Financial patterns
+  if (allStepText.includes('payment') || allStepText.includes('checkout') || allStepText.includes('transaction')) {
+    possibleFlags.push({
+      name: 'Payment Gateway Timeout',
+      errorType: 'timeout',
+      errorRate: baseErrorRate * (0.8 + Math.random() * 0.4), // 80%-120% of base rate
+      affectedSteps: steps.filter(s => 
+        (s.stepName || s.name || '').toLowerCase().match(/payment|checkout|transaction|billing/)
+      ).map(s => s.stepName || s.name),
+      severity: 'CRITICAL',
+      remediation: 'restart_payment_gateway',
+      enabled: true
+    });
+  }
+  
+  // Inventory/Fulfillment patterns
+  if (allStepText.includes('inventory') || allStepText.includes('fulfil') || allStepText.includes('stock') || allStepText.includes('order')) {
+    possibleFlags.push({
+      name: 'Inventory Sync Failure',
+      errorType: 'service_unavailable',
+      errorRate: baseErrorRate * (0.5 + Math.random() * 0.3), // 50%-80% of base rate
+      affectedSteps: steps.filter(s => 
+        (s.stepName || s.name || '').toLowerCase().match(/inventory|fulfil|stock|order/)
+      ).map(s => s.stepName || s.name),
+      severity: 'WARNING',
+      remediation: 'trigger_inventory_sync',
+      enabled: true
+    });
+  }
+  
+  // Validation/Verification patterns
+  if (allStepText.includes('verif') || allStepText.includes('valid') || allStepText.includes('check')) {
+    possibleFlags.push({
+      name: 'Validation Timeout',
+      errorType: 'validation_failed',
+      errorRate: baseErrorRate * (0.3 + Math.random() * 0.2), // 30%-50% of base rate
+      affectedSteps: steps.filter(s => 
+        (s.stepName || s.name || '').toLowerCase().match(/verif|valid|check|customer|account/)
+      ).map(s => s.stepName || s.name),
+      severity: 'LOW',
+      remediation: 'retry_with_defaults',
+      enabled: true
+    });
+  }
+  
+  // Manufacturing patterns
+  if (allStepText.includes('weld') || allStepText.includes('assembl') || allStepText.includes('machine') || allStepText.includes('robot')) {
+    possibleFlags.push({
+      name: 'Robot Malfunction',
+      errorType: 'internal_error',
+      errorRate: baseErrorRate * (0.9 + Math.random() * 0.4), // 90%-130% of base rate
+      affectedSteps: steps.filter(s => 
+        (s.stepName || s.name || '').toLowerCase().match(/weld|assembl|machine|robot|fabricat/)
+      ).map(s => s.stepName || s.name),
+      severity: 'CRITICAL',
+      remediation: 'restart_robot_controller',
+      enabled: true
+    });
+  }
+  
+  // Filter and randomly select 1-3 flags
+  const validFlags = possibleFlags.filter(f => f.affectedSteps && f.affectedSteps.length > 0);
+  
+  if (validFlags.length === 0) {
+    // Generic fallback
+    validFlags.push({
+      name: 'Service Timeout',
+      errorType: 'timeout',
+      errorRate: baseErrorRate,
+      affectedSteps: steps.slice(0, Math.ceil(steps.length / 2)).map(s => s.stepName || s.name),
+      severity: 'WARNING',
+      remediation: 'restart_service',
+      enabled: true
+    });
+  }
+  
+  const numToEnable = Math.min(validFlags.length, Math.floor(Math.random() * 3) + 1);
+  const shuffled = validFlags.sort(() => 0.5 - Math.random());
+  const selectedFlags = shuffled.slice(0, numToEnable);
+  
+  const flags = {};
+  selectedFlags.forEach(flag => {
+    const flagId = flag.name.toLowerCase().replace(/\s+/g, '_');
+    flags[flagId] = flag;
+  });
+  
+  // Log configuration being used
+  console.log(`📊 [Feature Flags] Using error config: errors_per_transaction=${errorConfig.errors_per_transaction}, regenerate_every=${errorConfig.regenerate_every_n_transactions}`);
+  
+  return flags;
+}
+
 // Enhanced Dynatrace helpers with error tracking
 const withCustomSpan = (name, callback) => {
   console.log('[dynatrace] Custom span:', name);
@@ -28,6 +222,22 @@ const sendBusinessEvent = (eventType, data) => {
   
   // Business events not needed - OneAgent captures flattened rqBody automatically
   console.log('[dynatrace] OneAgent will capture flattened request structure for:', eventType);
+  
+  // Simple flattening of data for logging (no arrays, just values)
+  const flattenedData = {};
+  const flatten = (obj, prefix = '') => {
+    if (!obj || typeof obj !== 'object') return;
+    Object.keys(obj).forEach(key => {
+      const value = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        flatten(value, newKey);
+      } else if (value !== null && value !== undefined) {
+        flattenedData[newKey] = String(value);
+      }
+    });
+  };
+  flatten(data);
   
   // Log flattened fields separately so they appear in logs as individual entries
   Object.keys(flattenedData).forEach(key => {
@@ -98,7 +308,47 @@ const sendBusinessEvent = (eventType, data) => {
   }
 };
 
-// Old flattening function removed - using ultra-simple flattening in request processing instead// Wait for a service health endpoint to respond on the given port
+// Old flattening function removed - using ultra-simple flattening in request processing instead
+
+// Feature Flag Error Helpers
+function getHttpStatusForErrorType(errorType) {
+  const statusMap = {
+    'timeout': 504,
+    'service_unavailable': 503,
+    'validation_failed': 400,
+    'payment_declined': 402,
+    'authentication_failed': 401,
+    'rate_limit_exceeded': 429,
+    'internal_error': 500
+  };
+  return statusMap[errorType] || 500;
+}
+
+function getErrorMessageForType(errorType, stepName) {
+  const messages = {
+    'timeout': `${stepName} service timeout after 5000ms`,
+    'service_unavailable': `${stepName} service temporarily unavailable`,
+    'validation_failed': `${stepName} validation failed - invalid data format`,
+    'payment_declined': `Payment declined by ${stepName} processor`,
+    'authentication_failed': `Authentication failed in ${stepName}`,
+    'rate_limit_exceeded': `Rate limit exceeded for ${stepName}`,
+    'internal_error': `Internal error in ${stepName} processing`
+  };
+  return messages[errorType] || `Unknown error in ${stepName}`;
+}
+
+function getRemediationAction(flagName) {
+  const actions = {
+    'payment_gateway_timeout': 'restart_payment_service',
+    'inventory_sync_failure': 'trigger_inventory_sync',
+    'validation_error': 'retry_with_defaults',
+    'authentication_timeout': 'refresh_auth_tokens',
+    'rate_limit_breach': 'enable_circuit_breaker'
+  };
+  return actions[flagName] || 'manual_intervention';
+}
+
+// Wait for a service health endpoint to respond on the given port
 function waitForServiceReady(port, timeout = 5000) {
   return new Promise((resolve) => {
     const start = Date.now();
@@ -130,13 +380,16 @@ if (serviceName) {
     if (process.argv && process.argv.length > 0) {
       process.argv[0] = serviceName;
     }
-    // Strengthen Dynatrace identification with comprehensive env vars
+    // 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
+    // This is what OneAgent uses for service detection/naming
+    process.env.DT_APPLICATION_ID = serviceName;
+    
+    // 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service
+    process.env.DT_CUSTOM_PROP = `dtServiceName=${serviceName} companyName=${process.env.COMPANY_NAME || 'unknown'} domain=${process.env.DOMAIN || 'unknown'} industryType=${process.env.INDUSTRY_TYPE || 'unknown'}`;
+    
+    // Internal env vars for app-level code
     process.env.DT_SERVICE_NAME = serviceName;
     process.env.DYNATRACE_SERVICE_NAME = serviceName;
-    process.env.DT_LOGICAL_SERVICE_NAME = serviceName;
-    process.env.DT_PROCESS_GROUP_NAME = serviceName;
-    process.env.DT_PROCESS_GROUP_INSTANCE = `${serviceName}-${process.env.PORT || ''}`;
-    process.env.DT_APPLICATION_NAME = 'BizObs-CustomerJourney';
     process.env.DT_CLUSTER_ID = serviceName;
     process.env.DT_NODE_ID = `${serviceName}-node`;
     console.log(`[dynamic-step-service] Set process identity to: ${serviceName}`);
@@ -204,6 +457,7 @@ function createStepService(serviceName, stepName) {
       }
       
       // Update the request body with the processed payload
+      // hasError is already inside additionalFields from journey-simulation.js
       req.body = processedPayload;
       
       try {
@@ -314,8 +568,188 @@ function createStepService(serviceName, stepName) {
       console.log(`[${properServiceName}] Step-specific substeps:`, payload.subSteps || []);
       console.log(`[${properServiceName}] Journey trace so far:`, JSON.stringify(journeyTrace));
 
-      // Simulate processing with realistic timing
-      const processingTime = Math.floor(Math.random() * 200) + 100; // 100-300ms
+      // 🚦 Feature Flag Error Injection with Auto-Regeneration
+      let errorInjected = null;
+      
+      // Fetch global error config (allows Dynatrace workflows to control errors)
+      const globalConfig = await fetchGlobalErrorConfig();
+      
+      // Extract error configuration from payload (allows override) or use global
+      const errorConfig = {
+        errors_per_transaction: payload.errorConfig?.errors_per_transaction ?? globalConfig.errors_per_transaction,
+        errors_per_visit: payload.errorConfig?.errors_per_visit ?? globalConfig.errors_per_visit,
+        errors_per_minute: payload.errorConfig?.errors_per_minute ?? globalConfig.errors_per_minute,
+        regenerate_every_n_transactions: payload.errorConfig?.regenerate_every_n_transactions ?? globalConfig.regenerate_every_n_transactions
+      };
+      
+      // Log if global config is being used (indicates Dynatrace control)
+      if (!payload.errorConfig && globalConfig.errors_per_transaction !== DEFAULT_ERROR_CONFIG.errors_per_transaction) {
+        console.log(`🌐 [Error Config] Using global config from API (Dynatrace controlled): ${globalConfig.errors_per_transaction}`);
+      }
+      
+      // Check if errors are disabled (errors_per_transaction = 0)
+      if (errorConfig.errors_per_transaction === 0) {
+        console.log(`⏸️  [Feature Flags] Errors disabled (errors_per_transaction=0) - Self-healing active!`);
+        featureFlags = {};
+      } else {
+        // Check and regenerate feature flags every N transactions
+        let featureFlags = payload.featureFlags || {};
+        if (Object.keys(featureFlags).length === 0) {
+          // Use auto-generated flags if none provided
+          featureFlags = checkAndRegenerateFeatureFlags(payload, errorConfig);
+        } else {
+          // Still track and potentially regenerate even with provided flags
+          const regeneratedFlags = checkAndRegenerateFeatureFlags(payload, errorConfig);
+          if (Object.keys(regeneratedFlags).length > 0) {
+            featureFlags = regeneratedFlags;
+            console.log(`🔄 [Feature Flags] Using regenerated flags (transaction: ${correlationIdCounter})`);
+          }
+        }
+        
+        if (featureFlags && typeof featureFlags === 'object') {
+        
+        // Check each active feature flag to see if this step is affected
+        for (const [flagName, flagConfig] of Object.entries(featureFlags)) {
+          if (flagConfig.enabled && flagConfig.affectedSteps) {
+            const isAffectedStep = flagConfig.affectedSteps.some(step => 
+              currentStepName.toLowerCase().includes(step.toLowerCase()) ||
+              step.toLowerCase().includes(currentStepName.toLowerCase())
+            );
+            
+            if (isAffectedStep) {
+              // Apply error rate probability
+              const shouldError = Math.random() < flagConfig.errorRate;
+              
+              if (shouldError) {
+                errorInjected = {
+                  feature_flag: flagName,
+                  error_type: flagConfig.errorType || 'unknown',
+                  http_status: getHttpStatusForErrorType(flagConfig.errorType),
+                  message: getErrorMessageForType(flagConfig.errorType, currentStepName),
+                  remediation_action: flagConfig.remediationAction || getRemediationAction(flagName),
+                  recoverable: true,
+                  retry_count: 0,
+                  injected_at: new Date().toISOString()
+                };
+                
+                console.log(`🚦 Feature flag triggered: ${flagName} on step ${currentStepName}`);
+                console.log(`🚨 Injecting error:`, JSON.stringify(errorInjected, null, 2));
+                break; // Only inject one error per request
+              }
+            }
+          }
+        }
+        } // end if (featureFlags && typeof featureFlags === 'object')
+      } // end else (errors enabled)
+
+      // Simulate processing with realistic timing (add delay if error)
+      const processingTime = errorInjected ? 
+        Math.floor(Math.random() * 2000) + 3000 : // 3-5s for errors
+        Math.floor(Math.random() * 200) + 100;    // 100-300ms normal
+
+      // 🚨 If error injected by feature flag, THROW a real exception so Dynatrace captures it
+      // This produces a real HTTP 5xx/4xx + exception in the Purepath (not just metadata)
+      if (errorInjected) {
+        setTimeout(() => {
+          const httpStatus = errorInjected.http_status || 500;
+          const errorMessage = errorInjected.message || `Feature flag error in ${currentStepName}`;
+          
+          // Create a real Error that OneAgent will capture as an exception
+          const realError = new Error(errorMessage);
+          realError.name = `FeatureFlagError_${errorInjected.error_type}`;
+          realError.status = httpStatus;
+          realError.httpStatus = httpStatus;
+          
+          // Add rich context so it shows up in Dynatrace exception details
+          console.error(`🚨 [${properServiceName}] FEATURE FLAG EXCEPTION: ${errorMessage}`);
+          console.error(`🚨 [${properServiceName}] Error Type: ${errorInjected.error_type} | HTTP ${httpStatus} | Flag: ${errorInjected.feature_flag}`);
+          
+          // Add custom attributes BEFORE the error response so OneAgent captures them on the span
+          addCustomAttributes({
+            'journey.step': currentStepName,
+            'journey.service': properServiceName,
+            'journey.correlationId': correlationId,
+            'journey.company': processedPayload.companyName || 'unknown',
+            'journey.domain': processedPayload.domain || 'unknown',
+            'journey.industryType': processedPayload.industryType || 'unknown',
+            'journey.processingTime': processingTime,
+            'error.occurred': true,
+            'error.feature_flag': errorInjected.feature_flag,
+            'error.type': errorInjected.error_type,
+            'error.http_status': httpStatus,
+            'error.remediation_action': errorInjected.remediation_action || 'unknown'
+          });
+          
+          // Report as a real Dynatrace exception
+          reportError(realError, {
+            'journey.step': currentStepName,
+            'service.name': properServiceName,
+            'correlation.id': correlationId,
+            'http.status': httpStatus,
+            'error.category': 'feature_flag_injection',
+            'error.feature_flag': errorInjected.feature_flag,
+            'error.type': errorInjected.error_type
+          });
+          
+          // Mark the span as failed
+          markSpanAsFailed(realError, {
+            'journey.step': currentStepName,
+            'service.name': properServiceName,
+            'correlation.id': correlationId,
+            'http.status': httpStatus,
+            'error.category': 'feature_flag_injection'
+          });
+          
+          // Send error business event
+          sendErrorEvent('feature_flag_error', realError, {
+            stepName: currentStepName,
+            serviceName: properServiceName,
+            correlationId,
+            httpStatus,
+            featureFlag: errorInjected.feature_flag,
+            errorType: errorInjected.error_type,
+            remediationAction: errorInjected.remediation_action
+          });
+          
+          // Set error headers for trace propagation
+          res.setHeader('x-trace-error', 'true');
+          res.setHeader('x-error-type', realError.name);
+          res.setHeader('x-journey-failed', 'true');
+          res.setHeader('x-http-status', httpStatus.toString());
+          res.setHeader('x-correlation-id', correlationId);
+          res.setHeader('x-dynatrace-trace-id', traceId);
+          res.setHeader('x-dynatrace-span-id', spanId);
+          const traceId32 = traceId.substring(0, 32).padEnd(32, '0');
+          const spanId16 = spanId.substring(0, 16).padEnd(16, '0');
+          res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
+          
+          // Return REAL HTTP error status code (not 200!)
+          res.status(httpStatus).json({
+            ...processedPayload,
+            stepName: currentStepName,
+            service: properServiceName,
+            status: 'error',
+            correlationId,
+            processingTime,
+            pid: process.pid,
+            timestamp: new Date().toISOString(),
+            error_occurred: true,
+            error: errorInjected,
+            journeyTrace,
+            traceError: true,
+            httpStatus,
+            _traceInfo: {
+              failed: true,
+              errorMessage,
+              errorType: realError.name,
+              httpStatus,
+              featureFlag: errorInjected.feature_flag,
+              requestCorrelationId: correlationId
+            }
+          });
+        }, processingTime);
+        return; // Don't fall through to the normal success path
+      }
 
       const finish = async () => {
         // Generate dynamic metadata based on step name
@@ -334,8 +768,9 @@ function createStepService(serviceName, stepName) {
         
         addCustomAttributes(customAttributes);
 
-        // No complex business event API calls needed - OneAgent captures the flattened rqBody automatically
-        console.log(`[${properServiceName}] Step completed - OneAgent will capture flattened request body`);
+        // ✅ OneAgent automatically captures this /process request as a bizevent via capture rules
+        // No manual sendBusinessEvent() needed - the request payload itself becomes the bizevent
+        console.log(`[${properServiceName}] Processing step ${currentStepName} - OneAgent will capture as bizevent`);
 
         let response = {
           // Include the clean processed payload without duplication
@@ -355,7 +790,8 @@ function createStepService(serviceName, stepName) {
           duration: processedPayload.duration,
           substeps: substeps,
           metadata,
-          journeyTrace
+          journeyTrace,
+          error_occurred: false
         };
 
         // No flattened fields duplication - the processedPayload already contains clean data
@@ -372,31 +808,56 @@ function createStepService(serviceName, stepName) {
         // --- Chaining logic ---
         let nextStepName = null;
         let nextServiceName = undefined;
+        
+        console.log(`[${properServiceName}] 🔗 CHAINING LOGIC: Checking for next step...`);
+        console.log(`[${properServiceName}] 🔗 Current step: ${currentStepName}`);
+        console.log(`[${properServiceName}] 🔗 Has steps array: ${!!(payload.steps && Array.isArray(payload.steps))}`);
         if (payload.steps && Array.isArray(payload.steps)) {
+          console.log(`[${properServiceName}] 🔗 Steps array length: ${payload.steps.length}`);
+          console.log(`[${properServiceName}] 🔗 Steps array contents:`, JSON.stringify(payload.steps.map(s => ({ stepName: s.stepName, serviceName: s.serviceName })), null, 2));
+          
           const currentIndex = payload.steps.findIndex(s =>
             (s.stepName === currentStepName) ||
             (s.name === currentStepName) ||
             (s.serviceName === properServiceName)
           );
+          console.log(`[${properServiceName}] 🔗 Current step index: ${currentIndex} of ${payload.steps.length - 1}`);
+          
           if (currentIndex >= 0 && currentIndex < payload.steps.length - 1) {
             const nextStep = payload.steps[currentIndex + 1];
             nextStepName = nextStep ? (nextStep.stepName || nextStep.name) : null;
             nextServiceName = nextStep && nextStep.serviceName ? nextStep.serviceName : (nextStepName ? getServiceNameFromStep(nextStepName) : undefined);
+            console.log(`[${properServiceName}] 🔗 FOUND NEXT STEP: ${nextStepName} (service: ${nextServiceName})`);
           } else {
+            console.log(`[${properServiceName}] 🔗 NO NEXT STEP: End of journey (current index: ${currentIndex})`);
             nextStepName = null;
             nextServiceName = undefined;
           }
+        } else {
+          console.log(`[${properServiceName}] 🔗 NO STEPS ARRAY in payload - cannot chain!`);
         }
 
         if (nextStepName && nextServiceName) {
           try {
             await new Promise(r => setTimeout(r, thinkTimeMs));
-            // Ask main server to ensure next service is running (in case it wasn't pre-started)
+            // Ask main server to ensure next service is running and get its port
+            let nextServicePort = null;
             try {
               const adminPort = process.env.MAIN_SERVER_PORT || '4000';
-              await new Promise((resolve) => {
-                const req = http.request({ hostname: '127.0.0.1', port: adminPort, path: '/api/admin/ensure-service', method: 'POST', headers: { 'Content-Type': 'application/json' } }, (res) => { res.resume(); resolve(); });
-                req.on('error', () => resolve());
+              nextServicePort = await new Promise((resolve, reject) => {
+                const req = http.request({ hostname: '127.0.0.1', port: adminPort, path: '/api/admin/ensure-service', method: 'POST', headers: { 'Content-Type': 'application/json' } }, (res) => { 
+                  let data = '';
+                  res.on('data', chunk => data += chunk);
+                  res.on('end', () => {
+                    try {
+                      const parsed = JSON.parse(data);
+                      resolve(parsed.port || null);
+                    } catch {
+                      resolve(null);
+                    }
+                  });
+                });
+                req.on('error', () => resolve(null));
                 req.end(JSON.stringify({ 
                   stepName: nextStepName, 
                   serviceName: nextServiceName,
@@ -408,7 +869,10 @@ function createStepService(serviceName, stepName) {
                   }
                 }));
               });
-            } catch {}
+              console.log(`[${properServiceName}] Next service ${nextServiceName} allocated on port ${nextServicePort}`);
+            } catch (e) {
+              console.error(`[${properServiceName}] Failed to get next service port:`, e.message);
+            }
             // Look up next step's specific data
             let nextStepData = null;
             if (payload.steps && Array.isArray(payload.steps)) {
@@ -460,8 +924,9 @@ function createStepService(serviceName, stepName) {
             
             console.log(`[${properServiceName}] Propagating trace to ${nextServiceName}: traceparent=${traceHeaders['traceparent']}`);
             
-            // Always use serviceName for port mapping
-            const nextPort = getServicePortFromStep(nextServiceName);
+            // Use the port returned from ensure-service API (actual allocated port)
+            const nextPort = nextServicePort || getServicePortFromStep(nextServiceName);
+            console.log(`[${properServiceName}] Calling ${nextServiceName} on port ${nextPort}`);
             // Ensure next service is listening before calling
             await waitForServiceReady(nextPort, 5000);
             const next = await callService(nextServiceName, nextPayload, traceHeaders, nextPort);
@@ -479,6 +944,18 @@ function createStepService(serviceName, stepName) {
           }
         }
 
+        // Send trace context headers back in response for Dynatrace distributed tracing
+        res.setHeader('x-dynatrace-trace-id', traceId);
+        res.setHeader('x-dynatrace-span-id', spanId);
+        if (parentSpanId) {
+          res.setHeader('x-dynatrace-parent-span-id', parentSpanId);
+        }
+        // W3C Trace Context response header
+        const traceId32 = traceId.substring(0, 32).padEnd(32, '0');
+        const spanId16 = spanId.substring(0, 16).padEnd(16, '0');
+        res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
+        res.setHeader('x-correlation-id', correlationId);
+        
         res.json(response);
       };
 
@@ -534,6 +1011,9 @@ function createStepService(serviceName, stepName) {
         company: processedPayload.companyName || 'unknown',
         domain: processedPayload.domain || 'unknown'
       });
+      
+      // OneAgent captures the bizevent from the /process request body natively
+      // additionalFields.hasError was set in the request payload by journey-simulation.js
       
       // Build comprehensive error response
       const errorResponse = {
@@ -661,10 +1141,18 @@ if (require.main === module) {
   const serviceName = serviceNameArg || process.env.SERVICE_NAME || 'DynamicService';
   const stepName = process.env.STEP_NAME || 'DefaultStep';
   
-  // Set process title immediately for Dynatrace detection
+  // Set process title and DT_CUSTOM_PROP immediately for Dynatrace detection
   try {
     process.title = serviceName;
+    // 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
+    process.env.DT_APPLICATION_ID = serviceName;
+    
+    // 🔑 DT_CUSTOM_PROP: Adds custom metadata properties
+    if (!process.env.DT_CUSTOM_PROP || !process.env.DT_CUSTOM_PROP.includes('dtServiceName=')) {
+      process.env.DT_CUSTOM_PROP = `dtServiceName=${serviceName} companyName=${process.env.COMPANY_NAME || 'unknown'} domain=${process.env.DOMAIN || 'unknown'} industryType=${process.env.INDUSTRY_TYPE || 'unknown'}`;
+    }
     console.log(`[dynamic-step-service] Set process title to: ${serviceName}`);
+    console.log(`[dynamic-step-service] DT_CUSTOM_PROP: ${process.env.DT_CUSTOM_PROP}`);
   } catch (e) {
     console.error(`[dynamic-step-service] Failed to set process title: ${e.message}`);
   }

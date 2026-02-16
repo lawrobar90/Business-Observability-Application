@@ -20,6 +20,17 @@ server.log
 server.pid
 nohup.out
 
+# Ollama (installed via quick-deploy.sh, not committed)
+ollama
+.ollama/
+/usr/local/bin/ollama
+
+# AI Models (4.9 GB - downloaded on deploy, too large for git)
+*.gguf
+*.bin
+models/
+/tmp/ollama-pull.log
+
 # Dynatrace and sensitive configuration (SECURITY)
 *oneagent*
 *dynatrace*config*
@@ -62,9 +73,14 @@ ehthumbs.db
 ../vegas-casino*/
 vegas-casino/
 
-# Backup directories
+# Backup directories and backup files
 *-backup/
+*.backup*
+*.bak*
 .tmp-*/
 temp/
 tmp/
 Dynatrace-OneAgent-Linux-*.sh
+
+# External knowledge base downloads
+ai-agent-knowledge-base-main*/

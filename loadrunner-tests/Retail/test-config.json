@@ -1,0 +1,26 @@
+{
+  "companyName": "Retail",
+  "industryType": "Retail",
+  "steps": [
+    {
+      "stepName": "BasketCreation",
+      "serviceName": "BasketCreationService",
+      "stepIndex": 1,
+      "totalSteps": 3
+    },
+    {
+      "stepName": "SlotSelection",
+      "serviceName": "SlotSelectionService",
+      "stepIndex": 2,
+      "totalSteps": 3
+    },
+    {
+      "stepName": "Checkout",
+      "serviceName": "CheckoutService",
+      "stepIndex": 3,
+      "totalSteps": 3
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-12T18:45:25.975Z"
+}

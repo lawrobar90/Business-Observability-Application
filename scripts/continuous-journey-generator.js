@@ -2,8 +2,19 @@
 
 /**
  * Continuous Journey Generator
- * Automatically generates journey data for BizObs without manual intervention
- * Runs in the background and simulates realistic customer journeys
+ * 
+ * ⚠️ WARNING: DO NOT RUN THIS AUTOMATICALLY!
+ * This script generates continuous journey simulations for testing/demo purposes ONLY.
+ * It should ONLY be started manually when needed for load testing.
+ * 
+ * ⚠️ DISABLED: Example companies (ShopMart, Global Financial) have been removed.
+ * This generator should NOT be used. Use the UI continuous mode instead.
+ * 
+ * To start manually (NOT RECOMMENDED):
+ *   node scripts/continuous-journey-generator.js
+ * 
+ * To stop:
+ *   pkill -f continuous-journey-generator
  */
 
 import fetch from 'node-fetch';
@@ -12,30 +23,11 @@ const BIZOBS_API = process.env.BIZOBS_API_URL || 'http://localhost:8080';
 const INTERVAL_MS = parseInt(process.env.JOURNEY_INTERVAL_MS || '30000'); // 30 seconds default
 const BATCH_SIZE = parseInt(process.env.JOURNEY_BATCH_SIZE || '5'); // 5 customers per batch
 
-// Sample journey configurations
+// ⚠️ EXAMPLE COMPANIES REMOVED - DO NOT USE THIS GENERATOR
+// Use the UI continuous load test mode instead, which uses real company configs
 const journeyTemplates = [
-  {
-    name: 'E-Commerce Journey',
-    customers: ['Alice Johnson', 'Bob Smith', 'Carol Williams'],
-    steps: [
-      { stepName: 'Browse Products', serviceName: 'ProductCatalog' },
-      { stepName: 'Add to Cart', serviceName: 'ShoppingCart' },
-      { stepName: 'Checkout', serviceName: 'CheckoutService' },
-      { stepName: 'Payment', serviceName: 'PaymentProcessor' },
-      { stepName: 'Order Confirmation', serviceName: 'OrderService' }
-    ]
-  },
-  {
-    name: 'Banking Journey',
-    customers: ['Wayne Enterprises', 'Stark Industries', 'Umbrella Corporation'],
-    steps: [
-      { stepName: 'Login', serviceName: 'AuthService' },
-      { stepName: 'Account Overview', serviceName: 'AccountService' },
-      { stepName: 'Transfer Funds', serviceName: 'TransferService' },
-      { stepName: 'Transaction History', serviceName: 'HistoryService' },
-      { stepName: 'Logout', serviceName: 'AuthService' }
-    ]
-  }
+  // Example templates removed to prevent ShopMart, Global Financial Services, etc.
+  // from running automatically. Use the UI to create proper company journeys.
 ];
 
 let isRunning = false;
@@ -55,6 +47,9 @@ async function simulateJourney(template, customer) {
         customerName: customer,
         journey: {
           name: template.name,
+          companyName: template.companyName,
+          domain: template.domain,
+          industryType: template.industryType,
           steps: template.steps
         },
         chained: true,

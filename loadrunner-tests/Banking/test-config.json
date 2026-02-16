@@ -1,0 +1,177 @@
+{
+  "companyName": "Banking",
+  "domain": "https://www.banking.com",
+  "industryType": "Retail Banking",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "DigitalOnboarding",
+      "serviceName": "DigitalOnboardingService",
+      "description": "Customer begins the online current account application, providing personal details and selecting account type.",
+      "category": "Acquisition",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 6,
+      "businessRationale": "Digital onboarding for UK current accounts typically takes 5–8 minutes. Faster onboarding increases conversion and reduces abandonment.",
+      "substeps": [
+        {
+          "substepName": "PersonalDetailsEntry",
+          "duration": 3
+        },
+        {
+          "substepName": "AccountTypeSelection",
+          "duration": 3
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "IdentityVerification",
+      "serviceName": "IdentityVerificationService",
+      "description": "Customer completes KYC checks including document upload, biometric verification, and fraud screening.",
+      "category": "Compliance",
+      "timestamp": "2026-02-12T22:07:02.676Z",
+      "estimatedDuration": 7,
+      "businessRationale": "KYC and AML checks typically take 6–10 minutes depending on document verification and fraud model latency. This step is critical for regulatory compliance.",
+      "substeps": [
+        {
+          "substepName": "DocumentUploadAndScan",
+          "duration": 4
+        },
+        {
+          "substepName": "BiometricAndFraudChecks",
+          "duration": 3
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "AccountCreation",
+      "serviceName": "AccountCreationService",
+      "description": "Barclays creates the new current account, assigns sort code and account number, and provisions digital access.",
+      "category": "Fulfilment",
+      "timestamp": "2026-02-12T22:07:02.676Z",
+      "estimatedDuration": 4,
+      "businessRationale": "Core banking provisioning typically takes 3–5 minutes. Delays here directly impact onboarding completion and customer satisfaction.",
+      "substeps": [
+        {
+          "substepName": "CoreBankingProvisioning",
+          "duration": 2
+        },
+        {
+          "substepName": "DigitalAccessSetup",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "CardIssuanceAndDelivery",
+      "serviceName": "CardIssuanceAndDeliveryService",
+      "description": "Barclays issues a debit card, triggers manufacturing, and initiates postal delivery.",
+      "category": "Fulfilment",
+      "timestamp": "2026-02-12T22:07:02.676Z",
+      "estimatedDuration": 4320,
+      "businessRationale": "Debit card production and delivery in the UK typically takes 2–4 days (2880–5760 minutes). This step is essential for enabling spending and interchange revenue.",
+      "substeps": [
+        {
+          "substepName": "CardManufacturing",
+          "duration": 1440
+        },
+        {
+          "substepName": "PostalDelivery",
+          "duration": 2880
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "AppSetupAndActivation",
+      "serviceName": "AppSetupAndActivationService",
+      "description": "Customer downloads the Barclays app, registers their device, and activates mobile banking.",
+      "category": "Activation",
+      "timestamp": "2026-02-12T22:07:02.676Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Mobile banking activation typically takes 4–6 minutes. App activation strongly correlates with long-term engagement and retention.",
+      "substeps": [
+        {
+          "substepName": "AppDownloadAndLogin",
+          "duration": 2
+        },
+        {
+          "substepName": "DeviceRegistrationAndSecuritySetup",
+          "duration": 3
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "FirstTransaction",
+      "serviceName": "FirstTransactionService",
+      "description": "Customer performs their first transaction (e.g., debit card purchase, bank transfer, or ATM withdrawal).",
+      "category": "Revenue",
+      "timestamp": "2026-02-12T22:07:02.677Z",
+      "estimatedDuration": 2,
+      "businessRationale": "First transaction is a key activation milestone. It generates interchange or payment fees and signals successful onboarding.",
+      "substeps": [
+        {
+          "substepName": "PaymentInitiation",
+          "duration": 1
+        },
+        {
+          "substepName": "TransactionAuthorization",
+          "duration": 1
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-12T22:07:39.540Z"
+}

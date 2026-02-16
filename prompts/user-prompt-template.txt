@@ -1,0 +1,11 @@
+Create a Dynatrace dashboard for: {company} ({industry})
+Journey: {journey_type}
+Steps: {steps}
+
+Use the template structure with these customizations:
+1. Tile names should reference {journey_type} specifically
+2. Queries must filter by company == ${company}
+3. Add industry-specific tiles if relevant
+4. Use appropriate visualizations for each metric type
+
+Return the complete dashboard JSON following the exact template format.

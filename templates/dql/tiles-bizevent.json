@@ -1,0 +1,177 @@
+{
+  "_comment": "Bizevent-based tile templates. Tokens: {{COMPANY}}, {{REVENUE_FIELD}}, {{DURATION_FIELD}}, {{ERROR_BOOL_FIELD}}, {{ERROR_MSG_FIELD}}. All DQL verified against working Manufacturing dashboard.",
+
+  "tiles": {
+
+    "total_journey_volume": {
+      "id": "biz_total_volume",
+      "title": "📈 Total Journey Volume",
+      "domain": "volume",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize TotalEvents = count()"
+    },
+
+    "journey_step_metrics": {
+      "id": "biz_step_metrics",
+      "title": "📊 Journey Step Metrics",
+      "domain": "errors",
+      "visualization": "table",
+      "requires": ["{{ERROR_BOOL_FIELD}}", "{{DURATION_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize \n    OrdersInStep = count(), \n    SuccessRate = round((toDouble(countIf(isNull({{ERROR_BOOL_FIELD}}) or {{ERROR_BOOL_FIELD}} == false)) / toDouble(count())) * 100, decimals:2),\n    AvgTimeInStep = avg({{DURATION_FIELD}}),\n    ErrorsInStep = countIf({{ERROR_BOOL_FIELD}} == true),\n    ErrorRate = round((toDouble(countIf({{ERROR_BOOL_FIELD}} == true)) / toDouble(count())) * 100, decimals:2),\n    by: {json.stepName} \n| sort OrdersInStep desc"
+    },
+
+    "journey_success_rate": {
+      "id": "biz_success_rate",
+      "title": "✅ Journey Success Rate",
+      "domain": "errors",
+      "visualization": "singleValue",
+      "requires": ["{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize total = count(), successful = countIf(isNull({{ERROR_BOOL_FIELD}}) or {{ERROR_BOOL_FIELD}} == false) \n| fieldsAdd success_rate = round((toDouble(successful) / toDouble(total)) * 100, decimals:2)"
+    },
+
+    "total_revenue": {
+      "id": "biz_total_revenue",
+      "title": "💰 Total Revenue",
+      "domain": "revenue",
+      "visualization": "singleValue",
+      "requires": ["{{REVENUE_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| summarize revenue = sum({{REVENUE_FIELD}})"
+    },
+
+    "total_errors": {
+      "id": "biz_total_errors",
+      "title": "❌ Total Errors",
+      "domain": "errors",
+      "visualization": "singleValue",
+      "requires": ["{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| summarize errors = countIf({{ERROR_BOOL_FIELD}} == true)"
+    },
+
+    "volume_over_time": {
+      "id": "biz_volume_over_time",
+      "title": "📈 Volume Over Time",
+      "domain": "errors",
+      "visualization": "areaChart",
+      "requires": ["{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| makeTimeseries successful = countIf(isNull({{ERROR_BOOL_FIELD}}) or {{ERROR_BOOL_FIELD}} == false), failed = countIf({{ERROR_BOOL_FIELD}} == true), bins:30"
+    },
+
+    "events_by_step": {
+      "id": "biz_events_by_step",
+      "title": "📊 Events by Step",
+      "domain": "volume",
+      "visualization": "donutChart",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| summarize count = count(), by: {json.stepName} \n| sort count desc \n| limit 10"
+    },
+
+    "filtered_journey_events": {
+      "id": "biz_filtered_events",
+      "title": "💼 Journey Events (Filtered)",
+      "domain": "volume",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| filter in(json.stepName, $Step) \n| summarize total = count()"
+    },
+
+    "filtered_revenue": {
+      "id": "biz_filtered_revenue",
+      "title": "💰 Revenue (Filtered)",
+      "domain": "revenue",
+      "visualization": "singleValue",
+      "requires": ["{{REVENUE_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| filter in(json.stepName, $Step) \n| summarize revenue = sum({{REVENUE_FIELD}})"
+    },
+
+    "avg_order_value": {
+      "id": "biz_avg_order_value",
+      "title": "💵 Avg Order Value",
+      "domain": "revenue",
+      "visualization": "singleValue",
+      "requires": ["{{REVENUE_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| filter in(json.stepName, $Step) \n| summarize avg = avg({{REVENUE_FIELD}})"
+    },
+
+    "p90_response_time": {
+      "id": "biz_p90_response",
+      "title": "⏱️ P90 Response Time",
+      "domain": "performance",
+      "visualization": "singleValue",
+      "requires": ["{{DURATION_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| filter in(json.stepName, $Step) \n| summarize p90 = percentile({{DURATION_FIELD}}, 90)"
+    },
+
+    "events_over_time_filtered": {
+      "id": "biz_events_over_time_filtered",
+      "title": "📈 Events Over Time (Filtered)",
+      "domain": "volume",
+      "visualization": "areaChart",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| filter in(json.stepName, $Step) \n| makeTimeseries events = count(), bins:30"
+    },
+
+    "events_by_step_filtered": {
+      "id": "biz_events_by_step_filtered",
+      "title": "📊 Events by Step (Filtered)",
+      "domain": "volume",
+      "visualization": "categoricalBarChart",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType or $JourneyType == \"*\" \n| summarize count = count(), by: {json.stepName} \n| sort count desc \n| limit 10"
+    },
+
+    "step_performance": {
+      "id": "biz_step_performance",
+      "title": "⚡ Step Performance",
+      "domain": "performance",
+      "visualization": "table",
+      "requires": ["{{DURATION_FIELD}}", "{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize Events = count(), AvgTime = avg({{DURATION_FIELD}}), ErrorRate = round((toDouble(countIf({{ERROR_BOOL_FIELD}} == true)) / toDouble(count())) * 100, decimals:2), by: {json.stepName}\n| sort Events desc"
+    },
+
+    "sla_compliance": {
+      "id": "biz_sla_compliance",
+      "title": "📋 SLA Compliance (< 5s)",
+      "domain": "performance",
+      "visualization": "table",
+      "requires": ["{{DURATION_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize TotalEvents = count(), WithinSLA = countIf({{DURATION_FIELD}} < 5000), by: {json.stepName} \n| fieldsAdd ComplianceRate = (WithinSLA / TotalEvents) * 100"
+    },
+
+    "error_rate_trend": {
+      "id": "biz_error_rate_trend",
+      "title": "📉 Error Rate Trend",
+      "domain": "errors",
+      "visualization": "lineChart",
+      "requires": ["{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| makeTimeseries {errors = countIf({{ERROR_BOOL_FIELD}} == true), total = count()}, bins:30 \n| fieldsAdd ErrorRate = (errors[] / total[]) * 100"
+    },
+
+    "errors_by_step": {
+      "id": "biz_errors_by_step",
+      "title": "❌ Errors by Step",
+      "domain": "errors",
+      "visualization": "table",
+      "requires": ["{{ERROR_BOOL_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| filter {{ERROR_BOOL_FIELD}} == true \n| summarize ErrorCount = count(), by: {json.stepName} \n| sort ErrorCount desc"
+    },
+
+    "error_details": {
+      "id": "biz_error_details",
+      "title": "🐛 Error Details",
+      "domain": "errors",
+      "visualization": "table",
+      "requires": ["{{ERROR_BOOL_FIELD}}", "{{ERROR_MSG_FIELD}}"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| filter {{ERROR_BOOL_FIELD}} == true \n| summarize Occurrences = count(), by: {json.stepName, {{ERROR_MSG_FIELD}}} \n| sort Occurrences desc \n| limit 20"
+    },
+
+    "hourly_activity": {
+      "id": "biz_hourly_activity",
+      "title": "🕐 Hourly Activity Pattern",
+      "domain": "volume",
+      "visualization": "pieChart",
+      "requires": [],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| fieldsAdd hour = toString(getHour(timestamp)) \n| summarize Events = count(), by: {hour} \n| sort hour asc"
+    }
+  }
+}

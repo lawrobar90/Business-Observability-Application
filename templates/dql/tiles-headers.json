@@ -1,0 +1,69 @@
+{
+  "_comment": "Section header/decoration tiles. These use 'data record()' to create visual dividers between dashboard sections.",
+
+  "tiles": {
+
+    "header_overall": {
+      "id": "hdr_overall",
+      "title": "Overall Journey Performance - All Steps",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"Overall Journey Performance - All Steps\")"
+    },
+
+    "header_filtered": {
+      "id": "hdr_filtered",
+      "title": "Filtered View - By Selected Step",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"Filtered View - By Selected Step\")"
+    },
+
+    "header_performance": {
+      "id": "hdr_performance",
+      "title": "Performance & Operations",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"Performance & Operations\")"
+    },
+
+    "header_traffic": {
+      "id": "hdr_traffic",
+      "title": "TRAFFIC",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"TRAFFIC\")"
+    },
+
+    "header_errors": {
+      "id": "hdr_errors",
+      "title": "ERRORS",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"ERRORS\")"
+    },
+
+    "header_saturation": {
+      "id": "hdr_saturation",
+      "title": "SATURATION",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"SATURATION\")"
+    },
+
+    "header_latency": {
+      "id": "hdr_latency",
+      "title": "LATENCY",
+      "domain": "header",
+      "visualization": "singleValue",
+      "requires": [],
+      "query": "data record(a=\"LATENCY\")"
+    }
+  }
+}

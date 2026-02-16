@@ -1,0 +1,41 @@
+{
+  "_comment": "Cascading variable chain for Dynatrace dashboards. {{COMPANY}} is replaced with the actual companyName at generation time.",
+  "variables": [
+    {
+      "key": "CompanyName",
+      "type": "query",
+      "visible": true,
+      "multiple": false,
+      "input": "fetch bizevents | filter event.kind == \"BIZ_EVENT\" | filter json.companyName == \"{{COMPANY}}\" | fields json.companyName | dedup json.companyName",
+      "defaultValue": "{{COMPANY}}"
+    },
+    {
+      "key": "JourneyType",
+      "type": "query",
+      "visible": true,
+      "multiple": true,
+      "input": "fetch bizevents | filter json.companyName == $CompanyName | fields json.industryType | dedup json.industryType"
+    },
+    {
+      "key": "Step",
+      "type": "query",
+      "visible": true,
+      "multiple": true,
+      "input": "fetch bizevents | filter event.kind == \"BIZ_EVENT\" | filter in(json.industryType, $JourneyType) | filter json.companyName == \"{{COMPANY}}\" | fields json.stepName | dedup json.stepName"
+    },
+    {
+      "key": "Service",
+      "type": "query",
+      "visible": true,
+      "multiple": true,
+      "input": "fetch bizevents | fields json.serviceName, json.companyName, json.industryType | summarize count(),by:{json.companyName, json.industryType, json.serviceName} | filter json.companyName == $CompanyName | filter in(json.industryType, $JourneyType) | dedup json.serviceName | fields json.serviceName = lower(json.serviceName) | filter isNotNull(json.serviceName)"
+    },
+    {
+      "key": "PGI",
+      "type": "query",
+      "visible": true,
+      "multiple": true,
+      "input": "smartscapeNodes PROCESS | lookup [smartscapeNodes SERVICE | fields id, name], sourceField:name, lookupField:name, prefix:\"svc.\" | lookup [timeseries cpu = avg(dt.process.cpu.usage), by:{dt.smartscape.process}], sourceField:id, lookupField:dt.smartscape.process, fields:{cpu} | filter isNotNull(cpu) | fieldsAdd LowerService = lower(process.metadata[DYNATRACE_CLUSTER_ID]) | filter in(LowerService, $Service) | fields id | dedup id"
+    }
+  ]
+}

@@ -11,8 +11,8 @@ class PortManager extends EventEmitter {
     // Use EasyTravel-style ports with environment variable support
     const portOffset = parseInt(process.env.PORT_OFFSET || '0');
   this.minPort = minPort || (parseInt(process.env.SERVICE_PORT_MIN || '8081') + portOffset);
-  // Extend default max port to cover 40 ports (8081-8120) unless overridden by env
-  this.maxPort = maxPort || (parseInt(process.env.SERVICE_PORT_MAX || '8120') + portOffset);
+  // Extend default max port to cover 120 ports (8081-8200) unless overridden by env
+  this.maxPort = maxPort || (parseInt(process.env.SERVICE_PORT_MAX || '8200') + portOffset);
     this.allocatedPorts = new Map(); // port -> { service, company, timestamp }
     this.pendingAllocations = new Set(); // ports currently being allocated
     this.allocationLock = new Map(); // service key -> allocation promise
@@ -233,6 +233,54 @@ class PortManager extends EventEmitter {
     }
     
     return staleAllocations.length;
+  }
+
+  /**
+   * Release all ports for a specific company
+   * Used when user wants to restart a specific company's journey
+   */
+  releasePortsForCompany(companyName) {
+    const portsToRelease = [];
+    
+    for (const [port, allocation] of this.allocatedPorts.entries()) {
+      if (allocation.company === companyName) {
+        portsToRelease.push({ port, service: allocation.service });
+      }
+    }
+    
+    for (const { port, service } of portsToRelease) {
+      this.releasePort(port, service);
+    }
+    
+    console.log(`🧹 [PortManager] Released ${portsToRelease.length} ports for company: ${companyName}`);
+    return portsToRelease.length;
+  }
+
+  /**
+   * Get all allocated ports for a specific company
+   */
+  getPortsForCompany(companyName) {
+    const ports = [];
+    for (const [port, allocation] of this.allocatedPorts.entries()) {
+      if (allocation.company === companyName) {
+        ports.push({ port, service: allocation.service, timestamp: allocation.timestamp });
+      }
+    }
+    return ports;
+  }
+
+  /**
+   * Get allocation summary by company
+   */
+  getAllocationsByCompany() {
+    const byCompany = {};
+    for (const [port, allocation] of this.allocatedPorts.entries()) {
+      if (!byCompany[allocation.company]) {
+        byCompany[allocation.company] = [];
+      }
+      byCompany[allocation.company].push({ port, service: allocation.service });
+    }
+    return byCompany;
   }
 }
 

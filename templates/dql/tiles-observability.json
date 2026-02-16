@@ -1,0 +1,42 @@
+{
+  "_comment": "Observability tiles: Davis problems, logs, spans/exceptions, top exceptions. All DQL verified against working Manufacturing dashboard.",
+
+  "tiles": {
+
+    "active_davis_problems": {
+      "id": "obs_davis_problems",
+      "title": "🚨 Active Davis Problems",
+      "domain": "observability",
+      "visualization": "table",
+      "requires": [],
+      "query": "fetch dt.davis.problems\n| filter event.status == \"ACTIVE\"\n| fields display_id, title, affected_entity_ids, event.start, event.status, management_zone\n| sort event.start desc\n| limit 10"
+    },
+
+    "top_exceptions": {
+      "id": "obs_top_exceptions",
+      "title": "💥 Top Exceptions",
+      "domain": "observability",
+      "visualization": "table",
+      "requires": [],
+      "query": "fetch dt.davis.events, from:now()-24h\n| filter event.kind == \"ERROR_EVENT\"\n| summarize occurrences = count(), lastSeen = takeLast(timestamp), by: {event.name, dt.entity.service}\n| fieldsAdd serviceName = entityName(dt.entity.service)\n| sort occurrences desc\n| limit 15"
+    },
+
+    "recent_log_errors": {
+      "id": "obs_log_errors",
+      "title": "📋 Recent Log Errors",
+      "domain": "observability",
+      "visualization": "table",
+      "requires": [],
+      "query": "fetch logs, from:now()-1h\n| filter loglevel == \"ERROR\" or loglevel == \"WARN\"\n| fields timestamp, loglevel, content, dt.entity.service\n| fieldsAdd serviceName = entityName(dt.entity.service)\n| sort timestamp desc\n| limit 20"
+    },
+
+    "traces_with_exceptions": {
+      "id": "obs_traces_exceptions",
+      "title": "💥 TRACES WITH EXCEPTIONS",
+      "domain": "observability",
+      "visualization": "table",
+      "requires": [],
+      "query": "fetch spans\n| filter in(dt.entity.service, array($Service))\n| fieldsAdd Service = rpc.service\n| fieldsAdd exception.stacktrace = span.events[][exception.stack_trace]\n| fieldsAdd exception.class = span.events[0][exception.type]\n| fieldsAdd eventname = span.events[0][span_event.name]\n| fieldsAdd exception.message = toString(span.events[][exception.message])\n| fieldsAdd trace_id = toString(trace.id), span_id = toString(span.id)\n| filter eventname == \"exception\"\n| filter isNotNull(span.exit_by_exception_id)\n| fields Time = start_time, start_time, end_time, Service,\n         Endpoint = concat(\"[\", if(isnull(endpoint.name), span.name, else: endpoint.name), \n           \"](/ui/apps/dynatrace.distributedtracing/explorer?cv=a%2Cfalse&sidebar=a%2Cfalse&filter=\", URLEncode(concat(\"trace_id EQ \\\"\", trace_id, \"\\\"\")), \"&spanId=\", span_id, \")\"),\n         ExceptionClass = if(isNotNull(exception.class), exception.class, else:\"N/A\"),\n         ExceptionMesssage = concat(\"🤖 \", if(isNotNull(exception.message), exception.message, else:\"N/A\")),\n         Exception = if(isNotNull(exception.stacktrace), exception.stacktrace, else:\"N/A\"),\n         Duration = duration, dt.entity.service, trace.id, span.id     \n| sort start_time desc\n| limit 200\n| fieldsAdd prompt=concat(\"Analyze the Exception found in \", Service, \" at endpoint \", Endpoint, \". Exception class: \", ExceptionClass, \", Message: \", ExceptionMesssage, \". Provide root cause analysis and remediation steps.\"), execute=true, contexts=array(record(type=\"supplementary\", value=substring(concat(Exception, \" Service\", Endpoint), to:20000)))"
+    }
+  }
+}

@@ -38,6 +38,10 @@ else
     echo "✅ BizObs Application stopped"
 fi
 
+# Stop LoadRunner processes
+echo "🛑 Stopping LoadRunner processes..."
+pkill -f "loadrunner-simulator.js" 2>/dev/null && echo "✅ LoadRunners stopped" || echo "ℹ️  No LoadRunners running"
+
 # Verify no processes are left running on port 4000
 if lsof -i :4000 > /dev/null 2>&1; then
     echo "⚠️  Warning: Port 4000 is still in use"

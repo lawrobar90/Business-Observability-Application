@@ -1,36 +1,64 @@
 /**
  * Enhanced Dynatrace Error Handling and Trace Failure Reporting
  * Ensures exceptions are properly captured and propagated in traces
+ * Uses @dynatrace/oneagent-sdk when available for real trace integration
  */
 
-// Dynatrace API helpers for error reporting
+// Try to load the real Dynatrace OneAgent SDK
+let dtSdk = null;
+let dtApi = null;
+try {
+  dtSdk = require('@dynatrace/oneagent-sdk');
+  dtApi = dtSdk.createInstance();
+  console.log('[dynatrace-sdk] OneAgent SDK loaded successfully, state:', dtApi.getCurrentState());
+} catch (e) {
+  console.log('[dynatrace-sdk] OneAgent SDK not available, using fallback logging:', e.message);
+}
+
+// Dynatrace API helpers for error reporting — uses real SDK when available
 const addCustomAttributes = (attributes) => {
-  console.log('[dynatrace] Custom attributes:', attributes);
-  // In real Dynatrace environment, this would call dynatrace.addCustomAttributes(attributes)
+  if (dtApi && typeof dtApi.addCustomRequestAttribute === 'function') {
+    // Use real OneAgent SDK to attach attributes to the current PurePath trace
+    for (const [key, value] of Object.entries(attributes)) {
+      try {
+        dtApi.addCustomRequestAttribute(key, String(value));
+      } catch (e) {
+        // Silently skip if attribute can't be added
+      }
+    }
+  }
+  console.log('[dynatrace] Custom attributes:', JSON.stringify(attributes));
 };
 
 const reportError = (error, context = {}) => {
-  console.log('[dynatrace] Error reported:', {
-    error: error.message || error,
-    stack: error.stack,
-    context
-  });
-  // In real Dynatrace environment, this would call dynatrace.reportError(error)
+  // Attach exception details to the PurePath via OneAgent SDK
+  if (dtApi && typeof dtApi.addCustomRequestAttribute === 'function') {
+    try {
+      dtApi.addCustomRequestAttribute('error.message', error.message || 'Unknown error');
+      dtApi.addCustomRequestAttribute('error.type', error.name || error.constructor?.name || 'Error');
+      dtApi.addCustomRequestAttribute('error.stack', (error.stack || '').substring(0, 500));
+      for (const [key, value] of Object.entries(context)) {
+        dtApi.addCustomRequestAttribute(key, String(value));
+      }
+    } catch (e) {
+      // Silently skip
+    }
+  }
+  console.error(`[dynatrace-error] ${error.name || 'Error'}: ${error.message}`, JSON.stringify(context));
 };
 
 const markSpanAsFailed = (error, context = {}) => {
-  console.log('[dynatrace] Span marked as failed:', {
-    error: error.message || error,
-    context
-  });
-  // In real Dynatrace environment, this would mark the current span as failed
-  addCustomAttributes({
-    'error.message': error.message || error,
-    'error.type': error.constructor.name || 'Error',
-    'span.status': 'ERROR',
-    'trace.failed': true,
-    ...context
-  });
+  // Attach failure markers to the PurePath via OneAgent SDK
+  if (dtApi && typeof dtApi.addCustomRequestAttribute === 'function') {
+    try {
+      dtApi.addCustomRequestAttribute('span.failed', 'true');
+      dtApi.addCustomRequestAttribute('failure.message', error.message || 'Unknown');
+      dtApi.addCustomRequestAttribute('failure.category', context['error.category'] || 'unknown');
+    } catch (e) {
+      // Silently skip
+    }
+  }
+  console.error(`[dynatrace-span-failed] ${error.message}`, JSON.stringify(context));
 };
 
 const sendErrorEvent = (eventType, error, context = {}) => {

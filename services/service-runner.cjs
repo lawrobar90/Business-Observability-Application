@@ -36,14 +36,19 @@ const serviceName = process.argv[2] || 'UnknownService';
 // Set process title for OneAgent detection
 process.title = serviceName;
 
-// Minimal OneAgent service detection
+// 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
+// This is what OneAgent uses for service detection/naming
+process.env.DT_APPLICATION_ID = serviceName;
+
+// 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service
+if (!process.env.DT_CUSTOM_PROP || !process.env.DT_CUSTOM_PROP.includes('dtServiceName=')) {
+  process.env.DT_CUSTOM_PROP = `dtServiceName=${serviceName} companyName=${companyName} domain=${domain} industryType=${industryType}`;
+}
+
+// Internal env vars for app-level code
 process.env.DT_SERVICE_NAME = serviceName;
-process.env.DT_APPLICATION_NAME = 'BizObs-CustomerJourney';
 process.env.DT_CLUSTER_ID = serviceName;
 process.env.DT_NODE_ID = `${serviceName}-node`;
-
-// Override process group name for Dynatrace
-process.env.DT_PROCESS_GROUP_NAME = serviceName;
 
 function createService(serviceName, mountFn) {
   // CRITICAL: Set process identity for Dynatrace detection immediately
@@ -51,14 +56,16 @@ function createService(serviceName, mountFn) {
     // Set process title - this is what Dynatrace sees as the service name
     process.title = serviceName; 
     
-    // Set environment variables for Dynatrace service detection
+    // 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
     process.env.DT_APPLICATION_ID = serviceName;
+    
+    // 🔑 DT_CUSTOM_PROP: Adds custom metadata properties
+    if (!process.env.DT_CUSTOM_PROP || !process.env.DT_CUSTOM_PROP.includes('dtServiceName=')) {
+      process.env.DT_CUSTOM_PROP = `dtServiceName=${serviceName} companyName=${companyName} domain=${domain} industryType=${industryType}`;
+    }
+    // Internal env vars for app-level code
     process.env.DT_SERVICE_NAME = serviceName;
     process.env.DYNATRACE_SERVICE_NAME = serviceName;
-    process.env.DT_LOGICAL_SERVICE_NAME = serviceName;
-    // OneAgent RUXIT variables for service naming
-    process.env.RUXIT_APPLICATION_ID = serviceName;
-    process.env.RUXIT_APPLICATIONID = serviceName;
     
     // CRITICAL: Set process argv[0] to help with service detection
     // This changes what 'ps' shows as the command name

@@ -1,0 +1,13 @@
+{
+  "companyName": "TestCo",
+  "domain": "test.com",
+  "industryType": "Technology",
+  "steps": [
+    {
+      "stepName": "PackageSelection",
+      "description": "Test step 1"
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-12T15:10:32.873Z"
+}

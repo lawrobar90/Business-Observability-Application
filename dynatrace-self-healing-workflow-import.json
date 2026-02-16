@@ -1,0 +1,118 @@
+{
+  "title": "BizObs Self-Healing - Auto Disable Errors",
+  "description": "Automatically disables error generation when error rate problems are detected. Uses enhanced POST endpoint with direct payload forwarding and detailed change tracking.",
+  "owner": "admin",
+  "isPrivate": false,
+  "trigger": {
+    "eventTrigger": {
+      "triggerConfiguration": {
+        "type": "event",
+        "value": {
+          "query": "event.type == \"PROBLEM_OPEN\" AND matchesPhrase(event.title, \"error\")",
+          "eventType": "events"
+        }
+      },
+      "filterQuery": "event.type == \"PROBLEM_OPEN\" AND (matchesPhrase(event.title, \"error rate\") OR matchesPhrase(event.title, \"error\"))"
+    }
+  },
+  "tasks": {
+    "get_running_companies": {
+      "name": "get_running_companies",
+      "description": "Get currently running companies and their feature flag state",
+      "action": "dynatrace.http.request:1",
+      "input": {
+        "method": "GET",
+        "url": "http://3.209.41.33:8080/api/feature_flag",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "conditions": {
+        "states": {},
+        "custom": ""
+      }
+    },
+    "disable_errors_for_running": {
+      "name": "disable_errors_for_running",
+      "description": "Send full GET response to disable errors - enhanced endpoint automatically extracts and processes",
+      "action": "dynatrace.http.request:1",
+      "input": {
+        "method": "POST",
+        "url": "http://3.209.41.33:8080/api/feature_flag",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "payload": "{{ result(\"get_running_companies\").responseBody }}"
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": [
+        "get_running_companies"
+      ],
+      "conditions": {
+        "states": {
+          "get_running_companies": "OK"
+        },
+        "custom": ""
+      }
+    },
+    "log_self_healing_action": {
+      "name": "log_self_healing_action",
+      "description": "Log the self-healing action with detailed change information",
+      "action": "dynatrace.site.reliability.guardian:log-event",
+      "input": {
+        "title": "BizObs Self-Healing: Errors Disabled",
+        "description": "{{ result(\"disable_errors_for_running\").responseBody.message }}\n\nChanges Made:\n- Flag: {{ result(\"disable_errors_for_running\").responseBody.changes[0].flag }}\n- Previous Value: {{ result(\"disable_errors_for_running\").responseBody.changes[0].previous_value }}\n- New Value: {{ result(\"disable_errors_for_running\").responseBody.changes[0].new_value }}\n\nAffected Entities:\n- Companies: {{ result(\"disable_errors_for_running\").responseBody.applied_to.companies | join(\", \") }}\n- Total Affected: {{ result(\"disable_errors_for_running\").responseBody.applied_to.total_affected }}\n\nProblem ID: {{ event()[\"event.id\"] }}\nProblem Title: {{ event()[\"event.title\"] }}",
+        "entityIds": [],
+        "properties": {
+          "action": "self_healing",
+          "feature_flag_state": "disabled",
+          "companies_affected": "{{ result(\"disable_errors_for_running\").responseBody.applied_to.total_affected }}",
+          "problem_id": "{{ event()[\"event.id\"] }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": [
+        "disable_errors_for_running"
+      ],
+      "conditions": {
+        "states": {
+          "disable_errors_for_running": "OK"
+        },
+        "custom": ""
+      }
+    },
+    "send_slack_notification": {
+      "name": "send_slack_notification",
+      "description": "Notify team via Slack about self-healing action",
+      "action": "dynatrace.slack:slack-send-message",
+      "input": {
+        "channel": "C08509YSBED",
+        "message": "🔧 *BizObs Self-Healing Activated*\n\n{{ result(\"disable_errors_for_running\").responseBody.message }}\n\n*Changes:*\n• `{{ result(\"disable_errors_for_running\").responseBody.changes[0].flag }}`: {{ result(\"disable_errors_for_running\").responseBody.changes[0].previous_value }} → {{ result(\"disable_errors_for_running\").responseBody.changes[0].new_value }}\n\n*Affected:* {{ result(\"disable_errors_for_running\").responseBody.applied_to.companies | join(\", \") }} ({{ result(\"disable_errors_for_running\").responseBody.applied_to.total_affected }} total)\n\n*Problem:* <{{ event()[\"event.url\"] }}|{{ event()[\"event.title\"] }}>\n\n_Errors have been automatically disabled to prevent cascading failures._"
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": [
+        "log_self_healing_action"
+      ],
+      "conditions": {
+        "states": {
+          "log_self_healing_action": "OK"
+        },
+        "custom": ""
+      }
+    }
+  }
+}

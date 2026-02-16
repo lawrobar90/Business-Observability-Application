@@ -107,6 +107,17 @@
       background: linear-gradient(135deg, #4ECDC4, #44A08D) !important;
       color: black !important;
     }
+    
+    .dashboard-tab {
+      background: #23272F;
+      color: #9CA3AF;
+    }
+    
+    .dashboard-tab.active {
+      background: #00D4FF;
+      color: black;
+      font-weight: bold;
+    }
 
     .tab-button:hover {
       transform: translateY(-2px);
@@ -243,12 +254,38 @@
         </div>
       </div>
       
-      <!-- Saved Prompts List -->
-      <div class="mb-4">
-        <h3 class="text-sm font-semibold text-dtcyan mb-2">📋 Your Saved Prompts</h3>
-        <div id="savedPromptsList" class="space-y-2 max-h-96 overflow-y-auto">
-          <!-- Saved prompts will be populated here -->
+      <!-- User Saved Prompts Section -->
+      <div class="mb-4 p-3 bg-dtgray bg-opacity-40 rounded-lg border border-dtcyan">
+        <h3 class="text-sm font-bold text-dtcyan mb-3 flex items-center gap-2">
+          <span>💾</span> Your Saved Prompts
+        </h3>
+        <select id="userSavedPromptsDropdown" size="8" class="w-full bg-dtcard border border-dtcyan rounded-lg p-2 text-white text-sm mb-3 max-h-64 overflow-y-auto">
+          <option value="">No saved prompts</option>
+        </select>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="loadSelectedUserPrompt()" class="bg-dtpurple hover:bg-dtcyan text-white hover:text-black px-3 py-2 rounded-lg text-xs font-bold transition-all">
+            📖 Load
+          </button>
+          <button onclick="duplicateSelectedUserPrompt()" class="bg-dtblue hover:bg-dtcyan text-white hover:text-black px-3 py-2 rounded-lg text-xs font-bold transition-all">
+            📄 Duplicate
+          </button>
+          <button onclick="deleteSelectedUserPrompt()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all">
+            🗑️ Delete
+          </button>
         </div>
+      </div>
+      
+      <!-- Default Prompts Section -->
+      <div class="mb-4 p-3 bg-dtgray bg-opacity-40 rounded-lg border border-dtyellow">
+        <h3 class="text-sm font-bold text-dtyellow mb-3 flex items-center gap-2">
+          <span>📚</span> Default Library (24)
+        </h3>
+        <select id="defaultPromptsDropdown" size="8" class="w-full bg-dtcard border border-dtyellow rounded-lg p-2 text-white text-sm mb-3 max-h-64 overflow-y-auto">
+          <option value="">Select a default prompt...</option>
+        </select>
+        <button onclick="loadSelectedDefaultPrompt()" class="w-full bg-dtyellow hover:bg-yellow-500 text-black px-3 py-2 rounded-lg text-sm font-bold transition-all">
+          📖 Load Prompt
+        </button>
       </div>
       
       <!-- Management Buttons -->
@@ -257,7 +294,7 @@
         <button id="importPrompts" class="bg-dtgreen text-black px-4 py-3 rounded-lg font-bold hover:bg-green-600 transition-all text-sm">📥 Import</button>
       </div>
       <div class="mb-4">
-        <button id="clearAllPrompts" class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-all text-sm">🗑️ Clear All</button>
+        <button id="clearAllPrompts" class="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-all text-sm">🗑️ Clear All User Prompts</button>
       </div>
       
       <!-- Quick Help -->
@@ -265,9 +302,8 @@
         <p class="font-bold text-gray-300 mb-2">💡 Quick Tips:</p>
         <p>• <span class="text-dtcyan">Ctrl+S</span>: Quick Save</p>
         <p>• <span class="text-dtcyan">Ctrl+Shift+S</span>: Named Save</p>
-        <p>• Click any saved prompt to load it</p>
-        <p>• <span class="text-dtcyan">📄</span> button: Duplicate prompt</p>
-        <p>• Auto-saves: Limited to last 5</p>
+        <p>• <span class="text-dtcyan">💾 User Saved</span>: Your custom configs</p>
+        <p>• <span class="text-dtyellow">📚 Default</span>: 24 pre-built journeys</p>
         <p>• Export/Import: Share prompts</p>
       </div>
     </div>
@@ -289,144 +325,12 @@
           </div>
         </div>
         <div class="flex items-center space-x-3">
-          <button onclick="openDynatraceSettings()" class="px-3 py-2 rounded-lg bg-dtpurple/20 hover:bg-dtpurple/40 border border-dtpurple text-white text-sm font-medium transition-all flex items-center gap-2" title="Configure Dynatrace MCP Settings">
-            <span>⚙️</span>
-            <span id="dt-settings-indicator">MCP Settings</span>
-          </button>
           <div class="px-3 py-1 rounded-full bg-dtgreen/20 border border-dtgreen text-dtgreen text-xs font-medium">
             ✅ READY
           </div>
           <span id="host-label" class="text-sm text-dtaccent font-medium px-3 py-1 rounded-full bg-dtpurple/20 border border-dtpurple">Smartscape UI · Real-time overlays</span>
         </div>
       </header>
-
-      <!-- Dynatrace MCP Settings Modal -->
-      <div id="dynatrace-settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-4">
-        <div class="bg-dtcard border-2 border-dtcyan rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <!-- Modal Header -->
-          <div class="p-6 border-b border-dtborder bg-gradient-to-r from-dtpurple/20 to-dtcyan/20">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="p-2 rounded-lg bg-dtcyan/20 border border-dtcyan">
-                  <span class="text-2xl">🔗</span>
-                </div>
-                <div>
-                  <h2 class="text-2xl font-bold text-dtcyan">Dynatrace MCP Settings</h2>
-                  <p class="text-sm text-gray-400 mt-1">Configure connection to your Dynatrace environment</p>
-                </div>
-              </div>
-              <button onclick="closeDynatraceSettings()" class="text-gray-400 hover:text-white text-2xl font-bold transition-all">×</button>
-            </div>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="p-6 space-y-6">
-            <!-- Connection Status -->
-            <div id="dt-connection-status" class="p-4 rounded-lg bg-dtgray/50 border border-dtborder hidden">
-              <div class="flex items-center gap-3">
-                <span id="dt-status-icon" class="text-2xl"></span>
-                <div class="flex-1">
-                  <p id="dt-status-text" class="font-medium"></p>
-                  <p id="dt-status-detail" class="text-sm text-gray-400 mt-1"></p>
-                </div>
-              </div>
-            </div>
-
-            <!-- MCP Server URL -->
-            <div>
-              <label class="block text-sm font-semibold text-dtcyan mb-2">
-                Dynatrace MCP Server URL
-                <span class="text-red-400">*</span>
-              </label>
-              <input 
-                type="text" 
-                id="dt-mcp-server-input" 
-                placeholder="http://localhost:3000"
-                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
-              />
-              <p class="text-xs text-gray-400 mt-1">
-                💡 Auto-detected MCP server URL. Change only if MCP runs elsewhere.
-              </p>
-            </div>
-
-            <!-- Dynatrace Environment (for MCP) -->
-            <div>
-              <label class="block text-sm font-semibold text-dtcyan mb-2">
-                Dynatrace Environment URL
-                <span class="text-red-400">*</span>
-              </label>
-              <input 
-                type="text" 
-                id="dt-environment-input" 
-                placeholder="https://abc12345.sprint.apps.dynatracelabs.com"
-                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
-              />
-              <p class="text-xs text-gray-400 mt-1">
-                🌐 Your Dynatrace tenant URL (used by MCP server for authentication)
-              </p>
-            </div>
-
-            <!-- Info Box -->
-            <div class="p-4 rounded-lg bg-dtblue/10 border border-dtblue">
-              <p class="text-sm font-semibold text-dtblue mb-2">🚀 MCP Server will be started automatically</p>
-              <div class="text-xs text-gray-300 space-y-1">
-                <div>• The Dynatrace MCP Server runs alongside this app</div>
-                <div>• OAuth authentication is handled automatically</div>
-                <div>• No API tokens needed - just configure your tenant URL</div>
-              </div>
-            </div>
-
-            <!-- Additional Settings -->
-            <div>
-              <label class="block text-sm font-semibold text-dtcyan mb-2">
-                Grail Query Budget (GB)
-              </label>
-              <input 
-                type="number" 
-                id="dt-budget-input" 
-                value="100"
-                min="1"
-                max="10000"
-                class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtborder focus:border-dtcyan focus:ring-2 focus:ring-dtcyan/50 transition-all"
-              />
-              <p class="text-xs text-gray-400 mt-1">
-                💰 Set budget limit for Grail queries per session
-              </p>
-            </div>
-
-            <!-- Storage Info -->
-            <div class="p-4 rounded-lg bg-dtgray/30 border border-gray-600">
-              <p class="text-sm text-gray-400">
-                <span class="text-dtcyan font-semibold">🔐 Security:</span> Your credentials are encrypted using AES-GCM with a browser-generated key. 
-                They are stored locally in your browser and never sent to the BizObs server. 
-                Only you can access your stored credentials.
-              </p>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="p-6 border-t border-dtborder bg-dtgray/30 flex gap-3">
-            <button 
-              onclick="testDynatraceConnection()" 
-              class="flex-1 bg-dtblue hover:bg-dtblue/80 text-white px-6 py-3 rounded-lg font-bold transition-all"
-            >
-              🧪 Test Connection
-            </button>
-            <button 
-              onclick="saveDynatraceSettings()" 
-              class="flex-1 bg-dtgreen hover:bg-dtgreen/80 text-black px-6 py-3 rounded-lg font-bold transition-all"
-            >
-              💾 Save Settings
-            </button>
-            <button 
-              onclick="clearDynatraceSettings()" 
-              class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold transition-all"
-            >
-              🗑️ Clear
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- Service Status Dropdown - Top Right Corner -->
       <div class="fixed top-4 right-4 z-50">
@@ -443,10 +347,15 @@
                 <span class="w-2 h-2 bg-dtcyan rounded-full mr-2 animate-pulse"></span>
                 Running Services
               </h3>
-              <button onclick="updateServiceStatus()" class="bg-dtgray hover:bg-dtcyan text-white hover:text-black rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 flex items-center" title="Refresh service status">
-                <span class="mr-1">🔄</span>
-                Refresh
-              </button>
+              <div class="flex gap-2">
+                <button onclick="openServiceDashboard()" class="bg-dtpurple hover:bg-dtcyan text-white hover:text-black rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200" title="Open detailed service dashboard">
+                  📊 Details
+                </button>
+                <button onclick="updateServiceStatus()" class="bg-dtgray hover:bg-dtcyan text-white hover:text-black rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 flex items-center" title="Refresh service status">
+                  <span class="mr-1">🔄</span>
+                  Refresh
+                </button>
+              </div>
             </div>
             
             <div class="p-4 max-h-96 overflow-y-auto">
@@ -748,25 +657,6 @@
                 <!-- Right Column: Configuration & Fields -->
                 <div class="space-y-4">
                   <div>
-                    <h4 class="text-base font-bold text-white mb-2">Configuration Options</h4>
-                    
-                    <!-- Error Simulation Toggle -->
-                    <div class="flex items-center justify-between p-3 bg-dtgray rounded-lg mb-3">
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <span class="text-white font-medium">Error Simulation</span>
-                          <span id="errorToggleStatus" class="px-2 py-1 rounded bg-dtgreen text-black font-semibold text-xs">ON</span>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">Toggle realistic errors in journey steps based on errorHint data</p>
-                      </div>
-                      <label class="relative inline-flex items-center cursor-pointer ml-3">
-                        <input type="checkbox" id="errorSimulationToggle" class="sr-only peer" checked>
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-dtcyan rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-dtcyan"></div>
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div>
                     <h4 class="text-base font-bold text-white mb-2">Generated Fields Preview</h4>
                     <div id="generated-fields-preview" class="max-h-40 overflow-y-auto p-3 bg-dtgray rounded-lg text-sm">
                       <p class="text-gray-400 text-center">Field data will appear after processing journey response</p>
@@ -802,7 +692,12 @@
         <div class="tab-pane" id="step4-tab">
           <div class="max-w-6xl mx-auto">
             <div class="p-6 rounded-2xl bg-dtcard border border-dtborder shadow-card">
-              <div class="flex items-center justify-between mb-4"><h2 class="text-2xl text-dtcyan font-bold tracking-tight">📊 Step 4 - Generate Data</h2><button onclick="startNewCustomerJourney()" class="bg-dtpurple hover:bg-dtcyan text-white hover:text-black px-4 py-2 rounded-lg text-sm font-bold shadow-card transition-all" title="Reset everything and start a new customer journey">🔄 New Customer Journey</button></div>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl text-dtcyan font-bold tracking-tight">📊 Step 4 - Generate Data</h2>
+                <div class="text-xs text-gray-400">
+                  Multi-tenant: Services persist across journeys
+                </div>
+              </div>
               
               <div class="mb-6">
                 <div class="flex rounded-lg bg-dtgray p-1">
@@ -829,6 +724,25 @@
                     <button id="run-journey-simulation-step4" onclick="runJourneySimulation(); updateSimulationStatus('Running customer journey simulation...');" class="w-full bg-dtgreen hover:bg-dtcyan text-black font-bold rounded-lg p-4 shadow-card transition-all text-lg">
                       🚀 Run Single Journey Simulation
                     </button>
+                    
+                    <button id="start-loadrunner-btn" onclick="startLoadRunner()" class="w-full bg-dtpurple hover:bg-purple-600 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg">
+                      ⚡ Start Continuous Load (LoadRunner)
+                    </button>
+                    
+                    <button id="stop-loadrunner-btn" onclick="stopLoadRunner()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg hidden">
+                      ⏹️ Stop LoadRunner
+                    </button>
+                    
+                    <button id="stop-all-clear-btn" onclick="stopAllAndClear()" class="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg border-2 border-red-500">
+                      🛑 STOP ALL & CLEAR (Services + Load Runners)
+                    </button>
+                    
+                    <div id="loadrunner-status" class="p-3 bg-dtgray rounded-lg text-sm hidden">
+                      <div class="flex justify-between items-center">
+                        <span>🟢 LoadRunner Active</span>
+                        <span id="loadrunner-stats" class="text-dtgreen">0 requests</span>
+                      </div>
+                    </div>
                     
                     <div id="simulation-status-step4" class="p-3 bg-dtgray rounded-lg text-sm">
                       Ready to run simulation with current journey configuration
@@ -866,8 +780,13 @@
                   </p>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button onclick="deployDynatraceDashboard()" class="bg-dtcyan hover:bg-dtgreen text-black font-bold rounded-lg px-4 py-3 shadow-card transition-all text-sm">
-                      � Deploy Journey Dashboard
+                      📊 Deploy Journey Dashboard
                     </button>
+                    <button onclick="generateAIDashboard()" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg px-4 py-3 shadow-card transition-all text-sm">
+                      🤖 AI Dashboard (5s)
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 gap-3 mt-3">
                     <button onclick="queryDynatraceData()" class="bg-dtblue hover:bg-dtcyan text-white hover:text-black font-bold rounded-lg px-4 py-3 shadow-card transition-all text-sm">
                       ✅ Verify Data Ingestion
                     </button>
@@ -895,7 +814,29 @@
                     
                     <div>
                       <label class="block text-sm font-semibold text-dtcyan mb-2">Duration (minutes)</label>
-                      <input id="loadrunner-duration" class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtcyan" type="number" min="1" max="60" value="5">
+                      <input id="loadrunner-duration" class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtcyan" type="number" min="1" max="60" value="10">
+                    </div>
+                    
+                    <!-- Error Configuration -->
+                    <div class="p-4 bg-dtgray rounded-lg border border-dtpurple">
+                      <h5 class="text-dtpurple font-semibold mb-3 flex items-center gap-2">
+                        <span>🚦</span>
+                        <span>Error Configuration (Volume-Based)</span>
+                      </h5>
+                      
+                      <div class="space-y-3">
+                        <div>
+                          <label class="block text-xs text-gray-300 mb-1">Errors per Transaction</label>
+                          <input id="errors-per-transaction" class="w-full p-2 rounded bg-black text-white border border-dtcyan text-sm" type="number" min="0" max="1" step="0.01" value="0.1">
+                          <p class="text-xs text-gray-400 mt-1">0.1 = 10% error rate (set to 0 to disable)</p>
+                        </div>
+                        
+                        <div>
+                          <label class="block text-xs text-gray-300 mb-1">Regenerate Every N Transactions</label>
+                          <input id="regenerate-every" class="w-full p-2 rounded bg-black text-white border border-dtcyan text-sm" type="number" min="10" max="1000" step="10" value="100">
+                          <p class="text-xs text-gray-400 mt-1">New error patterns every 100 transactions</p>
+                        </div>
+                      </div>
                     </div>
                     
                     <button id="start-loadrunner-test" onclick="startLoadRunnerTest()" class="w-full bg-dtpurple hover:bg-dtcyan text-white hover:text-black font-bold rounded-lg p-4 shadow-card transition-all text-lg">
@@ -943,6 +884,44 @@
                   <p class="text-xs text-gray-400">You can now generate realistic customer data and business scenarios</p>
                 </div>
               </div>
+              
+              <!-- ⚠️ DANGER ZONE - Kill All Services -->
+              <div class="mt-8 p-6 rounded-2xl bg-red-900 bg-opacity-20 border-2 border-red-600 shadow-card">
+                <div class="flex items-center gap-3 mb-4">
+                  <span class="text-4xl">⚠️</span>
+                  <div>
+                    <h3 class="text-xl font-bold text-red-500">DANGER ZONE</h3>
+                    <p class="text-sm text-gray-300">System-wide service management</p>
+                  </div>
+                </div>
+                
+                <div class="bg-black bg-opacity-50 p-4 rounded-lg mb-4">
+                  <h4 class="text-white font-semibold mb-2">⚡ Kill All Services</h4>
+                  <p class="text-xs text-gray-400 mb-2">
+                    This will <strong class="text-red-500">IMMEDIATELY</strong> terminate ALL running services from ALL companies:
+                  </p>
+                  <ul class="text-xs text-gray-400 space-y-1 ml-4">
+                    <li>• 🛑 Kills ALL journey services (all companies)</li>
+                    <li>• 🔓 Releases ALL port allocations</li>
+                    <li>• 🗑️ Clears ALL session data</li>
+                    <li>• 💣 Uses pkill -9 for zombie processes</li>
+                  </ul>
+                  <p class="text-xs text-yellow-400 mt-3 font-semibold">
+                    ⚠️ Use ONLY when you need to completely reset the server!
+                  </p>
+                </div>
+                
+                <button 
+                  onclick="startNewCustomerJourney()" 
+                  class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg transition-all text-lg border-2 border-red-500 hover:border-red-400"
+                  title="DANGER: This will kill ALL services from ALL companies!">
+                  💀 KILL ALL SERVICES (ALL COMPANIES)
+                </button>
+                
+                <p class="text-xs text-center text-gray-500 mt-3">
+                  You will be prompted for confirmation before execution
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -951,6 +930,237 @@
     </div>
     </div>
   </div>
+  
+    <!-- Feature Flags Modal Removed - System is Fully Automatic -->
+    <div id="feature-flags-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[100] hidden flex items-center justify-center p-4" onclick="closeFeatureFlagsModal(event)" style="display: none !important;">
+      <div class="bg-dtcard border-2 border-dtpurple rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-dtpurple to-dtcyan p-6 flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white flex items-center gap-3">
+              <span>🚦</span>
+              Feature Flags Configuration
+              <span class="text-xs bg-dtgreen text-black px-2 py-1 rounded-full">AUTO-GENERATED</span>
+            </h2>
+            <p class="text-sm text-gray-300 mt-1">Automatically created from your journey steps</p>
+          </div>
+          <button onclick="closeFeatureFlagsModal()" class="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 font-bold transition-all">
+            ✕ Close
+          </button>
+        </div>
+        
+        <!-- Feature Flags Content -->
+        <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 160px);">
+          <div class="space-y-4">
+            
+            <!-- Auto-generation Controls -->
+            <div class="flex gap-3">
+              <button onclick="regenerateFeatureFlags()" class="flex-1 p-3 bg-dtpurple hover:bg-dtpurple/80 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-all">
+                <span class="text-xl">🔄</span>
+                <span>Regenerate Flags</span>
+              </button>
+              <button onclick="addNewFeatureFlag()" class="flex-1 p-3 border-2 border-dtcyan text-dtcyan hover:bg-dtcyan hover:text-black rounded-lg font-semibold flex items-center justify-center gap-2 transition-all">
+                <span class="text-xl">➕</span>
+                <span>Add Custom Flag</span>
+              </button>
+            </div>
+
+
+            <!-- Active Feature Flags Container -->
+            <div id="feature-flags-container" class="space-y-3">
+              <!-- Dynamic feature flags will be inserted here -->
+            </div>
+
+            <!-- Example Templates (Collapsed by default) -->
+            <div class="p-4 bg-dtgray rounded-lg border border-dtborder">
+              <button onclick="toggleTemplates()" class="w-full flex items-center justify-between text-left">
+                <span class="text-white font-semibold">📋 Example Templates</span>
+                <span id="templates-arrow" class="text-dtcyan">▼</span>
+              </button>
+              <div id="templates-content" class="hidden mt-3 space-y-2 text-xs">
+                <button onclick="applyTemplate('timeout')" class="w-full text-left p-2 bg-dtcard rounded hover:bg-dtblue hover:bg-opacity-20 transition-all">
+                  <strong class="text-dtcyan">Timeout Error:</strong> <span class="text-gray-400">Service timeout (504) - 15% rate</span>
+                </button>
+                <button onclick="applyTemplate('unavailable')" class="w-full text-left p-2 bg-dtcard rounded hover:bg-dtblue hover:bg-opacity-20 transition-all">
+                  <strong class="text-dtyellow">Service Unavailable:</strong> <span class="text-gray-400">Service down (503) - 10% rate</span>
+                </button>
+                <button onclick="applyTemplate('validation')" class="w-full text-left p-2 bg-dtcard rounded hover:bg-dtblue hover:bg-opacity-20 transition-all">
+                  <strong class="text-dtgreen">Validation Error:</strong> <span class="text-gray-400">Invalid data (400) - 5% rate</span>
+                </button>
+                <button onclick="applyTemplate('rate_limit')" class="w-full text-left p-2 bg-dtcard rounded hover:bg-dtblue hover:bg-opacity-20 transition-all">
+                  <strong class="text-dtpurple">Rate Limit:</strong> <span class="text-gray-400">Too many requests (429) - 8% rate</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Info Panel -->
+            <div class="p-4 bg-dtblue bg-opacity-20 rounded-lg border border-dtblue">
+              <h4 class="text-dtblue font-semibold mb-2 flex items-center gap-2">
+                <span>ℹ️</span>
+                How It Works
+              </h4>
+              <ul class="text-xs text-gray-300 space-y-1">
+                <li>• <strong>Custom Flags:</strong> Create flags for any journey type (retail, manufacturing, banking, etc.)</li>
+                <li>• <strong>Error Injection:</strong> Errors applied based on step names and probability</li>
+                <li>• <strong>Bizevent Capture:</strong> All errors tagged with <code>error.feature_flag</code> for Dynatrace</li>
+                <li>• <strong>Workflow Ready:</strong> Use in Dynatrace workflows for auto-remediation</li>
+              </ul>
+            </div>
+
+            <!-- Status Summary -->
+            <div class="flex items-center justify-between p-4 bg-dtgray rounded-lg border border-dtborder">
+              <div>
+                <span class="text-white font-semibold">Active Flags:</span>
+                <span id="modal-active-flags-count" class="text-dtcyan font-bold ml-2">0</span>
+              </div>
+              <button onclick="clearAllFeatureFlags()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Management Dashboard Modal -->
+    <div id="service-dashboard-modal" class="fixed inset-0 bg-black bg-opacity-75 z-[100] hidden flex items-center justify-center p-4" onclick="closeServiceDashboard(event)">
+      <div class="bg-dtcard border-2 border-dtcyan rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-dtpurple to-dtblue p-6 flex items-center justify-between">
+          <div>
+            <h2 class="text-3xl font-bold text-white flex items-center gap-3">
+              <span>📊</span>
+              Service Management Dashboard
+            </h2>
+            <p class="text-sm text-gray-300 mt-1">Real-time monitoring of multi-tenant service infrastructure</p>
+          </div>
+          <button onclick="closeServiceDashboard()" class="bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 font-bold transition-all">
+            ✕ Close
+          </button>
+        </div>
+        
+        <!-- Stats Bar -->
+        <div id="service-dashboard-stats" class="bg-dtgray p-4 border-b border-dtborder grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-dtcyan" id="stat-total-companies">-</div>
+            <div class="text-xs text-gray-400">Companies</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-dtgreen" id="stat-running-services">-</div>
+            <div class="text-xs text-gray-400">Running Services</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-white" id="stat-total-services">-</div>
+            <div class="text-xs text-gray-400">Total Services</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-dtyellow" id="stat-active-loadtests">-</div>
+            <div class="text-xs text-gray-400">Load Tests</div>
+          </div>
+          <div class="text-center">
+            <button onclick="refreshServiceDashboard()" class="bg-dtpurple hover:bg-dtcyan text-white hover:text-black px-4 py-2 rounded-lg text-sm font-bold transition-all w-full">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="bg-dtgray border-b border-dtborder">
+          <div class="flex gap-2 p-2">
+            <button onclick="switchDashboardTab('services')" id="tab-services" class="dashboard-tab active px-6 py-2 rounded-lg text-sm font-bold transition-all">
+              🔧 Services
+            </button>
+            <button onclick="switchDashboardTab('loadtests')" id="tab-loadtests" class="dashboard-tab px-6 py-2 rounded-lg text-sm font-bold transition-all">
+              ⚡ Load Tests
+            </button>
+            <button onclick="switchDashboardTab('history')" id="tab-history" class="dashboard-tab px-6 py-2 rounded-lg text-sm font-bold transition-all">
+              📜 History
+            </button>
+          </div>
+        </div>
+        
+        <!-- Service List -->
+        <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 320px);">
+          <div id="service-dashboard-loading" class="text-center py-12">
+            <div class="animate-spin w-12 h-12 border-4 border-dtcyan border-t-transparent rounded-full mx-auto mb-4"></div>
+            <div class="text-gray-400">Loading service data...</div>
+          </div>
+          
+          <!-- Services Tab Content -->
+          <div id="dashboard-content-services" class="hidden space-y-6">
+            <!-- Will be populated dynamically -->
+          </div>
+          
+          <!-- Load Tests Tab Content -->
+          <div id="dashboard-content-loadtests" class="hidden space-y-4">
+            <!-- Will be populated dynamically -->
+          </div>
+          
+          <!-- History Tab Content -->
+          <div id="dashboard-content-history" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <!-- Sidebar with Dropdowns -->
+              <div class="lg:col-span-1 space-y-4">
+                <!-- User Saved Configs Dropdown -->
+                <div class="bg-dtgray rounded-xl border border-dtborder p-4">
+                  <h3 class="text-sm font-bold text-dtcyan mb-3 flex items-center gap-2">
+                    <span>💾</span> User Saved
+                  </h3>
+                  <select id="user-saved-configs" class="w-full bg-dtcard border border-dtcyan rounded-lg p-2 text-white text-sm mb-3">
+                    <option value="">Select configuration...</option>
+                  </select>
+                  <div class="flex flex-col gap-2">
+                    <button onclick="restoreUserConfig()" class="w-full bg-dtpurple hover:bg-dtcyan text-white hover:text-black px-3 py-2 rounded-lg text-sm font-bold transition-all">
+                      ↩️ Restore
+                    </button>
+                    <button onclick="deleteUserConfig()" class="w-full bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all">
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Default Prompts Dropdown -->
+                <div class="bg-dtgray rounded-xl border border-dtborder p-4">
+                  <h3 class="text-sm font-bold text-dtyellow mb-3 flex items-center gap-2">
+                    <span>📚</span> Default (24)
+                  </h3>
+                  <select id="default-prompts" class="w-full bg-dtcard border border-dtyellow rounded-lg p-2 text-white text-sm mb-3">
+                    <option value="">Select prompt...</option>
+                  </select>
+                  <button onclick="loadDefaultPrompt()" class="w-full bg-dtyellow hover:bg-yellow-500 text-black px-3 py-2 rounded-lg text-sm font-bold transition-all">
+                    📖 Load
+                  </button>
+                </div>
+                
+                <!-- Save Current Button -->
+                <button onclick="saveCurrentConfig()" class="w-full bg-dtgreen hover:bg-green-600 text-black px-4 py-3 rounded-xl font-bold transition-all shadow-lg">
+                  💾 Save Current Config
+                </button>
+              </div>
+              
+              <!-- Preview Panel -->
+              <div class="lg:col-span-3 bg-dtgray rounded-xl border border-dtborder p-6">
+                <h3 class="text-lg font-bold text-white mb-4">📋 Configuration Preview</h3>
+                <div id="config-preview" class="space-y-4">
+                  <div class="text-center text-gray-400 py-12">
+                    <div class="text-6xl mb-4">👈</div>
+                    <div class="text-xl mb-2">Select a Configuration</div>
+                    <p class="text-sm">Choose a saved config or default prompt to preview</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="service-dashboard-empty" class="hidden text-center py-12">
+            <div class="text-6xl mb-4">🚫</div>
+            <div class="text-xl text-gray-400 mb-2">No Services Running</div>
+            <p class="text-sm text-gray-500">Start a journey simulation to see services here</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     </section>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -1116,9 +1326,8 @@
       // Sync data between tabs
       syncTabData();
       
-      // Restore last active tab
-      const savedTab = localStorage.getItem('bizobs-current-tab') || 'welcome';
-      switchTab(savedTab);
+      // Always start at welcome page on load
+      switchTab('welcome');
       
       // Add UI enhancements
       setTimeout(addUIEnhancements, 100);
@@ -1254,6 +1463,9 @@
           window.currentJourneyData = parsedResponse;
           console.log('✅ Global variables set with complete data including error configuration:', {lastJourney: window.lastJourney, currentJourneyData: window.currentJourneyData});
 
+          // Auto-generate feature flags based on journey
+          autoGenerateFeatureFlags(parsedResponse);
+
           // Display journey with additional fields info
           const displayData = {
             journey: parsedResponse.journey,
@@ -1375,6 +1587,179 @@
         `;
       }
     };
+
+    // LoadRunner Service Controls
+    let loadRunnerInterval = null;
+    let loadRunnerStats = { iterations: 0, success: 0, errors: 0 };
+    
+    window.startLoadRunner = async function() {
+      const journeyData = window.currentJourneyData || window.lastJourney;
+      
+      if (!journeyData || !journeyData.journey) {
+        alert('⚠️ No journey data available. Please process a journey first.');
+        return;
+      }
+      
+      const ratePerMinute = parseInt(prompt('Enter requests per minute (default: 2):', '2')) || 2;
+      
+      try {
+        const response = await fetch('/api/loadrunner-service/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            journey: journeyData.journey,
+            customerProfile: journeyData.customerProfile,
+            traceMetadata: journeyData.traceMetadata,
+            additionalFields: journeyData.additionalFields,
+            ratePerMinute: ratePerMinute
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('✅ LoadRunner started:', result);
+          
+          // Update UI
+          document.getElementById('start-loadrunner-btn').classList.add('hidden');
+          document.getElementById('stop-loadrunner-btn').classList.remove('hidden');
+          document.getElementById('loadrunner-status').classList.remove('hidden');
+          
+          // Store load test ID
+          window.activeLoadTestId = result.loadTestId;
+          
+          // Start status polling
+          startLoadRunnerStatusPolling();
+          
+          alert(`✅ LoadRunner started for ${result.companyName}\nRate: ${result.ratePerMinute} req/min\nSteps: ${result.stepsCount}`);
+        } else {
+          alert('❌ Failed to start LoadRunner: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('LoadRunner start error:', error);
+        alert('❌ Error starting LoadRunner: ' + error.message);
+      }
+    };
+    
+    window.stopLoadRunner = async function() {
+      if (!window.activeLoadTestId) {
+        alert('No active LoadRunner to stop');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/loadrunner-service/stop', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({loadTestId: window.activeLoadTestId})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('✅ LoadRunner stopped:', result);
+          
+          // Update UI
+          document.getElementById('start-loadrunner-btn').classList.remove('hidden');
+          document.getElementById('stop-loadrunner-btn').classList.add('hidden');
+          document.getElementById('loadrunner-status').classList.add('hidden');
+          
+          // Stop polling
+          if (loadRunnerInterval) {
+            clearInterval(loadRunnerInterval);
+            loadRunnerInterval = null;
+          }
+          
+          alert(`✅ LoadRunner stopped\nIterations: ${result.stats.iterations}\nSuccess: ${result.stats.success}\nErrors: ${result.stats.errors}`);
+          
+          window.activeLoadTestId = null;
+        } else {
+          alert('❌ Failed to stop LoadRunner: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('LoadRunner stop error:', error);
+        alert('❌ Error stopping LoadRunner: ' + error.message);
+      }
+    };
+    
+    // Stop ALL services and load runners - complete system reset
+    window.stopAllAndClear = async function() {
+      if (!confirm('⚠️ This will STOP ALL running services and load runners!\n\nAre you sure you want to proceed?')) {
+        return;
+      }
+      
+      try {
+        const btn = document.getElementById('stop-all-clear-btn');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Stopping everything...';
+        
+        const response = await fetch('/api/admin/stop-all-and-clear', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+          console.log('✅ All services stopped:', result);
+          
+          // Reset UI states
+          document.getElementById('start-loadrunner-btn').classList.remove('hidden');
+          document.getElementById('stop-loadrunner-btn').classList.add('hidden');
+          document.getElementById('loadrunner-status').classList.add('hidden');
+          
+          // Stop any polling
+          if (loadRunnerInterval) {
+            clearInterval(loadRunnerInterval);
+            loadRunnerInterval = null;
+          }
+          
+          window.activeLoadTestId = null;
+          
+          // Refresh service status if on that tab
+          if (typeof refreshServiceStatus === 'function') {
+            setTimeout(refreshServiceStatus, 1000);
+          }
+          
+          alert(`✅ System Reset Complete!\n\n• Load tests stopped: ${result.stoppedTests}\n• All services cleared\n• System ready for fresh start`);
+          
+          btn.disabled = false;
+          btn.innerHTML = '🛑 STOP ALL & CLEAR (Services + Load Runners)';
+        } else {
+          throw new Error(result.error || 'Failed to stop all services');
+        }
+      } catch (error) {
+        console.error('Stop all error:', error);
+        alert('❌ Error stopping services: ' + error.message);
+        
+        const btn = document.getElementById('stop-all-clear-btn');
+        btn.disabled = false;
+        btn.innerHTML = '🛑 STOP ALL & CLEAR (Services + Load Runners)';
+      }
+    };
+    
+    function startLoadRunnerStatusPolling() {
+      if (loadRunnerInterval) clearInterval(loadRunnerInterval);
+      
+      loadRunnerInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/loadrunner-service/status');
+          const data = await response.json();
+          
+          if (data.tests && data.tests.length > 0) {
+            const test = data.tests.find(t => t.id === window.activeLoadTestId);
+            if (test) {
+              const statsEl = document.getElementById('loadrunner-stats');
+              if (statsEl) {
+                statsEl.textContent = `${test.iterations} journeys | ${test.success} ✓ | ${test.errors} ✗ | ${test.successRate}`;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Status polling error:', error);
+        }
+      }, 5000); // Poll every 5 seconds
+    }
 
     // Enhanced Copilot Editor Modal
     window.openCopilotEditor = function(textareaId = 'copilotResponse') {
@@ -1669,45 +2054,447 @@
     console.log('BizObs App initializing...');
 
     // Error Simulation Toggle Functionality
-    function initializeErrorToggle() {
-      const toggle = document.getElementById('errorSimulationToggle');
-      const status = document.getElementById('errorToggleStatus');
+    // Feature Flag Management - AUTO-GENERATION
+    let activeFeatureFlags = {};
+    
+    // Auto-generate feature flags based on journey steps
+    function autoGenerateFeatureFlags(journeyData) {
+      console.log('🤖 Auto-generating feature flags from journey...');
       
-      if (toggle && status) {
-        // Initialize toggle state
-        toggle.checked = errorSimulationEnabled;
-        updateToggleStatus();
-        
-        // Add change event listener
-        toggle.addEventListener('change', function() {
-          errorSimulationEnabled = this.checked;
-          updateToggleStatus();
-          console.log('🔄 Error simulation toggle changed:', errorSimulationEnabled ? 'ENABLED' : 'DISABLED');
+      const steps = journeyData.steps || [];
+      const industryType = journeyData.industryType || '';
+      const journeyType = journeyData.journeyType || '';
+      
+      // Analyze steps to detect patterns
+      const stepNames = steps.map(s => (s.stepName || s.name || '').toLowerCase());
+      const allStepText = stepNames.join(' ');
+      
+      const possibleFlags = [];
+      
+      // Payment/Financial patterns
+      if (allStepText.includes('payment') || allStepText.includes('checkout') || allStepText.includes('transaction')) {
+        possibleFlags.push({
+          name: 'Payment Gateway Timeout',
+          errorType: 'timeout',
+          errorRate: Math.floor(Math.random() * 10) + 10, // 10-20%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/payment|checkout|transaction|billing/)
+          ).map(s => s.stepName || s.name),
+          severity: 'CRITICAL',
+          remediation: 'restart_payment_gateway'
         });
-        
-        function updateToggleStatus() {
-          if (errorSimulationEnabled) {
-            status.textContent = 'ON';
-            status.className = 'px-2 py-1 rounded bg-dtgreen text-black font-semibold';
-          } else {
-            status.textContent = 'OFF';
-            status.className = 'px-2 py-1 rounded bg-red-600 text-white font-semibold';
-          }
-        }
-        
-        console.log('✅ Error simulation toggle initialized');
-      } else {
-        console.warn('⚠️ Error toggle elements not found');
+      }
+      
+      // Inventory/Fulfillment patterns
+      if (allStepText.includes('inventory') || allStepText.includes('fulfil') || allStepText.includes('stock') || allStepText.includes('order')) {
+        possibleFlags.push({
+          name: 'Inventory Sync Failure',
+          errorType: 'service_unavailable',
+          errorRate: Math.floor(Math.random() * 8) + 5, // 5-13%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/inventory|fulfil|stock|order/)
+          ).map(s => s.stepName || s.name),
+          severity: 'WARNING',
+          remediation: 'trigger_inventory_sync'
+        });
+      }
+      
+      // Validation/Verification patterns
+      if (allStepText.includes('verif') || allStepText.includes('valid') || allStepText.includes('check') || allStepText.includes('customer')) {
+        possibleFlags.push({
+          name: 'Validation Timeout',
+          errorType: 'validation_failed',
+          errorRate: Math.floor(Math.random() * 5) + 3, // 3-8%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/verif|valid|check|customer|account/)
+          ).map(s => s.stepName || s.name),
+          severity: 'LOW',
+          remediation: 'retry_with_defaults'
+        });
+      }
+      
+      // Manufacturing patterns
+      if (allStepText.includes('weld') || allStepText.includes('assembl') || allStepText.includes('machine') || allStepText.includes('robot')) {
+        possibleFlags.push({
+          name: 'Robot Malfunction',
+          errorType: 'internal_error',
+          errorRate: Math.floor(Math.random() * 12) + 8, // 8-20%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/weld|assembl|machine|robot|fabricat/)
+          ).map(s => s.stepName || s.name),
+          severity: 'CRITICAL',
+          remediation: 'restart_robot_controller'
+        });
+      }
+      
+      // Quality/Testing patterns
+      if (allStepText.includes('quality') || allStepText.includes('inspect') || allStepText.includes('test')) {
+        possibleFlags.push({
+          name: 'Quality Check Delay',
+          errorType: 'timeout',
+          errorRate: Math.floor(Math.random() * 6) + 4, // 4-10%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/quality|inspect|test|check/)
+          ).map(s => s.stepName || s.name),
+          severity: 'WARNING',
+          remediation: 'escalate_to_manual_review'
+        });
+      }
+      
+      // Banking/KYC patterns
+      if (allStepText.includes('kyc') || allStepText.includes('credit') || allStepText.includes('compliance') || allStepText.includes('document')) {
+        possibleFlags.push({
+          name: 'KYC Verification Failed',
+          errorType: 'authentication_failed',
+          errorRate: Math.floor(Math.random() * 7) + 5, // 5-12%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/kyc|credit|compliance|document|identit/)
+          ).map(s => s.stepName || s.name),
+          severity: 'CRITICAL',
+          remediation: 'manual_verification'
+        });
+      }
+      
+      // Delivery/Logistics patterns
+      if (allStepText.includes('deliver') || allStepText.includes('ship') || allStepText.includes('dispatch')) {
+        possibleFlags.push({
+          name: 'Delivery Tracking Offline',
+          errorType: 'service_unavailable',
+          errorRate: Math.floor(Math.random() * 8) + 4, // 4-12%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/deliver|ship|dispatch|track/)
+          ).map(s => s.stepName || s.name),
+          severity: 'WARNING',
+          remediation: 'switch_to_backup_tracker'
+        });
+      }
+      
+      // Healthcare patterns
+      if (allStepText.includes('appointment') || allStepText.includes('lab') || allStepText.includes('prescription')) {
+        possibleFlags.push({
+          name: 'Lab System Timeout',
+          errorType: 'timeout',
+          errorRate: Math.floor(Math.random() * 10) + 5, // 5-15%
+          affectedSteps: steps.filter(s => 
+            (s.stepName || s.name || '').toLowerCase().match(/lab|test|result|appointment/)
+          ).map(s => s.stepName || s.name),
+          severity: 'WARNING',
+          remediation: 'notify_lab_technician'
+        });
+      }
+      
+      // Filter out flags with no affected steps
+      const validFlags = possibleFlags.filter(f => f.affectedSteps && f.affectedSteps.length > 0);
+      
+      if (validFlags.length === 0) {
+        console.log('⚠️ No specific patterns detected, creating generic flags...');
+        // Create 1-2 generic flags for any journey
+        validFlags.push({
+          name: 'Service Timeout',
+          errorType: 'timeout',
+          errorRate: Math.floor(Math.random() * 10) + 10,
+          affectedSteps: steps.slice(0, Math.ceil(steps.length / 2)).map(s => s.stepName || s.name),
+          severity: 'WARNING',
+          remediation: 'restart_service'
+        });
+      }
+      
+      // Randomly enable 1-3 flags (not all)
+      const numToEnable = Math.min(validFlags.length, Math.floor(Math.random() * 3) + 1);
+      const shuffled = validFlags.sort(() => 0.5 - Math.random());
+      const selectedFlags = shuffled.slice(0, numToEnable);
+      
+      // Clear existing flags and add new ones
+      activeFeatureFlags = {};
+      
+      selectedFlags.forEach(flag => {
+        const flagId = flag.name.toLowerCase().replace(/\s+/g, '_');
+        activeFeatureFlags[flagId] = {
+          ...flag,
+          enabled: true
+        };
+        console.log(`✅ Auto-created flag: ${flag.name} (${flag.errorRate}% error rate) → ${flag.affectedSteps.join(', ')}`);
+      });
+      
+      saveFeatureFlags();
+      updateFeatureFlagCount();
+      
+      console.log(`🎯 Auto-generated ${selectedFlags.length} feature flags based on journey`);
+      
+      return selectedFlags.length;
+    }
+    
+    function openFeatureFlagsModal() {
+      const modal = document.getElementById('feature-flags-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        renderFeatureFlags();
       }
     }
+    
+    function closeFeatureFlagsModal(event) {
+      if (event && event.target.id !== 'feature-flags-modal') return;
+      const modal = document.getElementById('feature-flags-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+    
+    function toggleTemplates() {
+      const content = document.getElementById('templates-content');
+      const arrow = document.getElementById('templates-arrow');
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        arrow.textContent = '▲';
+      } else {
+        content.classList.add('hidden');
+        arrow.textContent = '▼';
+      }
+    }
+    
+    function applyTemplate(type) {
+      const templates = {
+        timeout: {
+          name: 'Service Timeout',
+          errorType: 'timeout',
+          errorRate: 15,
+          affectedSteps: 'Payment,Checkout,Processing',
+          severity: 'CRITICAL',
+          remediation: 'restart_service'
+        },
+        unavailable: {
+          name: 'Service Unavailable',
+          errorType: 'service_unavailable',
+          errorRate: 10,
+          affectedSteps: 'Fulfillment,Inventory,Sync',
+          severity: 'WARNING',
+          remediation: 'trigger_sync'
+        },
+        validation: {
+          name: 'Validation Error',
+          errorType: 'validation_failed',
+          errorRate: 5,
+          affectedSteps: 'Verification,Validation,Input',
+          severity: 'LOW',
+          remediation: 'retry_with_defaults'
+        },
+        rate_limit: {
+          name: 'Rate Limit Exceeded',
+          errorType: 'rate_limit_exceeded',
+          errorRate: 8,
+          affectedSteps: 'API,Gateway,External',
+          severity: 'WARNING',
+          remediation: 'enable_circuit_breaker'
+        }
+      };
+      
+      const template = templates[type];
+      if (template) {
+        addNewFeatureFlag(template);
+      }
+    }
+    
+    function addNewFeatureFlag(template = null) {
+      const flagId = template ? template.name.toLowerCase().replace(/\s+/g, '_') : `flag_${Date.now()}`;
+      
+      const flagName = template?.name || prompt('Enter feature flag name (e.g., "Robot Malfunction", "Assembly Line Jam"):', '');
+      if (!flagName) return;
+      
+      const errorType = template?.errorType || prompt('Error type (timeout, service_unavailable, validation_failed, internal_error):', 'timeout');
+      const errorRate = template?.errorRate || parseInt(prompt('Error rate % (1-100):', '10'));
+      const affectedSteps = template?.affectedSteps || prompt('Affected step names (comma-separated, e.g., "Welding,Assembly,QualityCheck"):', '');
+      const severity = template?.severity || prompt('Severity (CRITICAL, WARNING, LOW):', 'WARNING');
+      const remediation = template?.remediation || prompt('Remediation action (e.g., "restart_robot", "clear_jam"):', 'manual_intervention');
+      
+      if (!affectedSteps) {
+        alert('Please specify at least one affected step!');
+        return;
+      }
+      
+      const steps = affectedSteps.split(',').map(s => s.trim());
+      
+      activeFeatureFlags[flagId] = {
+        name: flagName,
+        enabled: true,
+        errorRate: errorRate / 100,
+        errorType: errorType,
+        affectedSteps: steps,
+        severity: severity,
+        remediationAction: remediation
+      };
+      
+      saveFeatureFlags();
+      renderFeatureFlags();
+      updateFeatureFlagCount();
+      
+      console.log(`🚦 Feature flag CREATED: ${flagName} (${errorRate}% error rate)`);
+    }
+    
+    function deleteFeatureFlag(flagId) {
+      if (!confirm(`Delete feature flag "${activeFeatureFlags[flagId]?.name}"?`)) return;
+      
+      delete activeFeatureFlags[flagId];
+      saveFeatureFlags();
+      renderFeatureFlags();
+      updateFeatureFlagCount();
+      
+      console.log(`🗑️ Feature flag DELETED: ${flagId}`);
+    }
+    
+    function toggleFeatureFlag(flagId, enabled) {
+      if (activeFeatureFlags[flagId]) {
+        activeFeatureFlags[flagId].enabled = enabled;
+        saveFeatureFlags();
+        updateFeatureFlagCount();
+        console.log(`🚦 Feature flag ${enabled ? 'ENABLED' : 'DISABLED'}: ${flagId}`);
+      }
+    }
+    
+    function renderFeatureFlags() {
+      const container = document.getElementById('feature-flags-container');
+      if (!container) return;
+      
+      const flags = Object.entries(activeFeatureFlags);
+      
+      if (flags.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-gray-400">
+            <p class="text-lg mb-2">No feature flags configured</p>
+            <p class="text-sm">Click "Add Custom Feature Flag" above to create your first flag</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = flags.map(([flagId, flag]) => {
+        const severityColors = {
+          CRITICAL: 'bg-red-600',
+          WARNING: 'bg-yellow-600',
+          LOW: 'bg-blue-600'
+        };
+        const toggleColor = {
+          CRITICAL: 'peer-checked:bg-red-600',
+          WARNING: 'peer-checked:bg-yellow-600',
+          LOW: 'peer-checked:bg-blue-600'
+        };
+        
+        return `
+          <div class="p-4 bg-dtgray rounded-lg border border-dtborder">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-white font-semibold">${flag.name}</span>
+                  <span class="px-2 py-0.5 rounded ${severityColors[flag.severity] || 'bg-gray-600'} text-white text-xs font-bold">${flag.severity}</span>
+                </div>
+                <p class="text-xs text-gray-400">Error: ${flag.errorType} | Rate: ${(flag.errorRate * 100).toFixed(0)}%</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" ${flag.enabled ? 'checked' : ''} onchange="toggleFeatureFlag('${flagId}', this.checked)" class="sr-only peer">
+                  <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-dtcyan rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${toggleColor[flag.severity] || 'peer-checked:bg-dtcyan'}"></div>
+                </label>
+                <button onclick="deleteFeatureFlag('${flagId}')" class="text-red-500 hover:text-red-400 text-xl" title="Delete flag">🗑️</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span class="text-gray-400">Affected Steps:</span>
+                <span class="text-white ml-1">${flag.affectedSteps.join(', ')}</span>
+              </div>
+              <div>
+                <span class="text-gray-400">Remediation:</span>
+                <span class="text-dtgreen ml-1">${flag.remediationAction}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function clearAllFeatureFlags() {
+      if (!confirm('Clear all active feature flags?')) return;
+      
+      activeFeatureFlags = {};
+      saveFeatureFlags();
+      renderFeatureFlags();
+      updateFeatureFlagCount();
+      console.log('🧹 All feature flags cleared');
+    }
+    
+    function saveFeatureFlags() {
+      localStorage.setItem('bizobs-feature-flags', JSON.stringify(activeFeatureFlags));
+    }
+    
+    function loadFeatureFlags() {
+      const saved = localStorage.getItem('bizobs-feature-flags');
+      if (saved) {
+        try {
+          activeFeatureFlags = JSON.parse(saved);
+          updateFeatureFlagCount();
+          console.log('✅ Restored feature flags:', Object.keys(activeFeatureFlags));
+        } catch (e) {
+          console.warn('⚠️ Could not restore feature flags:', e);
+        }
+      }
+    }
+    
+    function regenerateFeatureFlags() {
+      if (!window.currentJourneyData) {
+        alert('No journey loaded. Please generate a journey first.');
+        return;
+      }
+      
+      const confirmed = confirm('This will replace all current feature flags with new auto-generated ones. Continue?');
+      if (!confirmed) return;
+      
+      autoGenerateFeatureFlags(window.currentJourneyData);
+      renderFeatureFlags();
+      alert('✅ Feature flags regenerated based on your journey!');
+    }
+    
+    function updateFeatureFlagCount() {
+      const enabledCount = Object.values(activeFeatureFlags).filter(f => f.enabled).length;
+      
+      // Update badge in menu bar
+      const badge = document.getElementById('feature-flags-badge');
+      if (badge) {
+        badge.textContent = enabledCount;
+        if (enabledCount > 0) {
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+      
+      // Update count in modal
+      const modalCount = document.getElementById('modal-active-flags-count');
+      if (modalCount) {
+        modalCount.textContent = enabledCount;
+        modalCount.className = enabledCount > 0 ? 'text-dtgreen font-bold ml-2' : 'text-gray-400 ml-2';
+      }
+    }
+    
+    function initializeFeatureFlags() {
+      loadFeatureFlags();
+      console.log('✅ Feature flag system initialized');
+    }
+    
+    function viewFeatureFlagDocs(event) {
+      event.preventDefault();
+      openFeatureFlagsModal();
+    }
+    
+    // Make feature flags available globally for data generation
+    window.getActiveFeatureFlags = function() {
+      return activeFeatureFlags;
+    };
 
-    // Initialize error toggle when DOM is ready
-    document.addEventListener('DOMContentLoaded', initializeErrorToggle);
-    // Also try to initialize immediately in case DOM is already ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initializeErrorToggle);
-    } else {
-      initializeErrorToggle();
+    // Initialize feature flags when DOM is ready
+    document.addEventListener('DOMContentLoaded', initializeFeatureFlags);
+    if (document.readyState !== 'loading') {
+      initializeFeatureFlags();
     }
 
     // Prompt Cache Management
@@ -1783,7 +2570,7 @@
 
         // Close sidebar when clicking outside
         document.addEventListener('click', (e) => {
-          if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target) && sidebar.classList.contains('translate-x-0')) {
+          if (sidebar && toggleBtn && !sidebar.contains(e.target) && !toggleBtn.contains(e.target) && sidebar.classList.contains('translate-x-0')) {
             this.closeSidebar();
           }
         });
@@ -1813,7 +2600,7 @@
         });
       }
 
-      toggleSidebar() {
+      async toggleSidebar() {
         console.log('toggleSidebar method called');
         const sidebar = document.getElementById('savedPromptsSidebar');
         const mainContent = document.getElementById('mainContent');
@@ -1836,6 +2623,9 @@
           sidebar.classList.remove('-translate-x-full');
           sidebar.classList.add('translate-x-0');
           if (mainContent) mainContent.classList.add('sidebar-open');
+          
+          // Refresh the saved prompts list when opening sidebar
+          await this.renderSavedPrompts();
         }
       }
 
@@ -1928,18 +2718,27 @@
         };
       }
 
-      saveCurrentPrompt() {
+      async saveCurrentPrompt() {
         const nameInput = document.getElementById('savePromptName');
         const saveBtn = document.getElementById('saveCurrentPrompt');
         const saveStatus = document.getElementById('saveStatus');
         
         let name = nameInput ? nameInput.value.trim() : '';
         
-        // If no name provided, generate one based on company and timestamp
+        // If no name provided, generate one based on company and journey type
         if (!name) {
           const companyName = document.getElementById('companyName')?.value.trim() || 'Unknown';
-          const timestamp = new Date().toLocaleString();
-          name = `${companyName} - ${timestamp}`;
+          const journeyType = document.getElementById('journeyType')?.value.trim();
+          const industryType = document.getElementById('industryType')?.value.trim();
+          
+          // Create a descriptive name
+          if (journeyType) {
+            name = `${companyName} - ${journeyType}`;
+          } else if (industryType) {
+            name = `${companyName} - ${industryType} Journey`;
+          } else {
+            name = `${companyName} - Unnamed Journey`;
+          }
         }
 
         try {
@@ -1968,7 +2767,7 @@
           // Only clear input after successful save
           if (nameInput) nameInput.value = '';
           
-          this.renderSavedPrompts();
+          await this.renderSavedPrompts();
           this.updatePromptsCounter();
           
           // Show success message
@@ -2133,6 +2932,11 @@
         const toast = document.getElementById('notificationToast');
         const content = document.getElementById('notificationContent');
         
+        if (!toast || !content) {
+          console.warn('⚠️ Notification elements not found');
+          return;
+        }
+        
         const icons = {
           success: '✅',
           error: '❌',
@@ -2166,6 +2970,8 @@
           if (element) {
             element.textContent = content;
             console.log(`✅ Restored content for ${id}`);
+          } else {
+            console.warn(`⚠️ Element ${id} not found when loading content`);
           }
         };
         
@@ -2174,6 +2980,8 @@
           if (element) {
             element.innerHTML = html;
             console.log(`✅ Restored HTML for ${id}`);
+          } else {
+            console.warn(`⚠️ Element ${id} not found when loading HTML`);
           }
         };
         
@@ -2182,14 +2990,49 @@
           if (element) {
             element.checked = value !== undefined ? value : defaultValue;
             console.log(`✅ Restored checkbox ${id}: ${value}`);
+          } else {
+            console.warn(`⚠️ Checkbox ${id} not found`);
           }
         };
 
         // 🔧 COMPREHENSIVE FIELD RESTORATION: Handle both structured prompts and sector configs
         console.log('🎯 Detecting config type...', promptState.source || 'unknown');
+        console.log('🔵 DEBUG - promptState has these keys:', Object.keys(promptState));
+        console.log('🔵 DEBUG - promptState.source:', promptState.source);
+        console.log('🔵 DEBUG - has promptState.steps:', !!promptState.steps);
+        console.log('🔵 DEBUG - has promptState.step1Fields:', !!promptState.step1Fields);
+        console.log('🔵 DEBUG - has promptState.formData:', !!promptState.formData);
+        
+        // 🔄 MIGRATION: Convert old prompt format to new format with step1Fields
+        if (!promptState.step1Fields && !promptState.steps && promptState.companyName) {
+          console.log('🔄 Migrating old prompt format to new structure...');
+          promptState.step1Fields = {
+            companyName: promptState.companyName || '',
+            domain: promptState.domain || '',
+            industryType: promptState.industryType || '',
+            journeyRequirements: promptState.journeyRequirements || '',
+            customSteps: promptState.customSteps || '',
+            journeyType: promptState.journeyType || '',
+            details: promptState.details || '',
+            generationMethod: 'copilot'
+          };
+          promptState.step2Fields = {
+            promptText1: promptState.promptText1 || '',
+            promptText2: promptState.promptText2 || '',
+            promptText1Step2: promptState.promptText1 || '',
+            promptText2Step2: promptState.promptText2 || '',
+            copilotResponse: promptState.copilotResponse || '',
+            copilotResponseStep2: promptState.copilotResponseStep2 || promptState.copilotResponse || ''
+          };
+          console.log('✅ Migration complete - created step1Fields and step2Fields');
+        }
+        
+        // Determine if this is a sector-demo config (declare once, use throughout)
+        const isSectorDemo = promptState.source === 'sector-demo' || promptState.steps;
+        console.log('🔵 DEBUG - isSectorDemo determined as:', isSectorDemo);
         
         // Handle sector configs (new format from JSON files)
-        if (promptState.source === 'sector-demo' || promptState.steps) {
+        if (isSectorDemo) {
           console.log('📁 Loading sector config format...');
           
           // Basic company info
@@ -2214,7 +3057,8 @@
                 journeyId: promptState.journeyId || `journey_${promptState.companyName.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}`,
                 steps: promptState.steps.map((step, index) => ({
                   stepIndex: index + 1,
-                  action: step.stepName || step.action,
+                  stepName: step.stepName || step.action,  // Use stepName, not action
+                  serviceName: step.serviceName || (step.stepName ? step.stepName + 'Service' : null),
                   description: step.description,
                   category: step.category || 'General',
                   timestamp: step.timestamp || new Date().toISOString(),
@@ -2248,7 +3092,54 @@
         // Handle original structured prompt format
         else {
           console.log('🎯 Restoring Step 1 fields...');
+          console.log('🔵 DEBUG - User-saved prompt branch activated');
+          console.log('🔵 DEBUG - step1Fields:', promptState.step1Fields);
+          
+          // 🔧 PROCESS COPILOT RESPONSE: If user saved a prompt with copilotResponse, parse and extract journey
+          if (promptState.step2Fields?.copilotResponseStep2 || promptState.copilotResponseStep2 || promptState.copilotResponse) {
+            try {
+              const copilotText = promptState.step2Fields?.copilotResponseStep2 || promptState.copilotResponseStep2 || promptState.copilotResponse;
+              if (copilotText) {
+                console.log('🔵 DEBUG - Found copilotResponse, parsing journey data...');
+                const parsedResponse = JSON.parse(copilotText);
+                if (parsedResponse.journey && parsedResponse.journey.steps) {
+                  const journey = parsedResponse.journey;
+                  
+                  // Update step1Fields with journey metadata if missing
+                  if (!promptState.step1Fields.industryType && journey.industryType) {
+                    promptState.step1Fields.industryType = journey.industryType;
+                  }
+                  if (!promptState.step1Fields.journeyType && journey.journeyType) {
+                    promptState.step1Fields.journeyType = journey.journeyType;
+                  }
+                  
+                  // Set global journey variables
+                  window.lastJourney = {
+                    ...journey,
+                    additionalFields: parsedResponse.additionalFields || {},
+                    customerProfile: parsedResponse.customerProfile || {},
+                    traceMetadata: parsedResponse.traceMetadata || {}
+                  };
+                  window.currentJourneyData = parsedResponse;
+                  
+                  console.log('✅ Parsed journey from copilotResponse:', {
+                    companyName: journey.companyName,
+                    steps: journey.steps.length
+                  });
+                }
+              }
+            } catch (err) {
+              console.warn('⚠️ Could not parse copilotResponse as JSON:', err.message);
+            }
+          }
+          
+          console.log('🎯 Restoring Step 1 fields (after JSON extraction)...');
+          console.log('🎯 Restoring Step 1 fields...');
+          console.log('🔵 DEBUG - User-saved prompt branch activated');
+          console.log('🔵 DEBUG - step1Fields:', promptState.step1Fields);
+          
           if (promptState.step1Fields) {
+            console.log('🔵 DEBUG - Restoring step1Fields...');
             setElementValue('companyName', promptState.step1Fields.companyName);
             setElementValue('domain', promptState.step1Fields.domain);
             setElementValue('industryType', promptState.step1Fields.industryType);
@@ -2257,6 +3148,29 @@
             setElementValue('journeyType', promptState.step1Fields.journeyType);
             setElementValue('details', promptState.step1Fields.details);
             setElementValue('generationMethod', promptState.step1Fields.generationMethod, 'copilot');
+            
+            // 🔧 UPDATE TOP-LEVEL FIELDS: Make user-saved prompts populate the same metadata fields as sector-demo configs
+            // This ensures dashboard generation gets proper companyName, domain, industryType, journeyType
+            if (promptState.step1Fields.companyName) {
+              promptState.companyName = promptState.step1Fields.companyName;
+            }
+            if (promptState.step1Fields.domain) {
+              promptState.domain = promptState.step1Fields.domain;
+            }
+            if (promptState.step1Fields.industryType) {
+              promptState.industryType = promptState.step1Fields.industryType;
+            }
+            if (promptState.step1Fields.journeyType) {
+              promptState.journeyType = promptState.step1Fields.journeyType;
+            }
+            console.log('✅ Updated top-level metadata:', {
+              companyName: promptState.companyName,
+              domain: promptState.domain,
+              industryType: promptState.industryType,
+              journeyType: promptState.journeyType
+            });
+          } else {
+            console.error('🔴 DEBUG - No step1Fields found in prompt!');
           }
           
           console.log('🎯 Restoring Step 2 fields...');
@@ -2295,6 +3209,15 @@
           setCheckboxValue('errorToggle-step3', promptState.step3Fields.errorToggleStep3);
         }
         
+        // 🔧 POPULATE JOURNEY OUTPUT: If journey was extracted from copilotResponse, display it
+        if (window.currentJourneyData && !promptState.step3Fields?.journeyOutput) {
+          const journeyOutputEl = document.getElementById('journey-output');
+          if (journeyOutputEl) {
+            journeyOutputEl.textContent = JSON.stringify(window.currentJourneyData, null, 2);
+            console.log('✅ Populated journey-output from currentJourneyData');
+          }
+        }
+        
         console.log('🎯 Restoring Step 4 fields...');
         if (promptState.step4Fields) {
           setElementValue('customerCount', promptState.step4Fields.customerCount, '1');
@@ -2313,23 +3236,30 @@
         }
 
         // Legacy compatibility - restore original form data structure
+        // BUT skip this for sector-demo configs where data is already set from the config structure
+        // AND only restore if formData has actual values (don't overwrite with empty strings)
         console.log('🎯 Restoring legacy form data...');
-        const formData = promptState.formData || {};
-        setElementValue('companyName', formData.companyName);
-        setElementValue('domain', formData.domain);
-        setElementValue('journeyRequirements', formData.journeyRequirements);
-        setElementValue('customSteps', formData.customSteps);
-        setElementValue('journeyType', formData.journeyType);
-        setElementValue('details', formData.details);
-        setElementValue('generationMethod', formData.generationMethod, 'copilot');
-        setElementValue('customerCount', formData.customerCount, '1');
+        if (!isSectorDemo && promptState.formData && promptState.formData.companyName) {
+          const formData = promptState.formData;
+          if (formData.companyName) setElementValue('companyName', formData.companyName);
+          if (formData.domain) setElementValue('domain', formData.domain);
+          if (formData.journeyRequirements) setElementValue('journeyRequirements', formData.journeyRequirements);
+          if (formData.customSteps) setElementValue('customSteps', formData.customSteps);
+          if (formData.journeyType) setElementValue('journeyType', formData.journeyType);
+          if (formData.details) setElementValue('details', formData.details);
+          if (formData.generationMethod) setElementValue('generationMethod', formData.generationMethod, 'copilot');
+          if (formData.customerCount) setElementValue('customerCount', formData.customerCount, '1');
+          console.log('✅ Restored legacy formData fields');
+        } else {
+          console.log('⏭️ Skipping legacy formData (already restored from step1Fields or empty)');
+        }
 
         // Restore additional fields if function exists
-        if (typeof additionalFields !== 'undefined' && typeof renderAdditionalFields === 'function') {
-          additionalFields.length = 0;
+        if (typeof window.additionalFields !== 'undefined' && typeof window.renderAdditionalFields === 'function') {
+          window.additionalFields.length = 0;
           if (promptState.additionalFields) {
-            additionalFields.push(...promptState.additionalFields);
-            renderAdditionalFields();
+            window.additionalFields.push(...promptState.additionalFields);
+            window.renderAdditionalFields();
           }
         }
 
@@ -2349,6 +3279,9 @@
         if (promptState.currentJourneyData && typeof window !== 'undefined') {
           window.currentJourneyData = promptState.currentJourneyData;
           console.log('✅ Restored window.currentJourneyData');
+          
+          // Auto-generate feature flags based on journey
+          autoGenerateFeatureFlags(promptState.currentJourneyData);
           
           // Update journey output displays
           const journeyOutputEl = document.getElementById('journey-output');
@@ -2430,9 +3363,18 @@
         console.log('✅ Prompt state restoration completed successfully!');
         
         // If copilot mode, regenerate the prompt with restored data
-        if (generationMethod === 'copilot' && typeof generateCopilotPrompt === 'function') {
+        // BUT skip this for sector-demo configs that are already complete
+        if (generationMethod === 'copilot' && typeof generateCopilotPrompt === 'function' && !isSectorDemo) {
           setTimeout(() => generateCopilotPrompt(), 100);
         }
+
+        // Auto-navigate to Step 1 - Customer Details after loading journey
+        setTimeout(() => {
+          if (typeof window.switchTab === 'function') {
+            window.switchTab('step1');
+            console.log('✅ Auto-navigated to Step 1 - Customer Details');
+          }
+        }, 300);
 
         this.closeSidebar();
         this.showNotification(`Loaded "${promptState.name}" successfully!`);
@@ -2543,59 +3485,72 @@
         this.updatePromptsCounter();
       }
 
-      renderSavedPrompts() {
-        const container = document.getElementById('savedPromptsList');
-        const savedPrompts = this.getSavedPrompts();
-
-        if (savedPrompts.length === 0) {
-          container.innerHTML = '<div class="text-gray-400 text-sm text-center py-4">No saved prompts yet.<br>Save your current configuration to get started!</div>';
+      async renderSavedPrompts() {
+        console.log('🎨 renderSavedPrompts() called');
+        
+        // Populate User Saved Prompts Dropdown
+        const userDropdown = document.getElementById('userSavedPromptsDropdown');
+        const defaultDropdown = document.getElementById('defaultPromptsDropdown');
+        
+        if (!userDropdown) {
+          console.error('❌ userSavedPromptsDropdown not found');
           return;
         }
+        if (!defaultDropdown) {
+          console.error('❌ defaultPromptsDropdown not found');
+          return;
+        }
+        
+        // User-saved prompts from bizobs-saved-prompts
+        const userPrompts = this.getSavedPrompts();
 
-        // Sort by timestamp (newest first)
-        savedPrompts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        // Default prompts (24 pre-built) from server API
+        let defaultPrompts = [];
+        try {
+          const response = await fetch('/api/admin/configs');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.ok && data.configs) {
+              defaultPrompts = data.configs;
+              console.log(`✅ Loaded ${defaultPrompts.length} default prompts from server`);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error loading default prompts:', error);
+        }
 
-        container.innerHTML = savedPrompts.map(prompt => {
-          const date = new Date(prompt.timestamp).toLocaleDateString();
-          const time = new Date(prompt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const company = prompt.formData.companyName || 'Unnamed';
-          const industry = prompt.formData.industryType || 'general';
-          const method = prompt.formData.generationMethod || 'copilot';
-          const hasJourney = prompt.lastJourney ? '✅ Journey' : '📝 Config';
-          
-          let icon = '📌';
-          if (prompt.isQuickSave) icon = '⚡';
-          if (prompt.isAutoSave) icon = '🤖';
-          
-          return `
-            <div class="bg-dtgray bg-opacity-60 rounded-lg p-3 border border-gray-600 hover:border-dtcyan transition-all cursor-pointer group ${prompt.isAutoSave ? 'opacity-75' : ''}">
-              <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0" onclick="promptCache.loadPromptState(${JSON.stringify(prompt).replace(/"/g, '&quot;')})">
-                  <div class="flex items-center gap-2 mb-1">
-                    <h4 class="font-semibold text-white text-sm truncate">${icon} ${prompt.name}</h4>
-                    <span class="text-xs bg-dtblue text-white px-2 py-0.5 rounded">${method}</span>
-                  </div>
-                  <p class="text-xs text-gray-300 mt-1">${company} • ${industry}</p>
-                  <div class="flex items-center gap-2 mt-1">
-                    <span class="text-xs text-gray-400">${date} ${time}</span>
-                    <span class="text-xs ${prompt.lastJourney ? 'text-green-400' : 'text-yellow-400'}">${hasJourney}</span>
-                  </div>
-                </div>
-                <div class="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onclick="event.stopPropagation(); promptCache.loadPromptState(${JSON.stringify(prompt).replace(/"/g, '&quot;')})" 
-                          class="bg-dtblue text-white px-2 py-1 rounded text-xs hover:bg-dtcyan transition-all" 
-                          title="Load this configuration">📋</button>
-                  <button onclick="event.stopPropagation(); promptCache.duplicatePrompt('${prompt.id}')" 
-                          class="bg-dtgreen text-black px-2 py-1 rounded text-xs hover:bg-green-600 transition-all"
-                          title="Duplicate this prompt">📄</button>
-                  <button onclick="event.stopPropagation(); promptCache.deletePrompt('${prompt.id}')" 
-                          class="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-all"
-                          title="Delete this prompt">🗑️</button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('');
+        console.log(`📊 Rendering prompts: ${userPrompts.length} user, ${defaultPrompts.length} default`);
+
+        // Populate User Saved dropdown
+        if (userPrompts.length === 0) {
+          userDropdown.innerHTML = '<option value="">No user-saved prompts</option>';
+        } else {
+          userDropdown.innerHTML = userPrompts
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .map(prompt => {
+              const date = new Date(prompt.timestamp).toLocaleDateString();
+              const time = new Date(prompt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              // Just use the name - it already contains company name from save
+              return `<option value="${prompt.id}">${prompt.name} (${date} ${time})</option>`;
+            })
+            .join('');
+        }
+
+        // Populate Default Prompts dropdown (24 pre-built journeys)
+        if (defaultPrompts.length === 0) {
+          console.warn('⚠️ No default prompts found from server');
+          defaultDropdown.innerHTML = '<option value="">No default prompts available</option>';
+        } else {
+          console.log('✅ Loading default prompts:', defaultPrompts.map(p => p.name || 'Unnamed'));
+          defaultDropdown.innerHTML = '<option value="">Select a default prompt...</option>' + 
+            defaultPrompts
+              .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+              .map(prompt => {
+                const name = prompt.name || prompt.companyName || 'Unnamed';
+                return `<option value="${prompt.id}">${name}</option>`;
+              })
+              .join('');
+        }
       }
 
       duplicatePrompt(promptId) {
@@ -2625,6 +3580,97 @@
         }, 1000);
       }
     }
+
+    // Global functions for dropdown interactions
+    window.loadSelectedUserPrompt = function() {
+      const dropdown = document.getElementById('userSavedPromptsDropdown');
+      const promptId = dropdown.value;
+      
+      console.log('🔵 loadSelectedUserPrompt called, promptId:', promptId);
+      
+      if (!promptId) {
+        alert('Please select a user-saved prompt to load');
+        return;
+      }
+      
+      const savedPrompts = promptCache.getSavedPrompts();
+      console.log('🔵 Found', savedPrompts.length, 'total saved prompts');
+      
+      const prompt = savedPrompts.find(p => p.id === promptId);
+      console.log('🔵 Found prompt to load:', prompt ? 'YES' : 'NO');
+      
+      if (prompt) {
+        console.log('🔵 Prompt data:', JSON.stringify(prompt, null, 2).substring(0, 500));
+        promptCache.loadPromptState(prompt);
+        promptCache.showNotification(`Loaded: ${prompt.name}`);
+        
+        // Close sidebar after successful load
+        promptCache.closeSidebar();
+      } else {
+        console.error('🔴 Prompt not found with ID:', promptId);
+        alert('Prompt not found');
+      }
+    };
+
+    window.duplicateSelectedUserPrompt = function() {
+      const dropdown = document.getElementById('userSavedPromptsDropdown');
+      const promptId = dropdown.value;
+      
+      if (!promptId) {
+        alert('Please select a prompt to duplicate');
+        return;
+      }
+      
+      promptCache.duplicatePrompt(promptId);
+      promptCache.showNotification('Prompt duplicated!');
+    };
+
+    window.deleteSelectedUserPrompt = function() {
+      const dropdown = document.getElementById('userSavedPromptsDropdown');
+      const promptId = dropdown.value;
+      
+      if (!promptId) {
+        alert('Please select a prompt to delete');
+        return;
+      }
+      
+      const savedPrompts = promptCache.getSavedPrompts();
+      const prompt = savedPrompts.find(p => p.id === promptId);
+      
+      if (prompt && confirm(`Delete "${prompt.name}"?`)) {
+        promptCache.deletePrompt(promptId);
+        promptCache.showNotification('Prompt deleted');
+      }
+    };
+
+    window.loadSelectedDefaultPrompt = async function() {
+      const dropdown = document.getElementById('defaultPromptsDropdown');
+      const configId = dropdown.value;
+      
+      if (!configId) {
+        alert('Please select a default prompt to load');
+        return;
+      }
+      
+      try {
+        // Fetch the full config from server
+        const response = await fetch(`/api/admin/configs/${configId}`);
+        if (!response.ok) {
+          throw new Error('Failed to load configuration');
+        }
+        
+        const data = await response.json();
+        if (data.ok && data.config) {
+          promptCache.loadPromptState(data.config);
+          promptCache.showNotification(`Loaded: ${data.config.name || 'Default Prompt'}`);
+        } else {
+          alert('Configuration not found');
+        }
+      } catch (error) {
+        console.error('Error loading default prompt:', error);
+        alert(`Error: ${error.message}`);
+      }
+    };
 
     // Initialize prompt cache
     console.log('Initializing PromptCache...');
@@ -3163,6 +4209,8 @@
           }
           if (prompt.currentJourneyData) {
             window.currentJourneyData = prompt.currentJourneyData;
+            // Auto-generate feature flags
+            autoGenerateFeatureFlags(prompt.currentJourneyData);
           }
           
           // Enable the Process Response button after loading copilot response
@@ -3611,12 +4659,12 @@
           userDefinedFields: journeyData.userDefinedFields || {},
           businessMetadata: journeyData.businessMetadata || {},
           
-          // Simulation parameters
+          // Simulation parameters with feature flags
           chained: false,
           simulationId: `sim_${Date.now()}`,
           batchId: `batch_${Date.now()}`,
           customerCount: 1,
-          errorSimulationEnabled: errorSimulationEnabled
+          featureFlags: window.getActiveFeatureFlags ? window.getActiveFeatureFlags() : {}
         };
         
         // Add customers parameter for multiple journey endpoint
@@ -3624,13 +4672,18 @@
           requestBody.customers = customerCount;
         }
         
+        console.log(`🚀 About to POST to ${endpoint} with company: ${journeyData.companyName}`);
+        console.log('📦 Request body keys:', Object.keys(requestBody));
+        
         const res = await fetch(endpoint, { 
           method: 'POST', 
           headers: { 'Content-Type': 'application/json' }, 
           body: JSON.stringify(requestBody) 
         });
         
+        console.log(`✅ Fetch completed, status: ${res.status}`);
         const json = await res.json();
+        console.log(`✅ Response parsed, success: ${json.success}`);
         
         if (json.success) {
           // Handle multiple customers response
@@ -3831,15 +4884,37 @@
 
     // New Customer Journey function - clears all services and provides clean slate
     window.startNewCustomerJourney = async function() {
-      console.log('New Customer Journey initiated - RESET and KILL all services');
+      console.log('⚠️ DANGER ZONE: Kill All Services initiated');
       
-      if (!confirm('Start New Customer Journey?\n\nThis will:\n• Kill ALL running services\n• Reset ALL ports\n• Clear all session data\n\nAre you sure?')) {
+      // Double confirmation for safety
+      const firstConfirm = confirm('⚠️ DANGER: KILL ALL SERVICES FROM ALL COMPANIES?\n\n' +
+        'This will IMMEDIATELY:\n' +
+        '• 💀 Kill ALL running services (ALL companies)\n' +
+        '• 🔓 Release ALL port allocations\n' +
+        '• 🗑️ Clear ALL session data\n' +
+        '• 💣 Terminate ALL zombie processes\n\n' +
+        'This affects the ENTIRE SERVER!\n\n' +
+        'Click OK to continue...');
+      
+      if (!firstConfirm) {
+        console.log('User cancelled kill all services');
+        return;
+      }
+      
+      // Second confirmation
+      const secondConfirm = confirm('⚠️ FINAL CONFIRMATION\n\n' +
+        'You are about to KILL ALL SERVICES from ALL COMPANIES.\n\n' +
+        'Are you ABSOLUTELY SURE?\n\n' +
+        'Type "I understand" in your mind and click OK to proceed.');
+      
+      if (!secondConfirm) {
+        console.log('User cancelled at second confirmation');
         return;
       }
       
       try {
         // Step 1: Kill all services
-        console.log('🔥 Step 1: Killing all services');
+        console.log('💣 EXECUTING: Killing ALL services from ALL companies');
         const killRes = await fetch('/api/admin/reset-ports', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
@@ -3847,7 +4922,7 @@
         const killResult = await killRes.json();
         
         if (killResult.ok) {
-          console.log('✅ Step 1/3: All services stopped and ports freed. Clearing session data...');
+          console.log('✅ Step 1/3: ALL services stopped and ports freed. Clearing session data...');
           
           // Step 2: Clear session data and reset UI
           console.log('🧹 Step 2: Clearing session data');
@@ -3883,7 +4958,7 @@
           const resultsBox = document.getElementById('simulation-results-step4');
           if (resultsBox) resultsBox.textContent = 'Simulation results will appear here';
           
-          console.log('✅ New Customer Journey ready! All services killed, ports reset, and data cleared.');
+          console.log('✅ System reset complete! ALL services killed, ports reset, and data cleared.');
           
           // Refresh the service status display
           setTimeout(() => {
@@ -3893,7 +4968,11 @@
           }, 1000);
           
           // Show success message
-          alert('🔄 New Customer Journey Started!\n\n✅ All services stopped\n✅ Ports reset\n✅ Session data cleared\n\nReady for new journey!');
+          alert('💀 ALL SERVICES KILLED!\n\n' +
+            '✅ ALL services stopped (all companies)\n' +
+            '✅ ALL ports released\n' +
+            '✅ Session data cleared\n\n' +
+            'Server is now in clean state.');
           
         } else {
           console.error('❌ Failed to kill services:', killResult.error || 'Unknown error');
@@ -3901,8 +4980,8 @@
         }
         
       } catch (e) {
-        console.error('New Customer Journey error:', e);
-        alert('❌ Error during reset: ' + e.message);
+        console.error('Kill all services error:', e);
+        alert('❌ Error during system reset: ' + e.message);
       }
     };
 
@@ -4008,10 +5087,15 @@
             servicesDropdownList.innerHTML = servicesData.services.map(service => {
               // 🔧 IMPROVED SERVICE NAME FORMATTING
               const serviceName = service.service || service.name || 'Unknown Service';
+              const stepName = service.stepName || serviceName;  // Use stepName if available
               
               // Clean up long service names for better readability
-              let displayName = serviceName;
-              if (serviceName.includes('-')) {
+              let displayName = stepName;
+              
+              // If we have stepName and company, format nicely
+              if (service.stepName && service.companyContext && service.companyContext.companyName !== 'unknown') {
+                displayName = `${service.stepName} (${service.companyContext.companyName})`;
+              } else if (serviceName.includes('-')) {
                 // For names like "GroceryBrowseAndBasketBuildService-Asda"
                 const parts = serviceName.split('-');
                 if (parts.length >= 2) {
@@ -4105,17 +5189,27 @@
         // Update port status with better error handling
         if (portsData.ok && portsData.portStatus) {
           console.log('🔌 Updating port status display');
-          document.getElementById('total-ports').textContent = portsData.portStatus.total || '0';
-          document.getElementById('available-ports').textContent = portsData.portStatus.available || '0';
-          document.getElementById('allocated-ports').textContent = portsData.portStatus.allocated || '0';
-          document.getElementById('port-range').textContent = portsData.portStatus.range || 'N/A';
+          const totalPortsEl = document.getElementById('total-ports');
+          const availablePortsEl = document.getElementById('available-ports');
+          const allocatedPortsEl = document.getElementById('allocated-ports');
+          const portRangeEl = document.getElementById('port-range');
+          
+          if (totalPortsEl) totalPortsEl.textContent = portsData.portStatus.total || '0';
+          if (availablePortsEl) availablePortsEl.textContent = portsData.portStatus.available || '0';
+          if (allocatedPortsEl) allocatedPortsEl.textContent = portsData.portStatus.allocated || '0';
+          if (portRangeEl) portRangeEl.textContent = portsData.portStatus.range || 'N/A';
         } else {
           console.log('❌ Port status data unavailable:', portsData);
-          // Show fallback values when ports API fails
-          document.getElementById('total-ports').textContent = 'Error';
-          document.getElementById('available-ports').textContent = 'Error';
-          document.getElementById('allocated-ports').textContent = 'Error';
-          document.getElementById('port-range').textContent = 'Error';
+          // Show fallback values when ports API fails (only if elements exist)
+          const totalPortsEl = document.getElementById('total-ports');
+          const availablePortsEl = document.getElementById('available-ports');
+          const allocatedPortsEl = document.getElementById('allocated-ports');
+          const portRangeEl = document.getElementById('port-range');
+          
+          if (totalPortsEl) totalPortsEl.textContent = 'Error';
+          if (availablePortsEl) availablePortsEl.textContent = 'Error';
+          if (allocatedPortsEl) allocatedPortsEl.textContent = 'Error';
+          if (portRangeEl) portRangeEl.textContent = 'Error';
         }
         
         // Update last refresh time
@@ -4136,16 +5230,734 @@
           servicesLoading.classList.remove('hidden');
         }
         
-        // Show error in port status too
-        document.getElementById('total-ports').textContent = 'Error';
-        document.getElementById('available-ports').textContent = 'Error';
-        document.getElementById('allocated-ports').textContent = 'Error';
-        document.getElementById('port-range').textContent = 'Error';
+        // Show error in port status too (only if elements exist)
+        const totalPortsEl = document.getElementById('total-ports');
+        const availablePortsEl = document.getElementById('available-ports');
+        const allocatedPortsEl = document.getElementById('allocated-ports');
+        const portRangeEl = document.getElementById('port-range');
+        
+        if (totalPortsEl) totalPortsEl.textContent = 'Error';
+        if (availablePortsEl) availablePortsEl.textContent = 'Error';
+        if (allocatedPortsEl) allocatedPortsEl.textContent = 'Error';
+        if (portRangeEl) portRangeEl.textContent = 'Error';
       } finally {
         // Service status update completed
         console.log('🔄 Service status refresh finished');
       }
     };
+
+    // ============ SERVICE MANAGEMENT DASHBOARD ============
+    
+    let currentDashboardTab = 'services';
+    
+    /**
+     * Switch dashboard tabs
+     */
+    window.switchDashboardTab = function(tabName) {
+      currentDashboardTab = tabName;
+      
+      // Update tab buttons
+      document.querySelectorAll('.dashboard-tab').forEach(btn => {
+        btn.classList.remove('active', 'bg-dtcyan', 'text-black');
+        btn.classList.add('bg-dtgray', 'text-gray-400');
+      });
+      document.getElementById(`tab-${tabName}`)?.classList.add('active', 'bg-dtcyan', 'text-black');
+      document.getElementById(`tab-${tabName}`)?.classList.remove('bg-dtgray', 'text-gray-400');
+      
+      // Hide all content
+      document.getElementById('dashboard-content-services')?.classList.add('hidden');
+      document.getElementById('dashboard-content-loadtests')?.classList.add('hidden');
+      document.getElementById('dashboard-content-history')?.classList.add('hidden');
+      
+      // Show selected content
+      document.getElementById(`dashboard-content-${tabName}`)?.classList.remove('hidden');
+      
+      // Refresh content based on tab
+      if (tabName === 'services') {
+        refreshServicesTab();
+      } else if (tabName === 'loadtests') {
+        refreshLoadTestsTab();
+      } else if (tabName === 'history') {
+        refreshHistoryTab();
+      }
+    };
+    
+    /**
+     * Open the comprehensive service dashboard modal
+     */
+    window.openServiceDashboard = async function() {
+      console.log('📊 Opening Service Management Dashboard');
+      const modal = document.getElementById('service-dashboard-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        await refreshServiceDashboard();
+      }
+    };
+    
+    /**
+     * Close the service dashboard modal
+     */
+    window.closeServiceDashboard = function(event) {
+      // If event is provided and target is the modal itself (not a child), close it
+      if (event && event.target.id !== 'service-dashboard-modal') {
+        return;
+      }
+      
+      const modal = document.getElementById('service-dashboard-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    };
+    
+    /**
+     * Refresh the service dashboard with latest data
+     */
+    window.refreshServiceDashboard = async function() {
+      console.log('🔄 Refreshing Service Dashboard...');
+      
+      const loadingEl = document.getElementById('service-dashboard-loading');
+      loadingEl?.classList.remove('hidden');
+      
+      try {
+        // Fetch load test status
+        const loadTestRes = await fetch('/api/admin/loadtest/status');
+        const loadTestData = await loadTestRes.json();
+        document.getElementById('stat-active-loadtests').textContent = loadTestData.count || 0;
+        
+        // Refresh current tab
+        if (currentDashboardTab === 'services') {
+          await refreshServicesTab();
+        } else if (currentDashboardTab === 'loadtests') {
+          await refreshLoadTestsTab();
+        } else if (currentDashboardTab === 'history') {
+          await refreshHistoryTab();
+        }
+        
+        loadingEl?.classList.add('hidden');
+      } catch (error) {
+        console.error('❌ Error refreshing dashboard:', error);
+        loadingEl?.classList.add('hidden');
+      }
+    };
+    
+    /**
+     * Refresh Services Tab
+     */
+    window.refreshServicesTab = async function() {
+      const contentEl = document.getElementById('dashboard-content-services');
+      const emptyEl = document.getElementById('service-dashboard-empty');
+      const loadingEl = document.getElementById('service-dashboard-loading');
+      
+      contentEl?.classList.add('hidden');
+      emptyEl?.classList.add('hidden');
+      
+      try {
+        const response = await fetch('/api/admin/services/by-company');
+        if (!response.ok) throw new Error('Failed to fetch services');
+        
+        const data = await response.json();
+        console.log('📊 Service data received:', data);
+        
+        // Update stats
+        document.getElementById('stat-total-companies').textContent = data.totalCompanies || 0;
+        document.getElementById('stat-running-services').textContent = data.totalRunningServices || 0;
+        document.getElementById('stat-total-services').textContent = data.totalServices || 0;
+        
+        // Check if empty
+        if (!data.companies || data.companies.length === 0) {
+          if (loadingEl) loadingEl.classList.add('hidden');
+          if (emptyEl) emptyEl.classList.remove('hidden');
+          return;
+        }
+        
+        // Render services grouped by company
+        const html = data.companies.map(company => `
+          <div class="bg-dtgray rounded-xl border-2 border-dtborder overflow-hidden">
+            <!-- Company Header -->
+            <div class="bg-gradient-to-r from-dtpurple to-dtblue p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>🏢</span>
+                    ${company.companyName}
+                  </h3>
+                  <div class="text-sm text-gray-300 mt-1">
+                    ${company.runningServices}/${company.totalServices} services running
+                    ${company.totalRequests > 0 ? ` • ${company.totalRequests} total requests` : ''}
+                    ${company.totalErrors > 0 ? ` • <span class="text-red-400">${company.totalErrors} errors</span>` : ''}
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="text-right mr-2">
+                    <div class="text-2xl font-bold text-dtgreen">${company.runningServices}</div>
+                    <div class="text-xs text-gray-300">Active</div>
+                  </div>
+                  <button onclick="stopCompanyServices('${company.companyName}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                    🛑 Stop All
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Services Table -->
+            <div class="p-4">
+              <div class="grid grid-cols-1 gap-3">
+                ${company.services.map(service => {
+                  const statusColor = service.status === 'running' ? 'dtgreen' : 'gray-500';
+                  const healthColor = service.healthStatus === 'healthy' ? 'dtgreen' : 
+                                     service.healthStatus === 'unhealthy' ? 'yellow-500' : 
+                                     service.healthStatus === 'stopped' ? 'gray-500' : 'red-500';
+                  const healthIcon = service.healthStatus === 'healthy' ? '✅' : 
+                                    service.healthStatus === 'unhealthy' ? '⚠️' : 
+                                    service.healthStatus === 'stopped' ? '⏹️' : '❌';
+                  
+                  return `
+                    <div class="bg-dtcard rounded-lg p-4 border border-dtborder hover:border-dtcyan transition-all">
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Service Info -->
+                        <div>
+                          <div class="text-dtcyan font-bold mb-1">${service.displayName}</div>
+                          <div class="text-xs text-gray-400 font-mono truncate">${service.serviceName}</div>
+                          <div class="flex items-center gap-2 mt-2">
+                            <span class="bg-${statusColor} text-black px-2 py-1 rounded-full text-xs font-bold">
+                              ${service.status.toUpperCase()}
+                            </span>
+                            <span class="text-${healthColor} text-xs font-bold flex items-center gap-1">
+                              ${healthIcon} ${service.healthStatus}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <!-- Metrics -->
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div class="text-gray-400">Port</div>
+                            <div class="text-white font-mono">📡 ${service.port}</div>
+                          </div>
+                          <div>
+                            <div class="text-gray-400">PID</div>
+                            <div class="text-white font-mono">🔧 ${service.pid}</div>
+                          </div>
+                          <div>
+                            <div class="text-gray-400">Uptime</div>
+                            <div class="text-dtcyan font-bold">⏱️ ${service.uptimeFormatted}</div>
+                          </div>
+                          <div>
+                            <div class="text-gray-400">Requests</div>
+                            <div class="text-white font-bold">📊 ${service.requests}</div>
+                          </div>
+                        </div>
+                        
+                        <!-- Performance -->
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div class="text-gray-400">Avg Response</div>
+                            <div class="text-dtgreen font-bold">${service.avgResponseTime}ms</div>
+                          </div>
+                          <div>
+                            <div class="text-gray-400">Error Rate</div>
+                            <div class="text-${service.errors > 0 ? 'red-500' : 'dtgreen'} font-bold">
+                              ${service.errorRate}%
+                            </div>
+                          </div>
+                          <div>
+                            <div class="text-gray-400">Errors</div>
+                            <div class="text-${service.errors > 0 ? 'red-500' : 'white'} font-bold">
+                              ${service.errors > 0 ? '❌' : '✅'} ${service.errors}
+                            </div>
+                          </div>
+                          <div>
+                            <button onclick="stopService('${service.serviceName}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold transition-all w-full">
+                              🛑 Stop
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        `).join('');
+        
+        if (contentEl) {
+          contentEl.innerHTML = html;
+          contentEl.classList.remove('hidden');
+        }
+        if (loadingEl) loadingEl.classList.add('hidden');
+        
+        console.log('✅ Service Dashboard refreshed successfully');
+        
+      } catch (error) {
+        console.error('❌ Error refreshing service dashboard:', error);
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (contentEl) {
+          contentEl.innerHTML = `
+            <div class="text-center py-12">
+              <div class="text-6xl mb-4">❌</div>
+              <div class="text-xl text-red-500 mb-2">Failed to Load Services</div>
+              <p class="text-sm text-gray-400">${error.message}</p>
+              <button onclick="refreshServiceDashboard()" class="mt-4 bg-dtpurple hover:bg-dtcyan text-white hover:text-black px-6 py-2 rounded-lg font-bold transition-all">
+                🔄 Retry
+              </button>
+            </div>
+          `;
+          contentEl.classList.remove('hidden');
+        }
+      }
+    };
+    
+    /**
+     * Format time ago helper
+     */
+    function timeAgo(ms) {
+      if (!ms) return 'Never';
+      const seconds = Math.floor(ms / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+    
+    /**
+     * Stop individual service
+     */
+    window.stopService = async function(serviceName) {
+      if (!confirm(`Stop service ${serviceName}?`)) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceName })
+        });
+        
+        if (!response.ok) throw new Error('Failed to stop service');
+        
+        const data = await response.json();
+        alert(`✅ Service ${serviceName} stopped`);
+        await refreshServiceDashboard();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Stop all services for a company
+     */
+    window.stopCompanyServices = async function(companyName) {
+      if (!confirm(`Stop ALL services for ${companyName}?`)) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/stop-by-company', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName })
+        });
+        
+        if (!response.ok) throw new Error('Failed to stop services');
+        
+        const data = await response.json();
+        alert(`✅ Stopped ${data.stoppedServices.length} services for ${companyName}`);
+        await refreshServiceDashboard();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Refresh Load Tests Tab
+     */
+    window.refreshLoadTestsTab = async function() {
+      const contentEl = document.getElementById('dashboard-content-loadtests');
+      
+      try {
+        const response = await fetch('/api/admin/loadtest/status');
+        if (!response.ok) throw new Error('Failed to fetch load tests');
+        
+        const data = await response.json();
+        
+        const html = data.activeTests.length === 0 ? `
+          <div class="text-center py-12">
+            <div class="text-6xl mb-4">⚡</div>
+            <div class="text-xl text-gray-400 mb-2">No Load Tests Running</div>
+            <p class="text-sm text-gray-500">Start a load test from the form below</p>
+          </div>
+        ` : data.activeTests.map(test => `
+          <div class="bg-dtgray rounded-xl border border-dtborder p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-lg font-bold text-dtcyan">⚡ ${test.companyName}</h4>
+                <div class="text-sm text-gray-400 mt-1">
+                  Scenario: ${test.scenarioType} • PID: ${test.pid} • Uptime: ${Math.floor(test.uptime / 60)}m
+                </div>
+              </div>
+              <button onclick="stopLoadTest('${test.companyName}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-all">
+                🛑 Stop
+              </button>
+            </div>
+          </div>
+        `).join('');
+        
+        const formHtml = `
+          <div class="bg-dtcard rounded-xl border-2 border-dtcyan p-6 mt-6">
+            <h4 class="text-lg font-bold text-dtcyan mb-4">▶️ Start New Load Test</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input id="loadtest-company" type="text" placeholder="Company Name" class="bg-dtgray border border-dtborder rounded-lg px-4 py-2 text-white">
+              <select id="loadtest-scenario" class="bg-dtgray border border-dtborder rounded-lg px-4 py-2 text-white">
+                <option value="light-load">Light Load</option>
+                <option value="medium-load">Medium Load</option>
+                <option value="heavy-load">Heavy Load</option>
+              </select>
+              <button onclick="startLoadTest()" class="bg-dtgreen hover:bg-green-600 text-black px-6 py-2 rounded-lg font-bold transition-all">
+                ▶️ Start
+              </button>
+            </div>
+          </div>
+        `;
+        
+        contentEl.innerHTML = html + formHtml;
+        contentEl.classList.remove('hidden');
+      } catch (error) {
+        console.error('❌ Error refreshing load tests:', error);
+        contentEl.innerHTML = `<div class="text-red-500">Failed to load: ${error.message}</div>`;
+        contentEl.classList.remove('hidden');
+      }
+    };
+    
+    /**
+     * Start load test
+     */
+    window.startLoadTest = async function() {
+      const companyName = document.getElementById('loadtest-company').value;
+      const scenarioType = document.getElementById('loadtest-scenario').value;
+      
+      if (!companyName) {
+        alert('Please enter a company name');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/admin/loadtest/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName, scenarioType })
+        });
+        
+        if (!response.ok) throw new Error('Failed to start load test');
+        
+        const data = await response.json();
+        alert(`✅ Load test started for ${companyName}`);
+        document.getElementById('loadtest-company').value = '';
+        await refreshLoadTestsTab();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Stop load test
+     */
+    window.stopLoadTest = async function(companyName) {
+      if (!confirm(`Stop load test for ${companyName}?`)) return;
+      
+      try {
+        const response = await fetch('/api/admin/loadtest/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName })
+        });
+        
+        if (!response.ok) throw new Error('Failed to stop load test');
+        
+        alert(`✅ Load test stopped for ${companyName}`);
+        await refreshLoadTestsTab();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Refresh History Tab
+     */
+    window.refreshHistoryTab = async function() {
+      try {
+        // Fetch user saved configs
+        const historyRes = await fetch('/api/admin/services/history');
+        const historyData = await historyRes.json();
+        
+        const userSelect = document.getElementById('user-saved-configs');
+        userSelect.innerHTML = '<option value="">Select configuration...</option>';
+        
+        if (historyData.success && historyData.configurations) {
+          historyData.configurations.forEach((config, idx) => {
+            const option = document.createElement('option');
+            option.value = config.timestamp;
+            option.textContent = `Config ${idx + 1} - ${new Date(config.timestamp).toLocaleString()} (${config.runningServices.length} services)`;
+            userSelect.appendChild(option);
+          });
+        }
+        
+        // Load default prompts from localStorage
+        const defaultSelect = document.getElementById('default-prompts');
+        defaultSelect.innerHTML = '<option value="">Select prompt...</option>';
+        
+        const prompts = JSON.parse(localStorage.getItem('saved_prompts') || '[]');
+        prompts.forEach((prompt, idx) => {
+          const option = document.createElement('option');
+          option.value = idx;
+          option.textContent = prompt.name || prompt.companyName || `Prompt ${idx + 1}`;
+          defaultSelect.appendChild(option);
+        });
+        
+        // Add change listeners for preview
+        userSelect.onchange = showConfigPreview;
+        defaultSelect.onchange = showPromptPreview;
+      } catch (error) {
+        console.error('❌ Error refreshing history:', error);
+      }
+    };
+    
+    /**
+     * Show configuration preview
+     */
+    window.showConfigPreview = async function() {
+      const select = document.getElementById('user-saved-configs');
+      const timestamp = select.value;
+      const previewDiv = document.getElementById('config-preview');
+      
+      if (!timestamp) {
+        previewDiv.innerHTML = `
+          <div class="text-center text-gray-400 py-12">
+            <div class="text-6xl mb-4">👈</div>
+            <div class="text-xl mb-2">Select a Configuration</div>
+            <p class="text-sm">Choose a saved config or default prompt to preview</p>
+          </div>`;
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/admin/services/history');
+        const data = await response.json();
+        
+        if (data.success) {
+          const config = data.configurations.find(c => c.timestamp === timestamp);
+          if (config) {
+            const date = new Date(config.timestamp);
+            previewDiv.innerHTML = `
+              <div class="space-y-4">
+                <div class="bg-dtcard rounded-lg p-4 border border-dtcyan">
+                  <div class="text-dtcyan font-bold mb-2">⏱️ Saved: ${date.toLocaleString()}</div>
+                  <div class="text-sm text-gray-300">Services: ${config.runningServices.length}</div>
+                </div>
+                
+                <div class="bg-dtcard rounded-lg p-4">
+                  <h4 class="font-bold text-white mb-3">🔧 Running Services:</h4>
+                  <div class="space-y-2 max-h-96 overflow-y-auto">
+                    ${config.runningServices.map(service => `
+                      <div class="flex items-center gap-2 text-sm">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span class="text-white font-mono">${service.serviceName}</span>
+                        <span class="text-gray-400">:${service.port}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+      } catch (error) {
+        console.error('Error showing config preview:', error);
+      }
+    };
+    
+    /**
+     * Show prompt preview
+     */
+    window.showPromptPreview = function() {
+      const select = document.getElementById('default-prompts');
+      const index = select.value;
+      const previewDiv = document.getElementById('config-preview');
+      
+      if (index === '') {
+        previewDiv.innerHTML = `
+          <div class="text-center text-gray-400 py-12">
+            <div class="text-6xl mb-4">👈</div>
+            <div class="text-xl mb-2">Select a Configuration</div>
+            <p class="text-sm">Choose a saved config or default prompt to preview</p>
+          </div>`;
+        return;
+      }
+      
+      const prompts = JSON.parse(localStorage.getItem('saved_prompts') || '[]');
+      const prompt = prompts[parseInt(index)];
+      
+      if (prompt) {
+        previewDiv.innerHTML = `
+          <div class="space-y-4">
+            <div class="bg-dtcard rounded-lg p-4 border border-dtyellow">
+              <div class="text-dtyellow font-bold mb-2">📚 ${prompt.name || prompt.companyName || 'Default Prompt'}</div>
+              <div class="text-sm text-gray-300">Journey: ${prompt.journeyType || 'N/A'}</div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${prompt.companyName ? `
+                <div class="bg-dtcard rounded-lg p-3">
+                  <div class="text-xs text-gray-400 mb-1">Company</div>
+                  <div class="text-white font-mono">${prompt.companyName}</div>
+                </div>
+              ` : ''}
+              ${prompt.sector ? `
+                <div class="bg-dtcard rounded-lg p-3">
+                  <div class="text-xs text-gray-400 mb-1">Sector</div>
+                  <div class="text-white">${prompt.sector}</div>
+                </div>
+              ` : ''}
+              ${prompt.industryType ? `
+                <div class="bg-dtcard rounded-lg p-3">
+                  <div class="text-xs text-gray-400 mb-1">Industry</div>
+                  <div class="text-white">${prompt.industryType}</div>
+                </div>
+              ` : ''}
+              ${prompt.numServices ? `
+                <div class="bg-dtcard rounded-lg p-3">
+                  <div class="text-xs text-gray-400 mb-1">Services</div>
+                  <div class="text-white">${prompt.numServices}</div>
+                </div>
+              ` : ''}
+            </div>
+            
+            ${prompt.fullPrompt ? `
+              <div class="bg-dtcard rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-2">Prompt:</div>
+                <div class="text-sm text-white leading-relaxed max-h-48 overflow-y-auto">
+                  ${prompt.fullPrompt.substring(0, 500)}${prompt.fullPrompt.length > 500 ? '...' : ''}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+    };
+    
+    /**
+     * Save current configuration
+     */
+    window.saveCurrentConfig = async function() {
+      try {
+        const response = await fetch('/api/admin/services/save-config', {
+          method: 'POST'
+        });
+        
+        if (!response.ok) throw new Error('Failed to save configuration');
+        
+        const data = await response.json();
+        alert(`✅ Configuration saved! (${data.config.services.length} services)`);
+        await refreshHistoryTab();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Delete user configuration
+     */
+    window.deleteUserConfig = async function() {
+      const select = document.getElementById('user-saved-configs');
+      const timestamp = select.value;
+      
+      if (!timestamp) {
+        alert('Please select a configuration to delete');
+        return;
+      }
+      
+      if (!confirm('Delete this configuration? This action cannot be undone.')) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/history/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timestamp })
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete configuration');
+        
+        const data = await response.json();
+        alert(data.message || '✅ Configuration deleted');
+        await refreshHistoryTab();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+
+    /**
+     * Restore user configuration
+     */
+    window.restoreUserConfig = async function() {
+      const select = document.getElementById('user-saved-configs');
+      const timestamp = select.value;
+      
+      if (!timestamp) {
+        alert('Please select a configuration to restore');
+        return;
+      }
+      
+      if (!confirm('Restore this configuration? This will start the services.')) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timestamp })
+        });
+        
+        if (!response.ok) throw new Error('Failed to restore configuration');
+        
+        const data = await response.json();
+        alert(data.message);
+        await refreshServiceDashboard();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Load default prompt
+     */
+    window.loadDefaultPrompt = function() {
+      const select = document.getElementById('default-prompts');
+      const idx = select.value;
+      
+      if (idx === null || idx === undefined) {
+        alert('Please select a prompt to load');
+        return;
+      }
+      
+      const prompts = JSON.parse(localStorage.getItem('saved_prompts') || '[]');
+      const prompt = prompts[parseInt(idx)];
+      
+      if (!prompt) {
+        alert('Prompt not found');
+        return;
+      }
+      
+      // Load prompt data into form
+      if (prompt.companyName) document.getElementById('company-name')?.setValue(prompt.companyName);
+      if (prompt.domain) document.getElementById('company-domain')?.setValue(prompt.domain);
+      if (prompt.industryType) document.getElementById('industry-type')?.setValue(prompt.industryType);
+      if (prompt.journeyDescription) document.getElementById('journey-description')?.setValue(prompt.journeyDescription);
+      
+      alert(`✅ Loaded: ${prompt.name || 'Prompt'}`);
+      closeServiceDashboard();
+    };
+
 
     // Service Management Functions
     window.resetService = async function(serviceName, port) {
@@ -4295,14 +6107,26 @@
         statusEl.className = 'mt-3 text-sm text-dtyellow font-medium';
         resultsEl.classList.add('hidden');
 
-        const testConfig = {
-          testProfile: profileSelect.value,
-          durationMinutes: parseInt(durationInput.value) || 5
+        // Get error configuration from UI
+        const errorsPerTransaction = parseFloat(document.getElementById('errors-per-transaction')?.value || 0.1);
+        const regenerateEvery = parseInt(document.getElementById('regenerate-every')?.value || 100);
+        
+        const errorConfig = {
+          errors_per_transaction: errorsPerTransaction,
+          errors_per_visit: errorsPerTransaction * 0.01, // 1% of per-transaction rate
+          errors_per_minute: errorsPerTransaction * 0.5, // Derived value
+          regenerate_every_n_transactions: regenerateEvery
         };
 
+        const testConfig = {
+          testProfile: profileSelect.value,
+          durationMinutes: parseInt(durationInput.value) || 10,
+          errorConfig: errorConfig
+        };
+        
         console.log('LoadRunner test payload:', {
           journeyConfig: lastJourney,
-          errorSimulationEnabled: errorSimulationEnabled,
+          errorConfig: errorConfig,
           ...testConfig
         });
 
@@ -5070,6 +6894,31 @@ Return the response in JSON code format that can be copied from this UI
           try {
             const parsedResponse = JSON.parse(responseText);
             if (parsedResponse.journey && parsedResponse.journey.steps) {
+              // 🔧 UPDATE FORM FIELDS: Extract metadata from journey and populate form
+              const journey = parsedResponse.journey;
+              if (journey.companyName) {
+                const companyField = document.getElementById('companyName');
+                if (companyField) companyField.value = journey.companyName;
+              }
+              if (journey.domain) {
+                const domainField = document.getElementById('domain');
+                if (domainField) domainField.value = journey.domain;
+              }
+              if (journey.industryType) {
+                const industryField = document.getElementById('industryType');
+                if (industryField) industryField.value = journey.industryType;
+              }
+              if (journey.journeyType) {
+                const journeyTypeField = document.getElementById('journeyType');
+                if (journeyTypeField) journeyTypeField.value = journey.journeyType;
+              }
+              console.log('✅ Form fields updated:', {
+                companyName: journey.companyName,
+                domain: journey.domain,
+                industryType: journey.industryType,
+                journeyType: journey.journeyType
+              });
+              
               // Set the global variables for journey simulation with complete data
               lastJourney = {
                 ...parsedResponse.journey,
@@ -5585,6 +7434,20 @@ Return the response in JSON code format that can be copied from this UI
       // Update button text to show they're ready
       runChainedBtnLocal.innerHTML = '🔗 Run Distributed Flow (Ready)';
       runJourneySimBtnLocal.innerHTML = '🚀 Run Journey Simulation (Ready)';
+      
+      // Add continuous mode toggle if not exists
+      if (!document.getElementById('continuousModeToggle')) {
+        const toggleHtml = `
+          <div style="margin: 10px 0; padding: 10px; background: #f0f8ff; border-radius: 5px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="continuousModeToggle" style="width: 18px; height: 18px;">
+              <strong>🔄 Continuous Load Test Mode</strong>
+              <span style="font-size: 0.9em; color: #666;">(Keep generating journeys every 5 seconds)</span>
+            </label>
+          </div>
+        `;
+        runJourneySimBtnLocal.insertAdjacentHTML('beforebegin', toggleHtml);
+      }
 
       console.log('Flow buttons are now enabled and ready! (safe mode)');
 
@@ -5849,16 +7712,33 @@ Return the response in JSON code format that can be copied from this UI
 
       // Journey Simulation button handler
       runJourneySimBtn.onclick = async () => {
-        console.log('🔥 GREEN BUTTON CLICKED! 🔥');
-        alert('Green button clicked! Journey Simulation starting...');
+        console.log('🔥 Journey Simulation Button Clicked! 🔥');
+        
+        // Handle stop request in continuous mode
+        if (runJourneySimBtn.dataset.running === 'true') {
+          console.log('🛑 Stop requested for continuous load test');
+          runJourneySimBtn.dataset.stopRequested = 'true';
+          runJourneySimBtn.disabled = true;
+          runJourneySimBtn.textContent = '⏳ Stopping...';
+          if (simStatus) {
+            simStatus.textContent = '🛑 Stopping continuous load test after current journey...';
+          }
+          return;
+        }
+        
         try {
           console.log('Journey Simulation button clicked!');
+          
+          const continuousMode = document.getElementById('continuousModeToggle')?.checked;
+          
           if (runJourneySimBtn) {
             runJourneySimBtn.disabled = true;
-            runJourneySimBtn.textContent = '🔄 Simulating Journey...';
+            runJourneySimBtn.textContent = continuousMode ? '🔄 Running Load Test...' : '🔄 Simulating Journey...';
           }
           if (simStatus) {
-            simStatus.textContent = 'Starting customer journey simulation...';
+            simStatus.textContent = continuousMode ? 
+              '🔄 Starting continuous load test (click button to stop)...' : 
+              'Starting customer journey simulation...';
           }
           
           if (!lastJourney) {
@@ -6118,9 +7998,28 @@ Return the response in JSON code format that can be copied from this UI
             flowResultsEl.textContent = `Error Details:\n${error.stack}`;
           }
         } finally {
-          if (runJourneySimBtn) {
-            runJourneySimBtn.disabled = false;
-            runJourneySimBtn.textContent = '🚀 Run Journey Simulation';
+          // Check if continuous mode is enabled
+          const continuousMode = document.getElementById('continuousModeToggle')?.checked;
+          
+          if (continuousMode && runJourneySimBtn && !runJourneySimBtn.dataset.stopRequested) {
+            // Keep running in continuous mode
+            console.log('🔄 Continuous mode: Scheduling next journey in 5 seconds...');
+            runJourneySimBtn.textContent = '🛑 Stop Load Test';
+            runJourneySimBtn.dataset.running = 'true';
+            
+            setTimeout(() => {
+              if (continuousMode && !runJourneySimBtn.dataset.stopRequested) {
+                runJourneySimBtn.click(); // Trigger next journey
+              }
+            }, 5000);
+          } else {
+            // Single run mode or stop requested
+            if (runJourneySimBtn) {
+              runJourneySimBtn.disabled = false;
+              runJourneySimBtn.textContent = '🚀 Run Journey Simulation';
+              delete runJourneySimBtn.dataset.running;
+              delete runJourneySimBtn.dataset.stopRequested;
+            }
           }
         }
       };
@@ -6233,6 +8132,9 @@ Return the response in JSON code format that can be copied from this UI
                 traceMetadata: parsedResponse.traceMetadata || parsedResponse.journey.traceMetadata || {}
               };
               window.currentJourneyData = parsedResponse;
+
+              // Auto-generate feature flags based on journey
+              autoGenerateFeatureFlags(parsedResponse);
 
               // Display journey with additional fields info
               const displayData = {
@@ -6361,6 +8263,90 @@ Return the response in JSON code format that can be copied from this UI
         }
       } catch (error) {
         console.error('[Dashboard] Generation error:', error);
+        statusEl.textContent = `❌ Request failed: ${error.message}`;
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+      }
+    }
+    
+    async function generateAIDashboard() {
+      const statusEl = document.getElementById('dynatrace-status');
+      
+      console.log('[AI Dashboard] generateAIDashboard called');
+      console.log('[AI Dashboard] window.currentJourneyData:', window.currentJourneyData);
+      
+      if (!window.currentJourneyData || !window.currentJourneyData.journey) {
+        statusEl.textContent = '❌ Error: No journey loaded. Please generate or load a journey first.';
+        statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        return;
+      }
+      
+      const journey = window.currentJourneyData.journey;
+      
+      statusEl.textContent = `🤖 AI generating dashboard for ${journey.companyName} ${journey.journeyType}...`;
+      statusEl.className = 'mt-3 p-3 bg-purple-900 bg-opacity-50 rounded text-xs font-mono text-purple-300 animate-pulse';
+      
+      try {
+        const startTime = Date.now();
+        
+        // Call AI dashboard generation endpoint
+        const response = await fetch('/api/ai-dashboard/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            journeyData: {
+              company: journey.companyName,
+              industry: journey.industryType || 'Technology',
+              journeyType: journey.journeyType,
+              steps: journey.steps.map(s => ({
+                name: s.stepName,
+                serviceName: s.serviceName,
+                category: s.category || '',
+                description: s.description || '',
+                estimatedDuration: s.estimatedDuration || 0,
+                hasError: s.hasError || false
+              })),
+              // Forward ALL rich context for smart field detection
+              additionalFields: window.currentJourneyData.additionalFields || {},
+              customerProfile: window.currentJourneyData.customerProfile || {},
+              traceMetadata: window.currentJourneyData.traceMetadata || {}
+            }
+          })
+        });
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        const result = await response.json();
+        
+        console.log('[AI Dashboard] Response:', result);
+        
+        if (result.success && result.dashboard) {
+          // Auto-download the AI-generated dashboard JSON
+          const dashboardJson = result.dashboard.content || result.dashboard;
+          const blob = new Blob([JSON.stringify(dashboardJson, null, 2)], { 
+            type: 'application/json' 
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${journey.companyName}-${journey.journeyType}-ai-dashboard.json`.replace(/\s+/g, '-').toLowerCase();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          const method = result.generationMethod || result.metadata?.generationMethod || 'unknown';
+          const tilesCount = Object.keys(dashboardJson.tiles || {}).length;
+          
+          statusEl.textContent = `✅ AI Dashboard generated in ${duration}s (${method})\n📊 ${tilesCount} tiles created\n\n📤 To upload to Dynatrace:\n1. Go to your Dynatrace environment\n2. Navigate to Dashboards → Import\n3. Upload the downloaded JSON file`;
+          statusEl.className = 'mt-3 p-3 bg-green-900 bg-opacity-50 rounded text-xs font-mono text-green-300 whitespace-pre-wrap';
+        } else {
+          const errorMsg = result.message || result.error || 'Unknown error';
+          statusEl.textContent = `❌ AI dashboard generation failed:\n${errorMsg}`;
+          statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
+        }
+      } catch (error) {
+        console.error('[AI Dashboard] Generation error:', error);
         statusEl.textContent = `❌ Request failed: ${error.message}`;
         statusEl.className = 'mt-3 p-3 bg-red-900 bg-opacity-50 rounded text-xs font-mono text-red-300';
       }
@@ -6798,15 +8784,15 @@ Return the response in JSON code format that can be copied from this UI
     // Auto-detect MCP server URL based on deployment context
     function detectMcpServerUrl() {
       const currentHost = window.location.hostname;
-      const currentProtocol = window.location.protocol;
       
       // If running on localhost, MCP is likely on localhost:3000
       if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
         return 'http://localhost:3000';
       }
       
-      // If running on remote server, MCP runs on same host with port 3000
-      return `${currentProtocol}//${currentHost}:3000`;
+      // If running on remote server, MCP runs on same host with port 3000 (always HTTP)
+      // Note: MCP server runs on HTTP, not HTTPS, even if main app uses HTTPS
+      return `http://${currentHost}:3000`;
     }
     
     // Load settings
@@ -6857,6 +8843,7 @@ Return the response in JSON code format that can be copied from this UI
     function clearDynatraceSettings() {
       if (confirm('Are you sure you want to clear all Dynatrace settings? This cannot be undone.')) {
         localStorage.removeItem(window.DT_SETTINGS_KEY);
+        localStorage.removeItem('dt-mcp-session'); // Clear OAuth session
         
         document.getElementById('dt-mcp-server-input').value = '';
         document.getElementById('dt-budget-input').value = '100';
@@ -6865,6 +8852,288 @@ Return the response in JSON code format that can be copied from this UI
         updateSettingsIndicator(false);
       }
     }
+    
+    // OAuth SSO Authentication via Local MCP Server
+    async function authenticateWithOAuth() {
+      const mcpServerUrl = document.getElementById('dt-mcp-server-input').value.trim();
+      const environmentUrl = document.getElementById('dt-environment-input').value.trim();
+      
+      if (!mcpServerUrl) {
+        showDtStatus('error', 'Missing MCP Server URL', 'Please enter MCP Server URL first');
+        return;
+      }
+      
+      if (!environmentUrl) {
+        showDtStatus('error', 'Missing Environment URL', 'Please enter your Dynatrace tenant URL first');
+        return;
+      }
+      
+      showDtStatus('loading', '🔐 Initiating OAuth...', 'Requesting authentication from MCP server');
+      
+      try {
+        // Call local MCP server to initiate OAuth
+        const response = await fetch(`${mcpServerUrl}/api/mcp/init-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ environment: environmentUrl })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`MCP server returned ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('[OAuth] Session initialized:', result.sessionId);
+        
+        // Store session ID for later use
+        localStorage.setItem('dt-mcp-session', JSON.stringify({
+          sessionId: result.sessionId,
+          environment: environmentUrl,
+          mcpServer: mcpServerUrl,
+          initiatedAt: new Date().toISOString()
+        }));
+        
+        showDtStatus('info', '🔓 Opening Authentication Window', 'Please sign in with your Dynatrace SSO credentials');
+        
+        // Open OAuth URL in popup window
+        const authWindow = window.open(
+          result.authUrl, 
+          'dynatrace-sso-oauth',
+          'width=600,height=800,toolbar=no,menubar=no,location=no'
+        );
+        
+        // Listen for authentication success message
+        window.addEventListener('message', handleOAuthCallback);
+        
+        // Poll for authentication status
+        pollAuthStatus(result.sessionId, mcpServerUrl);
+        
+      } catch (error) {
+        console.error('[OAuth] Authentication error:', error);
+        showDtStatus('error', 'OAuth Failed', `Could not initiate authentication: ${error.message}`);
+      }
+    }
+    
+    // Handle OAuth callback message from popup
+    function handleOAuthCallback(event) {
+      if (event.data && event.data.type === 'mcp-authenticated') {
+        console.log('[OAuth] Received authentication success message');
+        const sessionData = JSON.parse(localStorage.getItem('dt-mcp-session') || '{}');
+        
+        if (sessionData.sessionId === event.data.sessionId) {
+          showDtStatus('success', '✅ Authentication Successful!', 'You are now authenticated. You can deploy dashboards.');
+          updateSessionStatus(true, 'Authentication complete - ready to deploy dashboards!');
+          window.removeEventListener('message', handleOAuthCallback);
+        }
+      }
+    }
+    
+    // Poll MCP server to check authentication status
+    async function pollAuthStatus(sessionId, mcpServerUrl, attempts = 0) {
+      const maxAttempts = 60; // 60 seconds
+      
+      if (attempts >= maxAttempts) {
+        showDtStatus('error', 'Authentication Timeout', 'OAuth authentication took too long. Please try again.');
+        updateSessionStatus(false, 'Authentication timeout - please try again');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${mcpServerUrl}/api/mcp/session-status/${sessionId}`);
+        const status = await response.json();
+        
+        if (status.authenticated) {
+          console.log('[OAuth] Session authenticated successfully');
+          showDtStatus('success', '✅ Authenticated!', `Connected to ${status.environment}`);
+          updateSessionStatus(true, `Connected to ${status.environment}`, status.expiresIn);
+          
+          // Update local storage with authentication confirmation
+          const sessionData = JSON.parse(localStorage.getItem('dt-mcp-session') || '{}');
+          sessionData.authenticated = true;
+          sessionData.authenticatedAt = new Date().toISOString();
+          sessionData.expiresIn = status.expiresIn;
+          localStorage.setItem('dt-mcp-session', JSON.stringify(sessionData));
+          
+          updateSettingsIndicator(true);
+          return;
+        }
+        
+        // Continue polling
+        setTimeout(() => pollAuthStatus(sessionId, mcpServerUrl, attempts + 1), 1000);
+        
+      } catch (error) {
+        console.error('[OAuth] Status check error:', error);
+        setTimeout(() => pollAuthStatus(sessionId, mcpServerUrl, attempts + 1), 1000);
+      }
+    }
+    
+    // Check current authentication status
+    async function checkAuthStatus() {
+      const sessionData = JSON.parse(localStorage.getItem('dt-mcp-session') || 'null');
+      
+      if (!sessionData || !sessionData.sessionId) {
+        showDtStatus('info', 'Not Authenticated', 'Click "Authenticate with SSO OAuth" to sign in');
+        updateSessionStatus(false, 'No active session - please authenticate');
+        return;
+      }
+      
+      const mcpServerUrl = sessionData.mcpServer || document.getElementById('dt-mcp-server-input').value.trim();
+      
+      if (!mcpServerUrl) {
+        showDtStatus('error', 'No MCP Server URL', 'Please configure MCP server URL');
+        updateSessionStatus(false, 'MCP server not configured');
+        return;
+      }
+      
+      showDtStatus('loading', 'Checking status...', 'Verifying authentication with MCP server');
+      
+      try {
+        const response = await fetch(`${mcpServerUrl}/api/mcp/session-status/${sessionData.sessionId}`);
+        const status = await response.json();
+        
+        if (status.authenticated) {
+          const expiresMinutes = Math.floor(status.expiresIn / 60);
+          showDtStatus('success', '✅ Authenticated', `Session valid for ${expiresMinutes} minutes`);
+          updateSessionStatus(true, `Session valid - expires in ${expiresMinutes} minutes`, status.expiresIn);
+        } else {
+          showDtStatus('info', 'Session Expired', status.message || 'Please authenticate again');
+          updateSessionStatus(false, status.message || 'Session expired - please re-authenticate');
+          localStorage.removeItem('dt-mcp-session');
+        }
+      } catch (error) {
+        console.error('[Auth] Status check error:', error);
+        showDtStatus('error', 'Check Failed', `Could not verify authentication: ${error.message}`);
+        updateSessionStatus(false, 'Cannot reach MCP server - check if it is running');
+      }
+    }
+    
+    // ============================================
+    // MCP Console Functions
+    // ============================================
+    
+    function openMcpConsole() {
+      const modal = document.getElementById('mcp-console-modal');
+      modal.classList.remove('hidden');
+      document.getElementById('mcp-console-input').focus();
+    }
+    
+    function closeMcpConsole() {
+      const modal = document.getElementById('mcp-console-modal');
+      modal.classList.add('hidden');
+    }
+    
+    function clearMcpConsole() {
+      const messagesDiv = document.getElementById('mcp-chat-messages');
+      // Keep only the welcome message
+      const welcomeMsg = messagesDiv.querySelector('.flex');
+      messagesDiv.innerHTML = '';
+      if (welcomeMsg) {
+        messagesDiv.appendChild(welcomeMsg.cloneNode(true));
+      }
+    }
+    
+    function addMcpMessage(content, isUser = false) {
+      const messagesDiv = document.getElementById('mcp-chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'flex gap-3 items-start';
+      
+      if (isUser) {
+        // User message (right-aligned)
+        messageDiv.innerHTML = `
+          <div class="flex-1"></div>
+          <div class="flex-1 bg-dtpurple/30 border border-dtpurple rounded-lg p-4">
+            <p class="text-sm text-white">${content}</p>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-dtpurple flex items-center justify-center flex-shrink-0">
+            <span class="text-white font-bold">👤</span>
+          </div>
+        `;
+      } else {
+        // Bot message (left-aligned)
+        messageDiv.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-dtcyan flex items-center justify-center flex-shrink-0">
+            <span class="text-black font-bold">🤖</span>
+          </div>
+          <div class="flex-1 bg-dtcard border border-dtborder rounded-lg p-4">
+            <p class="text-sm text-gray-300 whitespace-pre-wrap">${content}</p>
+          </div>
+        `;
+      }
+      
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function setMcpStatus(icon, text) {
+      document.getElementById('mcp-status-icon').textContent = icon;
+      document.getElementById('mcp-status-text').textContent = text;
+    }
+    
+    async function sendMcpMessage() {
+      const input = document.getElementById('mcp-console-input');
+      const message = input.value.trim();
+      
+      if (!message) return;
+      
+      // Add user message to chat
+      addMcpMessage(message, true);
+      input.value = '';
+      
+      // Show loading status
+      setMcpStatus('⏳', 'Sending...');
+      
+      try {
+        // Get session from localStorage
+        const sessionData = JSON.parse(localStorage.getItem('dt-mcp-session') || 'null');
+        
+        if (!sessionData || !sessionData.sessionId) {
+          addMcpMessage('⚠️ Error: No active MCP session. Please authenticate first in MCP Settings.', false);
+          setMcpStatus('❌', 'Not authenticated');
+          return;
+        }
+        
+        const mcpServerUrl = sessionData.mcpServer || 'http://localhost:3000';
+        
+        // Send message to MCP server
+        const response = await fetch(`${mcpServerUrl}/api/mcp/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionData.sessionId,
+            message: message,
+            context: {
+              timestamp: new Date().toISOString()
+            }
+          })
+        });
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            addMcpMessage('🔒 Session expired. Please re-authenticate in MCP Settings.', false);
+            setMcpStatus('❌', 'Session expired');
+            return;
+          }
+          throw new Error(`Server returned ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Add bot response to chat
+        addMcpMessage(result.message || result.response || 'No response from server', false);
+        setMcpStatus('🟢', 'Ready');
+        
+      } catch (error) {
+        console.error('[MCP Console] Error:', error);
+        addMcpMessage(`❌ Error: ${error.message}\n\nMake sure the MCP server is running and you are authenticated.`, false);
+        setMcpStatus('❌', 'Error');
+      }
+    }
+    
+    // Make MCP Console functions globally available
+    window.openMcpConsole = openMcpConsole;
+    window.closeMcpConsole = closeMcpConsole;
+    window.clearMcpConsole = clearMcpConsole;
+    window.sendMcpMessage = sendMcpMessage;
     
     // Test connection with MCP server
     async function testDynatraceConnection() {
@@ -7119,6 +9388,38 @@ Return the response in JSON code format that can be copied from this UI
       statusDiv.classList.remove('hidden');
     }
     
+    // Update the prominent session status banner
+    function updateSessionStatus(authenticated, detail = null, expiresIn = null) {
+      const statusDiv = document.getElementById('dt-session-status');
+      const iconSpan = document.getElementById('dt-session-icon');
+      const textSpan = document.getElementById('dt-session-text');
+      const detailSpan = document.getElementById('dt-session-detail');
+      
+      if (authenticated) {
+        // Authenticated state - green
+        statusDiv.className = 'p-4 rounded-lg border-2 transition-all bg-green-900/20 border-green-500';
+        iconSpan.textContent = '🟢';
+        textSpan.textContent = 'Authenticated';
+        textSpan.className = 'font-bold text-lg text-green-400';
+        
+        if (expiresIn) {
+          const minutes = Math.floor(expiresIn / 60);
+          detailSpan.textContent = detail || `Session active - expires in ${minutes} minutes`;
+        } else {
+          detailSpan.textContent = detail || 'Ready to deploy dashboards!';
+        }
+        detailSpan.className = 'text-sm mt-1 text-green-300';
+      } else {
+        // Not authenticated state - neutral/red
+        statusDiv.className = 'p-4 rounded-lg border-2 transition-all bg-red-900/10 border-red-500/50';
+        iconSpan.textContent = '🔒';
+        textSpan.textContent = 'Not Authenticated';
+        textSpan.className = 'font-bold text-lg text-red-400';
+        detailSpan.textContent = detail || 'Click "Authenticate with SSO OAuth" to connect to Dynatrace';
+        detailSpan.className = 'text-sm mt-1 text-gray-400';
+      }
+    }
+    
     function updateSettingsIndicator(hasSettings) {
       const indicator = document.getElementById('dt-settings-indicator');
       if (hasSettings) {
@@ -7140,6 +9441,8 @@ Return the response in JSON code format that can be copied from this UI
     window.testDynatraceConnection = testDynatraceConnection;
     window.toggleTokenVisibility = toggleTokenVisibility;
     window.loadDynatraceSettings = loadDynatraceSettings;
+    window.authenticateWithOAuth = authenticateWithOAuth;
+    window.checkAuthStatus = checkAuthStatus;
     
     // ============================================
     // OAuth SSO Login Flow

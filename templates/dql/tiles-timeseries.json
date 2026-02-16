@@ -1,0 +1,114 @@
+{
+  "_comment": "Service-level and process-level timeseries tiles. These use $Service and $PGI variables. All DQL verified against working Manufacturing dashboard.",
+
+  "tiles": {
+
+    "requests_total": {
+      "id": "ts_requests",
+      "title": "Requests",
+      "domain": "traffic",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries requests = sum(dt.service.request.count),\n           by:{dt.entity.service}\n| fields timeframe, interval, service = entityName(dt.entity.service), requests\n| sort arraySum(requests) desc\n| filter in(service, $Service)\n| limit 100"
+    },
+
+    "requests_failed": {
+      "id": "ts_failed_requests",
+      "title": "Failed Requests",
+      "domain": "errors",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries errors = sum(dt.service.request.failure_count, default:0),\n           nonempty: true,\n           by:{dt.entity.service}\n| fields timeframe, interval, service = entityName(dt.entity.service), errors\n| sort arraySum(errors) desc\n| filter in(service, $Service)\n| limit 100"
+    },
+
+    "requests_success_vs_failed": {
+      "id": "ts_success_vs_failed",
+      "title": "Requests - Success vs Failed",
+      "domain": "errors",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries total = sum(dt.service.request.count, default:0),\n           failed = sum(dt.service.request.failure_count, default:0),\n           nonempty: true, \n           filter: in(dt.smartscape.service, array($Service)) \n| fieldsAdd success = total[] - failed[]\n| fields timeframe, interval, success, failed"
+    },
+
+    "requests_key_requests": {
+      "id": "ts_key_requests",
+      "title": "Requests - Key Requests",
+      "domain": "traffic",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries requests = sum(dt.service.request.count),\n           by:{endpoint.name},\n           filter: endpoint.name != \"NON_KEY_REQUESTS\" and in(dt.entity.service, array($Service))\n| fields timeframe, interval, endpoint.name, requests\n| sort arraySum(requests) desc         \n| limit 100"
+    },
+
+    "latency_p50": {
+      "id": "ts_latency_p50",
+      "title": "Latency_p50",
+      "domain": "latency",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries latency_p50 = median(dt.service.request.response_time),\n           by:{dt.entity.service}\n| fields timeframe, interval, service = entityName(dt.entity.service), latency_p50\n| sort arrayAvg(latency_p50) desc\n| filter in(service, $Service)\n| limit 100"
+    },
+
+    "latency_p90": {
+      "id": "ts_latency_p90",
+      "title": "Latency_p90",
+      "domain": "latency",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries latency_p90 = percentile(dt.service.request.response_time, 90),\n           by:{dt.entity.service}\n| fields timeframe, interval, service = lower(entityName(dt.entity.service)), latency_p90\n| sort arrayAvg(latency_p90) desc\n| filter in(service, $Service)\n| limit 100"
+    },
+
+    "latency_p99": {
+      "id": "ts_latency_p99",
+      "title": "Latency_p99",
+      "domain": "latency",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries latency_p99 = percentile(dt.service.request.response_time, 99), \n           by:{dt.entity.service}\n| fields timeframe, interval, service = lower(entityName(dt.entity.service)), latency_p99\n| sort arrayAvg(latency_p99) desc\n| filter in(service, array($Service))\n| limit 100"
+    },
+
+    "errors_5xx": {
+      "id": "ts_5xx",
+      "title": "5xx Errors",
+      "domain": "errors",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries errors = sum(dt.service.request.count, default:0),\n           nonempty: true,\n           by:{dt.entity.service},\n           filter: http.response.status_code >= 500 and http.response.status_code <= 599\n| fields timeframe, interval, service = lower(entityName(dt.entity.service)), errors\n| sort arraySum(errors) desc\n| filter in(service, array($Service))\n| limit 100"
+    },
+
+    "errors_4xx": {
+      "id": "ts_4xx",
+      "title": "4xx Errors",
+      "domain": "errors",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries errors = sum(dt.service.request.count, default:0),\n           nonempty: true,\n           by:{dt.entity.service},\n           filter: http.response.status_code >= 400 and http.response.status_code <= 499\n| fields timeframe, interval, service = lower(entityName(dt.entity.service)), errors\n| filter in(service, array($Service))\n| sort arraySum(errors) desc\n| limit 100"
+    },
+
+    "cpu_usage": {
+      "id": "ts_cpu",
+      "title": "CPU Usage %",
+      "domain": "saturation",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries cpu = avg(dt.process.cpu.usage), by:{dt.smartscape.process}\n| lookup [smartscapeNodes PROCESS | fields id, name], sourceField:dt.smartscape.process, lookupField:id, fields:{name}\n| fields timeframe, interval, process = name, cpu, dt.smartscape.process\n| sort arrayAvg(cpu) desc\n| filter in(dt.smartscape.process, $PGI)\n| limit 100"
+    },
+
+    "memory_usage": {
+      "id": "ts_memory",
+      "title": "Memory Used",
+      "domain": "saturation",
+      "visualization": "barChart",
+      "requires": [],
+      "query": "timeseries cpu = avg(dt.process.memory.usage), by:{dt.smartscape.process}\n| lookup [smartscapeNodes PROCESS | fields id, name], sourceField:dt.smartscape.process, lookupField:id, fields:{name}\n| fields timeframe, interval, process = name, cpu, dt.smartscape.process\n| sort arrayAvg(cpu) desc\n| filter in(dt.smartscape.process, $PGI)\n| limit 100"
+    },
+
+    "gc_suspension_time": {
+      "id": "ts_gc",
+      "title": "GC Suspension Time",
+      "domain": "saturation",
+      "visualization": "lineChart",
+      "requires": [],
+      "query": "timeseries gc_time = avg(dt.runtime.jvm.gc.suspension_time),\n           by:{dt.smartscape.process},\n           filter: in(dt.smartscape.process, array($PGI))       \n| append [timeseries gc_time = avg(dt.runtime.clr.gc.suspension_time),\n           by:{dt.smartscape.process}, filter: in(dt.smartscape.process, array($PGI))]\n| append [timeseries gc_time = avg(dt.runtime.go.gc.suspension_time),\n           by:{dt.smartscape.process}, filter: in(dt.smartscape.process, array($PGI))]\n| append [timeseries gc_time = avg(dt.runtime.nodejs.gc.suspension_time),\n           by:{dt.smartscape.process}, filter: in(dt.smartscape.process, array($PGI))]\n| lookup [smartscapeNodes PROCESS | fields id, name], sourceField:dt.smartscape.process, lookupField:id, fields:{name}\n| fields timeframe, interval, process = name, gc_time\n| sort arrayAvg(gc_time) desc\n| limit 100"
+    }
+  }
+}

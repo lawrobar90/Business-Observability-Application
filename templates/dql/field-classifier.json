@@ -1,0 +1,110 @@
+{
+  "_comment": "Field classifier. Maps every known additionalFields name to a domain and DQL aggregation hint. The 'aggregate' tells the template resolver what DQL function to use. The 'templateSlot' maps to {{PLACEHOLDER}} tokens in tile templates.",
+
+  "knownFields": {
+
+    "orderTotal":            { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": "REVENUE_FIELD",    "label": "Order Total" },
+    "transactionValue":      { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": "REVENUE_FIELD",    "label": "Transaction Value" },
+    "averageOrderValue":     { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": "REVENUE_FIELD",    "label": "Average Order Value" },
+    "contractValue":         { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": "REVENUE_FIELD",    "label": "Contract Value" },
+    "annualRevenue":         { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": "REVENUE_FIELD",    "label": "Annual Revenue" },
+    "customerLifetimeValue": { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Customer Lifetime Value" },
+    "revenuePerCustomer":    { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Revenue Per Customer" },
+    "profitMargin":          { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Profit Margin" },
+    "discountApplied":       { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": null,               "label": "Discount Applied" },
+    "taxAmount":             { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": null,               "label": "Tax Amount" },
+    "shippingCost":          { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": null,               "label": "Shipping Cost" },
+    "acquisitionCost":       { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Acquisition Cost" },
+    "operationalCost":       { "domain": "revenue",     "type": "number",  "aggregate": "sum",        "templateSlot": null,               "label": "Operational Cost" },
+    "costPerAcquisition":    { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Cost Per Acquisition" },
+    "upsellPotential":       { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Upsell Potential" },
+    "growthPotential":       { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Growth Potential" },
+    "futureValue":           { "domain": "revenue",     "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Future Value" },
+
+    "processingTime":        { "domain": "duration",    "type": "number",  "aggregate": "avg",        "templateSlot": "DURATION_FIELD",   "label": "Processing Time" },
+    "sessionDuration":       { "domain": "duration",    "type": "number",  "aggregate": "avg",        "templateSlot": "DURATION_FIELD",   "label": "Session Duration" },
+    "timeToConversion":      { "domain": "duration",    "type": "number",  "aggregate": "avg",        "templateSlot": "DURATION_FIELD",   "label": "Time to Conversion" },
+
+    "hasError":              { "domain": "error",       "type": "boolean", "aggregate": "countIf",    "templateSlot": "ERROR_BOOL_FIELD", "label": "Has Error" },
+
+    "errorMessage":          { "domain": "error",       "type": "string",  "aggregate": "groupBy",    "templateSlot": "ERROR_MSG_FIELD",  "label": "Error Message" },
+    "errorCode":             { "domain": "error",       "type": "string",  "aggregate": "groupBy",    "templateSlot": "ERROR_MSG_FIELD",  "label": "Error Code" },
+
+    "deviceType":            { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Device Type" },
+    "entryChannel":          { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Entry Channel" },
+    "customerIntent":        { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Customer Intent" },
+    "loyaltyStatus":         { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Loyalty Status" },
+    "abandonmentRisk":       { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Abandonment Risk" },
+    "pricingTier":           { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Pricing Tier" },
+    "subscriptionLevel":     { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Subscription Level" },
+    "membershipStatus":      { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Membership Status" },
+    "churnRisk":             { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Churn Risk" },
+    "crossSellOpportunity":  { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Cross-Sell Opportunity" },
+    "customerSegmentValue":  { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Customer Segment" },
+    "marketSegment":         { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Market Segment" },
+    "competitiveAdvantage":  { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Competitive Advantage" },
+    "brandLoyalty":          { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Brand Loyalty" },
+    "competitorComparison":  { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Competitor Comparison" },
+    "riskLevel":             { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Risk Level" },
+    "securityRating":        { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Security Rating" },
+    "expansionOpportunity":  { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Expansion Opportunity" },
+    "marketTrend":           { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Market Trend" },
+    "conversionFunnelStage": { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Funnel Stage" },
+    "businessEventType":     { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Business Event Type" },
+    "acquisitionChannel":    { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Acquisition Channel" },
+    "fraudRisk":             { "domain": "categorical", "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Fraud Risk" },
+
+    "pageViews":             { "domain": "count",       "type": "number",  "aggregate": "sum",        "templateSlot": null,               "label": "Page Views" },
+    "purchaseFrequency":     { "domain": "count",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Purchase Frequency" },
+    "businessCriticalityScore": { "domain": "count",    "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Criticality Score" },
+
+    "conversionProbability": { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Conversion Probability" },
+    "conversionRate":        { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Conversion Rate" },
+    "engagementScore":       { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Engagement Score" },
+    "satisfactionRating":    { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Satisfaction Rating" },
+    "netPromoterScore":      { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Net Promoter Score" },
+    "complianceScore":       { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Compliance Score" },
+    "efficiencyRating":      { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Efficiency Rating" },
+    "resourceUtilization":   { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Resource Utilization" },
+    "marketShare":           { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Market Share" },
+    "seasonalImpact":        { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Seasonal Impact" },
+    "retentionProbability":  { "domain": "score",       "type": "number",  "aggregate": "avg",        "templateSlot": null,               "label": "Retention Probability" },
+
+    "browser":               { "domain": "customer",    "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Browser" },
+    "location":              { "domain": "customer",    "type": "string",  "aggregate": "groupBy",    "templateSlot": null,               "label": "Location" },
+    "sessionId":             { "domain": "customer",    "type": "string",  "aggregate": "countDistinct", "templateSlot": null,            "label": "Session ID" },
+    "currency":              { "domain": "meta",        "type": "string",  "aggregate": null,         "templateSlot": null,               "label": "Currency" }
+  },
+
+  "domainPriority": [
+    "error",
+    "revenue",
+    "duration",
+    "categorical",
+    "score",
+    "count",
+    "customer",
+    "meta"
+  ],
+
+  "templateSlotFallbacks": {
+    "_comment": "If a journey config has no field matching a slot, use these defaults",
+    "REVENUE_FIELD":    "additionalfields.orderTotal",
+    "DURATION_FIELD":   "additionalfields.processingTime",
+    "ERROR_BOOL_FIELD": "additionalfields.hasError",
+    "ERROR_MSG_FIELD":  "additionalfields.errorMessage"
+  },
+
+  "unknownFieldRules": {
+    "_comment": "If a field name is NOT in knownFields, classify it by heuristic",
+    "heuristics": [
+      { "pattern": "amount|revenue|cost|price|total|value|fee|premium|claim|salary|budget|payment",  "domain": "revenue",     "type": "number",  "aggregate": "sum" },
+      { "pattern": "time|duration|latency|delay|wait|response|elapsed|ttfb|ttl",                     "domain": "duration",    "type": "number",  "aggregate": "avg" },
+      { "pattern": "error|fail|exception|fault|invalid|reject",                                      "domain": "error",       "type": "boolean", "aggregate": "countIf" },
+      { "pattern": "rate|score|ratio|probability|percentage|percent|index|rating|nps",                "domain": "score",       "type": "number",  "aggregate": "avg" },
+      { "pattern": "count|quantity|number|total|views|visits|clicks|impressions",                     "domain": "count",       "type": "number",  "aggregate": "sum" },
+      { "pattern": "status|type|tier|level|category|segment|channel|region|class|grade|risk|stage",   "domain": "categorical", "type": "string",  "aggregate": "groupBy" },
+      { "pattern": "id|key|code|ref|token|session|uuid",                                             "domain": "meta",        "type": "string",  "aggregate": null }
+    ]
+  }
+}

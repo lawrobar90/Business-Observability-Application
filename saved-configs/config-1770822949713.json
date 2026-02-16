@@ -1,0 +1,448 @@
+{
+  "companyName": "BT",
+  "domain": "www.bt.com",
+  "industryType": "",
+  "journeyRequirements": "Company: BT (British Telecom)\nIndustry: Telecommunications\nJourney Type: Broadband service setup from package selection to activation.\n\nKey Steps:\n\nPackageSelection: Customer chooses a broadband package.\n\nEligibilityCheck: BT checks address availability, fibre coverage, and estimated speeds.\n\nOrderPlacement: Customer enters details and payment; BT creates the order.\n\nAppointmentScheduling: Engineer visit booked if required.\n\nEquipmentDispatch: BT ships Smart Hub and any add‑ons.\n\nInstallationAndActivation: Openreach installs line/ONT and BT activates service.\n\nPostActivationTesting: BT runs line tests and confirms performance.\n\nBusiness Metrics to Track:\n\nRevenue: Package price, activation fees, add‑on revenue.\n\nCustomer: Satisfaction, lifetime value, churn risk.\n\nPerformance: Processing time, order completion rate, activation success.\n\nOperational: Engineer utilisation, dispatch accuracy, provisioning backlog.\n\nCommon Error Scenarios:\n\nPackage availability incorrect or speeds unclear.\n\nAddress not recognised or inaccurate speed estimate.\n\nPayment failure or credit‑check issues.\n\nNo engineer slots or scheduling sync failures.\n\nRouter not delivered or wrong equipment sent.\n\nEngineer unable to complete installation or activation fails.\n\nLow speeds or intermittent connection after activation.",
+  "copilotResponse": "",
+  "copilotResponseStep2": "{\n  \"journey\": {\n    \"companyName\": \"BT\",\n    \"domain\": \"www.bt.com\",\n    \"industryType\": \"Telecommunications\",\n    \"journeyType\": \"Purchase Journey\",\n    \"journeyDetail\": \"Purchase Journey\",\n    \"journeyId\": \"journey_bt_2025\",\n    \"journeyStartTime\": \"2025-11-21T00:00:00.000Z\",\n    \"steps\": [\n      {\n        \"stepIndex\": 1,\n        \"stepName\": \"PackageSelection\",\n        \"serviceName\": \"PackageSelectionService\",\n        \"description\": \"Customer browses BT broadband packages (e.g. BT Fibre 1, BT Fibre 2, Full Fibre 500), compares speeds and prices, and selects a package to proceed to checkout. Business events: package_viewed, package_compared, package_selected.\",\n        \"category\": \"Acquisition\",\n        \"timestamp\": \"2025-11-21T00:00:00.000Z\",\n        \"estimatedDuration\": 4,\n        \"businessRationale\": \"New broadband customers typically spend 3–5 minutes comparing speed tiers and prices; this step strongly influences ARPU and determines the base monthly revenue and add-on potential.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"LoadPackageCatalog\",\n            \"duration\": 1\n          },\n          {\n            \"substepName\": \"ComparePackages\",\n            \"duration\": 2\n          },\n          {\n            \"substepName\": \"SelectPackage\",\n            \"duration\": 1\n          }\n        ]\n      },\n      {\n        \"stepIndex\": 2,\n        \"stepName\": \"EligibilityCheck\",\n        \"serviceName\": \"EligibilityCheckService\",\n        \"description\": \"BT checks address availability, fibre coverage, and estimated speeds using Openreach and network inventory APIs. Business events: address_lookup_performed, eligibility_result_returned, speed_estimate_confirmed, eligibility_failed.\",\n        \"category\": \"Qualification\",\n        \"estimatedDuration\": 3,\n        \"businessRationale\": \"Address and coverage checks typically complete within a few API calls and brief customer review (2–4 minutes); failures here directly block new revenue and create abandonment, so latency and error rates are critical.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"AddressLookup\",\n            \"duration\": 1\n          },\n          {\n            \"substepName\": \"CoverageAndSpeedCheck\",\n            \"duration\": 1\n          },\n          {\n            \"substepName\": \"CustomerReviewsSpeedEstimate\",\n            \"duration\": 1\n          }\n        ]\n      },\n      {\n        \"stepIndex\": 3,\n        \"stepName\": \"OrderPlacement\",\n        \"serviceName\": \"OrderPlacementService\",\n        \"description\": \"Customer enters personal details, confirms product SKU, adds optional extras (e.g. Complete Wi-Fi, digital voice add-ons), and submits payment; BT performs credit checks if needed and creates the broadband order. Business events: customer_details_submitted, payment_initiated, payment_successful, payment_failed, order_created.\",\n        \"category\": \"Transaction\",\n        \"estimatedDuration\": 7,\n        \"businessRationale\": \"Form filling, payment entry, and credit checks typically take 6–8 minutes; this step directly generates subscription revenue, activation fees, and add-on revenue, so payment success rate and processing time are key business KPIs.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"EnterCustomerAndAddressDetails\",\n            \"duration\": 3\n          },\n          {\n            \"substepName\": \"PaymentAndCreditCheck\",\n            \"duration\": 2\n          },\n          {\n            \"substepName\": \"OrderCreationAndConfirmation\",\n            \"duration\": 2\n          }\n        ]\n      },\n      {\n        \"stepIndex\": 4,\n        \"stepName\": \"AppointmentScheduling\",\n        \"serviceName\": \"AppointmentSchedulingService\",\n        \"description\": \"If installation is required, customer selects an engineer appointment slot from available dates and times; BT reserves the slot and confirms it in the order. Business events: appointment_slots_loaded, appointment_slot_selected, appointment_confirmed, appointment_scheduling_failed, no_slots_available.\",\n        \"category\": \"Fulfilment\",\n        \"estimatedDuration\": 5,\n        \"businessRationale\": \"Checking slot availability, handling conflicts, and customer decision-making typically take 4–6 minutes; inability to find a suitable slot is a major cause of drop-off and delayed revenue recognition.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"LoadAvailableEngineerSlots\",\n            \"duration\": 2\n          },\n          {\n            \"substepName\": \"CustomerSelectsPreferredSlot\",\n            \"duration\": 2\n          },\n          {\n            \"substepName\": \"ConfirmAndPersistAppointment\",\n            \"duration\": 1\n          }\n        ]\n      },\n      {\n        \"stepIndex\": 5,\n        \"stepName\": \"EquipmentDispatch\",\n        \"serviceName\": \"EquipmentDispatchService\",\n        \"description\": \"BT generates a dispatch order for the Smart Hub and any add-ons (e.g. Wi-Fi discs), assigns a courier, and updates tracking details. Business events: dispatch_order_created, equipment_allocated, courier_assigned, dispatch_confirmed, dispatch_error, wrong_equipment_flagged.\",\n        \"category\": \"Logistics\",\n        \"estimatedDuration\": 3,\n        \"businessRationale\": \"Back-office orchestration for dispatch (warehouse allocation, courier integration) typically takes 2–4 minutes of system processing; dispatch accuracy and timeliness directly affect installation success and support costs.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"CreateWarehouseDispatchOrder\",\n            \"duration\": 1\n          },\n          {\n            \"substepName\": \"AllocateEquipmentAndGenerateLabels\",\n            \"duration\": 1\n          },\n          {\n            \"substepName\": \"AssignCourierAndSendTracking\",\n            \"duration\": 1\n          }\n        ]\n      },\n      {\n        \"stepIndex\": 6,\n        \"stepName\": \"InstallationAndActivation\",\n        \"serviceName\": \"InstallationAndActivationService\",\n        \"description\": \"Openreach engineer installs the line/ONT if required, BT provisions the service, activates broadband, and runs post-activation line tests to confirm performance and stability. Business events: engineer_arrived, installation_started, installation_completed, activation_started, activation_successful, activation_failed, post_activation_test_run, post_activation_test_failed, low_speed_detected.\",\n        \"category\": \"Activation\",\n        \"estimatedDuration\": 60,\n        \"businessRationale\": \"Engineer visits for fibre installation typically take 45–90 minutes; successful activation and post-activation testing are critical to first-day experience, churn risk, and the ability to recognise revenue from the subscription.\",\n        \"substeps\": [\n          {\n            \"substepName\": \"OnSiteInstallationAndCPESetup\",\n            \"duration\": 35\n          },\n          {\n            \"substepName\": \"NetworkProvisioningAndServiceActivation\",\n            \"duration\": 15\n          },\n          {\n            \"substepName\": \"PostActivationLineAndSpeedTesting\",\n            \"duration\": 10\n          }\n        ]\n      }\n    ]\n  },\n  \"customerProfile\": {\n    \"userId\": \"user_bt_001\",\n    \"email\": \"testuser@bt.com\",\n    \"userSegment\": \"New\",\n    \"digitalBehaviorPattern\": \"Researches broadband options online, compares speeds and prices, and completes purchase in a single session if eligibility and pricing are clear.\",\n    \"businessValueTier\": \"High\",\n    \"experienceExpectations\": \"Fast page loads, clear speed and price information, frictionless payment, and reliable installation on the first appointment.\",\n    \"conversionLikelihood\": 0.68,\n    \"technologyProfile\": \"Primarily desktop and laptop usage with Chrome on a stable home connection; comfortable with online checkout and digital communications.\"\n  },\n  \"traceMetadata\": {\n    \"correlationId\": \"trace_bt_2025\",\n    \"sessionId\": \"session_bt_001\",\n    \"businessContext\": {\n      \"campaignSource\": \"Paid Search\",\n      \"customerSegment\": \"standard\",\n      \"businessValue\": \"£1,080\",\n      \"revenueImpact\": \"£540\",\n      \"transactionAmount\": \"£39.99\"\n    }\n  },\n  \"additionalFields\": {\n    \"deviceType\": \"Desktop\",\n    \"entryChannel\": \"Paid Search\",\n    \"customerIntent\": \"Set up new fibre broadband service with BT including router delivery and installation.\",\n    \"loyaltyStatus\": \"NewCustomer\",\n    \"sessionId\": \"session_bt_${timestamp}\",\n    \"transactionValue\": \"£39.99\",\n    \"currency\": \"GBP\",\n    \"businessEventType\": \"purchase_completed\",\n    \"revenueImpact\": \"£540\",\n    \"conversionFunnelStage\": \"Purchase\",\n    \"customerLifetimeValue\": \"£1,080\",\n    \"acquisitionChannel\": \"Search\",\n    \"businessCriticalityScore\": 9,\n    \"performanceThresholds\": {\n      \"maxAcceptableLatency\": \"2.5s for checkout, 800ms for eligibility and availability APIs\",\n      \"minConversionRate\": 0.03,\n      \"targetErrorRate\": 0.001\n    },\n    \"businessMetrics\": {\n      \"expectedConversionRate\": 0.04,\n      \"averageOrderValue\": \"£39.99\",\n      \"customerRetentionImpact\": \"Successful activation and good initial speeds significantly reduce early-life churn and support calls.\",\n      \"revenueAttribution\": \"Monthly broadband subscription revenue plus activation fee and any add-on services are directly tied to this journey completing successfully.\"\n    },\n    \"observabilityRequirements\": {\n      \"businessEventTracking\": \"package_viewed, package_selected, address_lookup_performed, eligibility_result_returned, payment_successful, order_created, appointment_confirmed, dispatch_confirmed, activation_successful, post_activation_test_run\",\n      \"performanceKPIs\": \"End-to-end journey time, API response times for eligibility and payment, error rates per step, activation success rate, order completion rate.\",\n      \"alertingPriority\": \"Critical\",\n      \"dashboardMetrics\": \"Conversion rate by step, drop-off at eligibility and payment, payment failure rate, engineer utilisation, dispatch accuracy, provisioning backlog, activation success vs failure, post-activation speed compliance.\"\n    },\n    \"realUserMonitoring\": {\n      \"coreWebVitals\": \"LCP < 2.5s, FID < 100ms, CLS < 0.1 across key broadband purchase pages.\",\n      \"businessImpactOfSlowness\": \"Estimated £0.50 revenue lost per 100ms delay on checkout and eligibility pages due to increased abandonment.\",\n      \"errorBusinessConsequences\": \"Eligibility errors, payment failures, or activation issues cause immediate revenue loss, higher contact centre volume, and increased churn risk in the first 90 days.\"\n    }\n  }\n}\n",
+  "promptText1": "BT at www.bt.com is the focus for this chat.\n\nYou are a Business Observability specialist creating realistic customer journey simulations for application monitoring and business analytics platforms.\n\nYour goal is to analyze BT's digital business model to create accurate observability scenarios with proper business events, revenue tracking, and customer experience metrics that would be monitored in production.\n\nFocus on BT's digital touchpoints and business-critical user flows that generate measurable business outcomes. Analyze their:\n\n**DIGITAL BUSINESS ARCHITECTURE:**\n1. **Primary Revenue Streams**: What are their main monetization methods and typical transaction values?\n2. **Critical User Journeys**: What are the 3 most important customer flows that drive revenue?\n3. **Journey Classification**: What specific industry type and concise journey names describe their flows (e.g. \"Trial Signup\", \"Purchase Journey\")?\n4. **Technology Stack**: What platforms, APIs, and services likely power their digital experience?\n\n**OBSERVABILITY REQUIREMENTS:**\n1. **Business Events**: What key business moments should be tracked (purchases, signups, upgrades, cancellations)?\n2. **Revenue Attribution**: How do customer actions translate to measurable business value?\n3. **Experience Metrics**: What user experience indicators impact their business outcomes?\n\n**MONITORING PRIORITIES:**\n1. **Performance Impact**: Which slow services would hurt their revenue most?\n2. **Error Consequences**: What failures would cause immediate business loss?\n3. **Conversion Tracking**: What steps in their funnel need observability data?\n\nReturn a structured analysis focusing on:\n- Specific business events that need monitoring\n- Revenue impact of different user actions\n- Technology dependencies that affect customer experience\n- Realistic conversion rates and transaction values for their industry\n- Key performance indicators that matter for their business model\n\nBase your analysis on publicly available information about BT's business model, but focus on practical observability scenarios rather than generic business strategy.",
+  "promptText2": "Create a business observability customer journey JSON for BT (www.bt.com) based on your previous analysis.\n\n🎯 SPECIFIC JOURNEY REQUIREMENTS: \"Company: BT (British Telecom)\nIndustry: Telecommunications\nJourney Type: Broadband service setup from package selection to activation.\n\nKey Steps:\n\nPackageSelection: Customer chooses a broadband package.\n\nEligibilityCheck: BT checks address availability, fibre coverage, and estimated speeds.\n\nOrderPlacement: Customer enters details and payment; BT creates the order.\n\nAppointmentScheduling: Engineer visit booked if required.\n\nEquipmentDispatch: BT ships Smart Hub and any add‑ons.\n\nInstallationAndActivation: Openreach installs line/ONT and BT activates service.\n\nPostActivationTesting: BT runs line tests and confirms performance.\n\nBusiness Metrics to Track:\n\nRevenue: Package price, activation fees, add‑on revenue.\n\nCustomer: Satisfaction, lifetime value, churn risk.\n\nPerformance: Processing time, order completion rate, activation success.\n\nOperational: Engineer utilisation, dispatch accuracy, provisioning backlog.\n\nCommon Error Scenarios:\n\nPackage availability incorrect or speeds unclear.\n\nAddress not recognised or inaccurate speed estimate.\n\nPayment failure or credit‑check issues.\n\nNo engineer slots or scheduling sync failures.\n\nRouter not delivered or wrong equipment sent.\n\nEngineer unable to complete installation or activation fails.\n\nLow speeds or intermittent connection after activation.\"\n\nThe customer journey MUST model the exact observability scenario described above. Design realistic business events, user interactions, and measurable outcomes that would appear in application monitoring dashboards and business analytics platforms.\n\n⚠️ CRITICAL: Must include duration fields and business value tracking or response will be rejected ⚠️\n\nReturn JSON with this structure:\n{\n  \"journey\": {\n    \"companyName\": \"BT\",\n    \"domain\": \"www.bt.com\",\n    \"industryType\": \"[Use industry from C-suite analysis]\",\n    \"journeyType\": \"[Concise journey name like 'Trial Signup', 'Purchase Journey', 'Subscription Flow']\",\n    \"journeyDetail\": \"[Same as journeyType - concise 2-3 word description]\",\n    \"journeyId\": \"journey_bt_2025\",\n    \"journeyStartTime\": \"2025-11-21T00:00:00.000Z\",\n    \"steps\": [\n      {\n        \"stepIndex\": 1,\n        \"stepName\": \"[IndustrySpecificStepName]\",\n        \"serviceName\": \"[IndustrySpecificStepNameService]\",\n        \"description\": \"[What happens in this step]\",\n        \"category\": \"[StepCategory]\",\n        \"timestamp\": \"2025-11-21T00:00:00.000Z\",\n        \"estimatedDuration\": \"[realistic_minutes]\",\n        \"businessRationale\": \"[Why this duration for this industry]\",\n        \"substeps\": [\n          {\"substepName\": \"[substep description]\", \"duration\": \"[minutes]\"},\n          {\"substepName\": \"[substep description]\", \"duration\": \"[minutes]\"}\n        ]\n      }\n    ]\n  },\n  \"customerProfile\": {\n    \"userId\": \"user_bt_001\",\n    \"email\": \"testuser@bt.com\",\n    \"userSegment\": \"[High-value|Standard|New - based on BT's segmentation]\",\n    \"digitalBehaviorPattern\": \"[How they typically interact with BT]\",\n    \"businessValueTier\": \"[Revenue potential of this user type]\",\n    \"experienceExpectations\": \"[Performance and UX standards they expect]\",\n    \"conversionLikelihood\": \"[Probability of completing business goal]\",\n    \"technologyProfile\": \"[Device preferences, browser, connectivity affecting UX]\"\n  },\n  \"traceMetadata\": {\n    \"correlationId\": \"trace_bt_2025\",\n    \"sessionId\": \"session_bt_001\",\n    \"businessContext\": {\n      \"campaignSource\": \"[e.g. Organic Search, Paid Search, Social Media]\",\n      \"customerSegment\": \"[e.g. premium, standard, enterprise]\",\n      \"businessValue\": \"[e.g. £1,250]\",\n      \"revenueImpact\": \"[e.g. £450 per customer]\",\n      \"transactionAmount\": \"[e.g. £89.99]\"\n    }\n  },\n  \"additionalFields\": {\n    \"deviceType\": \"[Mobile|Desktop|Tablet - based on their target audience]\",\n    \"entryChannel\": \"[Primary traffic source for BT]\",\n    \"customerIntent\": \"[Most common user goal on www.bt.com]\",\n    \"loyaltyStatus\": \"[Realistic for their customer base]\",\n    \"sessionId\": \"session_bt_${timestamp}\",\n    \"transactionValue\": \"[Realistic transaction size for BT]\",\n    \"currency\": \"[Local currency for BT's primary market]\",\n    \"businessEventType\": \"[e.g. purchase_completed, trial_started, subscription_upgraded]\",\n    \"revenueImpact\": \"[Direct revenue from this journey type]\",\n    \"conversionFunnelStage\": \"[Discovery|Interest|Consideration|Purchase|Retention]\",\n    \"customerLifetimeValue\": \"[Realistic CLV for their industry]\",\n    \"acquisitionChannel\": \"[Most effective channel for BT]\",\n    \"businessCriticalityScore\": \"[1-10 based on revenue impact]\",\n    \"performanceThresholds\": {\n      \"maxAcceptableLatency\": \"[e.g. 2.5s for checkout, 800ms for search]\",\n      \"minConversionRate\": \"[Industry benchmark for BT's sector]\",\n      \"targetErrorRate\": \"[e.g. <0.1% for payment flows]\"\n    },\n    \"businessMetrics\": {\n      \"expectedConversionRate\": \"[Realistic for their funnel step]\",\n      \"averageOrderValue\": \"[Typical transaction size]\",\n      \"customerRetentionImpact\": \"[How this journey affects retention]\",\n      \"revenueAttribution\": \"[Revenue directly tied to this experience]\"\n    },\n    \"observabilityRequirements\": {\n      \"businessEventTracking\": \"[Key events to monitor in this journey]\",\n      \"performanceKPIs\": \"[Response time, error rate, conversion impact]\",\n      \"alertingPriority\": \"[Critical|High|Medium based on business impact]\",\n      \"dashboardMetrics\": \"[Metrics needed for business visibility]\"\n    },\n    \"realUserMonitoring\": {\n      \"coreWebVitals\": \"[LCP, FID, CLS expectations for their UX]\",\n      \"businessImpactOfSlowness\": \"[Revenue lost per 100ms delay]\",\n      \"errorBusinessConsequences\": \"[Cost of failures in this journey]\"\n    }\n  }\n}\n\nRequirements:\n- Create exactly 6 business-critical steps that generate measurable business events\n- Every step needs estimatedDuration (minutes) and businessRationale explaining revenue/experience impact\n- Every substep needs duration (minutes) - substeps must add up to step duration\n- ServiceName = StepName + 'Service' in PascalCase format (for microservice architecture)\n- Use realistic durations that match industry performance expectations\n- Only step 1 needs timestamp field\n- Replace ALL bracketed placeholders with actual values based on BT's business model\n- **CRITICAL: Set industryType to specific industry (e.g. \"Cloud Software\", \"Streaming Media\", \"E-commerce\")**\n- **CRITICAL: Set journeyType and journeyDetail to concise 2-3 word journey name (e.g. \"Trial Signup\", \"Purchase Journey\", \"Support Request\")**\n- Focus on user actions that create business value and generate observable events\n- Include realistic business metrics: conversion rates, transaction values, performance thresholds\n- ProductSKUs should match their actual product format if identifiable from public data\n- All business values should be realistic for their industry and market position\n- All percentage values should be numeric (e.g. 0.72 not \"72%\")\n- Durations must be numeric integers, not strings\n- Focus on scenarios that would appear in business observability dashboards\n\nReturn the response in JSON code format that can be copied from this UI\n\n⚠️ BUSINESS EVENT TRACKING REQUIRED: Each step must produce measurable business outcomes ⚠️",
+  "journeyType": "",
+  "details": "",
+  "customSteps": "",
+  "lastJourney": {
+    "companyName": "BT",
+    "domain": "www.bt.com",
+    "industryType": "Telecommunications",
+    "journeyType": "Purchase Journey",
+    "journeyDetail": "Purchase Journey",
+    "journeyId": "journey_bt_2025",
+    "journeyStartTime": "2025-11-21T00:00:00.000Z",
+    "steps": [
+      {
+        "stepIndex": 1,
+        "stepName": "PackageSelection",
+        "serviceName": "PackageSelectionService",
+        "description": "Customer browses BT broadband packages (e.g. BT Fibre 1, BT Fibre 2, Full Fibre 500), compares speeds and prices, and selects a package to proceed to checkout. Business events: package_viewed, package_compared, package_selected.",
+        "category": "Acquisition",
+        "timestamp": "2025-11-21T00:00:00.000Z",
+        "estimatedDuration": 4,
+        "businessRationale": "New broadband customers typically spend 3–5 minutes comparing speed tiers and prices; this step strongly influences ARPU and determines the base monthly revenue and add-on potential.",
+        "substeps": [
+          {
+            "substepName": "LoadPackageCatalog",
+            "duration": 1
+          },
+          {
+            "substepName": "ComparePackages",
+            "duration": 2
+          },
+          {
+            "substepName": "SelectPackage",
+            "duration": 1
+          }
+        ],
+        "hasError": false
+      },
+      {
+        "stepIndex": 2,
+        "stepName": "EligibilityCheck",
+        "serviceName": "EligibilityCheckService",
+        "description": "BT checks address availability, fibre coverage, and estimated speeds using Openreach and network inventory APIs. Business events: address_lookup_performed, eligibility_result_returned, speed_estimate_confirmed, eligibility_failed.",
+        "category": "Qualification",
+        "estimatedDuration": 3,
+        "businessRationale": "Address and coverage checks typically complete within a few API calls and brief customer review (2–4 minutes); failures here directly block new revenue and create abandonment, so latency and error rates are critical.",
+        "substeps": [
+          {
+            "substepName": "AddressLookup",
+            "duration": 1
+          },
+          {
+            "substepName": "CoverageAndSpeedCheck",
+            "duration": 1
+          },
+          {
+            "substepName": "CustomerReviewsSpeedEstimate",
+            "duration": 1
+          }
+        ],
+        "hasError": false
+      },
+      {
+        "stepIndex": 3,
+        "stepName": "OrderPlacement",
+        "serviceName": "OrderPlacementService",
+        "description": "Customer enters personal details, confirms product SKU, adds optional extras (e.g. Complete Wi-Fi, digital voice add-ons), and submits payment; BT performs credit checks if needed and creates the broadband order. Business events: customer_details_submitted, payment_initiated, payment_successful, payment_failed, order_created.",
+        "category": "Transaction",
+        "estimatedDuration": 7,
+        "businessRationale": "Form filling, payment entry, and credit checks typically take 6–8 minutes; this step directly generates subscription revenue, activation fees, and add-on revenue, so payment success rate and processing time are key business KPIs.",
+        "substeps": [
+          {
+            "substepName": "EnterCustomerAndAddressDetails",
+            "duration": 3
+          },
+          {
+            "substepName": "PaymentAndCreditCheck",
+            "duration": 2
+          },
+          {
+            "substepName": "OrderCreationAndConfirmation",
+            "duration": 2
+          }
+        ],
+        "hasError": false
+      },
+      {
+        "stepIndex": 4,
+        "stepName": "AppointmentScheduling",
+        "serviceName": "AppointmentSchedulingService",
+        "description": "If installation is required, customer selects an engineer appointment slot from available dates and times; BT reserves the slot and confirms it in the order. Business events: appointment_slots_loaded, appointment_slot_selected, appointment_confirmed, appointment_scheduling_failed, no_slots_available.",
+        "category": "Fulfilment",
+        "estimatedDuration": 5,
+        "businessRationale": "Checking slot availability, handling conflicts, and customer decision-making typically take 4–6 minutes; inability to find a suitable slot is a major cause of drop-off and delayed revenue recognition.",
+        "substeps": [
+          {
+            "substepName": "LoadAvailableEngineerSlots",
+            "duration": 2
+          },
+          {
+            "substepName": "CustomerSelectsPreferredSlot",
+            "duration": 2
+          },
+          {
+            "substepName": "ConfirmAndPersistAppointment",
+            "duration": 1
+          }
+        ],
+        "hasError": false
+      },
+      {
+        "stepIndex": 5,
+        "stepName": "EquipmentDispatch",
+        "serviceName": "EquipmentDispatchService",
+        "description": "BT generates a dispatch order for the Smart Hub and any add-ons (e.g. Wi-Fi discs), assigns a courier, and updates tracking details. Business events: dispatch_order_created, equipment_allocated, courier_assigned, dispatch_confirmed, dispatch_error, wrong_equipment_flagged.",
+        "category": "Logistics",
+        "estimatedDuration": 3,
+        "businessRationale": "Back-office orchestration for dispatch (warehouse allocation, courier integration) typically takes 2–4 minutes of system processing; dispatch accuracy and timeliness directly affect installation success and support costs.",
+        "substeps": [
+          {
+            "substepName": "CreateWarehouseDispatchOrder",
+            "duration": 1
+          },
+          {
+            "substepName": "AllocateEquipmentAndGenerateLabels",
+            "duration": 1
+          },
+          {
+            "substepName": "AssignCourierAndSendTracking",
+            "duration": 1
+          }
+        ],
+        "hasError": false
+      },
+      {
+        "stepIndex": 6,
+        "stepName": "InstallationAndActivation",
+        "serviceName": "InstallationAndActivationService",
+        "description": "Openreach engineer installs the line/ONT if required, BT provisions the service, activates broadband, and runs post-activation line tests to confirm performance and stability. Business events: engineer_arrived, installation_started, installation_completed, activation_started, activation_successful, activation_failed, post_activation_test_run, post_activation_test_failed, low_speed_detected.",
+        "category": "Activation",
+        "estimatedDuration": 60,
+        "businessRationale": "Engineer visits for fibre installation typically take 45–90 minutes; successful activation and post-activation testing are critical to first-day experience, churn risk, and the ability to recognise revenue from the subscription.",
+        "substeps": [
+          {
+            "substepName": "OnSiteInstallationAndCPESetup",
+            "duration": 35
+          },
+          {
+            "substepName": "NetworkProvisioningAndServiceActivation",
+            "duration": 15
+          },
+          {
+            "substepName": "PostActivationLineAndSpeedTesting",
+            "duration": 10
+          }
+        ],
+        "hasError": false
+      }
+    ],
+    "additionalFields": {
+      "deviceType": "Desktop",
+      "entryChannel": "Paid Search",
+      "customerIntent": "Set up new fibre broadband service with BT including router delivery and installation.",
+      "loyaltyStatus": "NewCustomer",
+      "sessionId": "session_bt_${timestamp}",
+      "transactionValue": "£39.99",
+      "currency": "GBP",
+      "businessEventType": "purchase_completed",
+      "revenueImpact": "£540",
+      "conversionFunnelStage": "Purchase",
+      "customerLifetimeValue": "£1,080",
+      "acquisitionChannel": "Search",
+      "businessCriticalityScore": 9,
+      "performanceThresholds": {
+        "maxAcceptableLatency": "2.5s for checkout, 800ms for eligibility and availability APIs",
+        "minConversionRate": 0.03,
+        "targetErrorRate": 0.001
+      },
+      "businessMetrics": {
+        "expectedConversionRate": 0.04,
+        "averageOrderValue": "£39.99",
+        "customerRetentionImpact": "Successful activation and good initial speeds significantly reduce early-life churn and support calls.",
+        "revenueAttribution": "Monthly broadband subscription revenue plus activation fee and any add-on services are directly tied to this journey completing successfully."
+      },
+      "observabilityRequirements": {
+        "businessEventTracking": "package_viewed, package_selected, address_lookup_performed, eligibility_result_returned, payment_successful, order_created, appointment_confirmed, dispatch_confirmed, activation_successful, post_activation_test_run",
+        "performanceKPIs": "End-to-end journey time, API response times for eligibility and payment, error rates per step, activation success rate, order completion rate.",
+        "alertingPriority": "Critical",
+        "dashboardMetrics": "Conversion rate by step, drop-off at eligibility and payment, payment failure rate, engineer utilisation, dispatch accuracy, provisioning backlog, activation success vs failure, post-activation speed compliance."
+      },
+      "realUserMonitoring": {
+        "coreWebVitals": "LCP < 2.5s, FID < 100ms, CLS < 0.1 across key broadband purchase pages.",
+        "businessImpactOfSlowness": "Estimated £0.50 revenue lost per 100ms delay on checkout and eligibility pages due to increased abandonment.",
+        "errorBusinessConsequences": "Eligibility errors, payment failures, or activation issues cause immediate revenue loss, higher contact centre volume, and increased churn risk in the first 90 days."
+      }
+    },
+    "customerProfile": {
+      "userId": "user_bt_001",
+      "email": "testuser@bt.com",
+      "userSegment": "New",
+      "digitalBehaviorPattern": "Researches broadband options online, compares speeds and prices, and completes purchase in a single session if eligibility and pricing are clear.",
+      "businessValueTier": "High",
+      "experienceExpectations": "Fast page loads, clear speed and price information, frictionless payment, and reliable installation on the first appointment.",
+      "conversionLikelihood": 0.68,
+      "technologyProfile": "Primarily desktop and laptop usage with Chrome on a stable home connection; comfortable with online checkout and digital communications."
+    },
+    "traceMetadata": {
+      "correlationId": "trace_bt_2025",
+      "sessionId": "session_bt_001",
+      "businessContext": {
+        "campaignSource": "Paid Search",
+        "customerSegment": "standard",
+        "businessValue": "£1,080",
+        "revenueImpact": "£540",
+        "transactionAmount": "£39.99"
+      }
+    }
+  },
+  "currentJourneyData": {
+    "journey": {
+      "companyName": "BT",
+      "domain": "www.bt.com",
+      "industryType": "Telecommunications",
+      "journeyType": "Purchase Journey",
+      "journeyDetail": "Purchase Journey",
+      "journeyId": "journey_bt_2025",
+      "journeyStartTime": "2025-11-21T00:00:00.000Z",
+      "steps": [
+        {
+          "stepIndex": 1,
+          "stepName": "PackageSelection",
+          "serviceName": "PackageSelectionService",
+          "description": "Customer browses BT broadband packages (e.g. BT Fibre 1, BT Fibre 2, Full Fibre 500), compares speeds and prices, and selects a package to proceed to checkout. Business events: package_viewed, package_compared, package_selected.",
+          "category": "Acquisition",
+          "timestamp": "2025-11-21T00:00:00.000Z",
+          "estimatedDuration": 4,
+          "businessRationale": "New broadband customers typically spend 3–5 minutes comparing speed tiers and prices; this step strongly influences ARPU and determines the base monthly revenue and add-on potential.",
+          "substeps": [
+            {
+              "substepName": "LoadPackageCatalog",
+              "duration": 1
+            },
+            {
+              "substepName": "ComparePackages",
+              "duration": 2
+            },
+            {
+              "substepName": "SelectPackage",
+              "duration": 1
+            }
+          ],
+          "hasError": false
+        },
+        {
+          "stepIndex": 2,
+          "stepName": "EligibilityCheck",
+          "serviceName": "EligibilityCheckService",
+          "description": "BT checks address availability, fibre coverage, and estimated speeds using Openreach and network inventory APIs. Business events: address_lookup_performed, eligibility_result_returned, speed_estimate_confirmed, eligibility_failed.",
+          "category": "Qualification",
+          "estimatedDuration": 3,
+          "businessRationale": "Address and coverage checks typically complete within a few API calls and brief customer review (2–4 minutes); failures here directly block new revenue and create abandonment, so latency and error rates are critical.",
+          "substeps": [
+            {
+              "substepName": "AddressLookup",
+              "duration": 1
+            },
+            {
+              "substepName": "CoverageAndSpeedCheck",
+              "duration": 1
+            },
+            {
+              "substepName": "CustomerReviewsSpeedEstimate",
+              "duration": 1
+            }
+          ],
+          "hasError": false
+        },
+        {
+          "stepIndex": 3,
+          "stepName": "OrderPlacement",
+          "serviceName": "OrderPlacementService",
+          "description": "Customer enters personal details, confirms product SKU, adds optional extras (e.g. Complete Wi-Fi, digital voice add-ons), and submits payment; BT performs credit checks if needed and creates the broadband order. Business events: customer_details_submitted, payment_initiated, payment_successful, payment_failed, order_created.",
+          "category": "Transaction",
+          "estimatedDuration": 7,
+          "businessRationale": "Form filling, payment entry, and credit checks typically take 6–8 minutes; this step directly generates subscription revenue, activation fees, and add-on revenue, so payment success rate and processing time are key business KPIs.",
+          "substeps": [
+            {
+              "substepName": "EnterCustomerAndAddressDetails",
+              "duration": 3
+            },
+            {
+              "substepName": "PaymentAndCreditCheck",
+              "duration": 2
+            },
+            {
+              "substepName": "OrderCreationAndConfirmation",
+              "duration": 2
+            }
+          ],
+          "hasError": false
+        },
+        {
+          "stepIndex": 4,
+          "stepName": "AppointmentScheduling",
+          "serviceName": "AppointmentSchedulingService",
+          "description": "If installation is required, customer selects an engineer appointment slot from available dates and times; BT reserves the slot and confirms it in the order. Business events: appointment_slots_loaded, appointment_slot_selected, appointment_confirmed, appointment_scheduling_failed, no_slots_available.",
+          "category": "Fulfilment",
+          "estimatedDuration": 5,
+          "businessRationale": "Checking slot availability, handling conflicts, and customer decision-making typically take 4–6 minutes; inability to find a suitable slot is a major cause of drop-off and delayed revenue recognition.",
+          "substeps": [
+            {
+              "substepName": "LoadAvailableEngineerSlots",
+              "duration": 2
+            },
+            {
+              "substepName": "CustomerSelectsPreferredSlot",
+              "duration": 2
+            },
+            {
+              "substepName": "ConfirmAndPersistAppointment",
+              "duration": 1
+            }
+          ],
+          "hasError": false
+        },
+        {
+          "stepIndex": 5,
+          "stepName": "EquipmentDispatch",
+          "serviceName": "EquipmentDispatchService",
+          "description": "BT generates a dispatch order for the Smart Hub and any add-ons (e.g. Wi-Fi discs), assigns a courier, and updates tracking details. Business events: dispatch_order_created, equipment_allocated, courier_assigned, dispatch_confirmed, dispatch_error, wrong_equipment_flagged.",
+          "category": "Logistics",
+          "estimatedDuration": 3,
+          "businessRationale": "Back-office orchestration for dispatch (warehouse allocation, courier integration) typically takes 2–4 minutes of system processing; dispatch accuracy and timeliness directly affect installation success and support costs.",
+          "substeps": [
+            {
+              "substepName": "CreateWarehouseDispatchOrder",
+              "duration": 1
+            },
+            {
+              "substepName": "AllocateEquipmentAndGenerateLabels",
+              "duration": 1
+            },
+            {
+              "substepName": "AssignCourierAndSendTracking",
+              "duration": 1
+            }
+          ],
+          "hasError": false
+        },
+        {
+          "stepIndex": 6,
+          "stepName": "InstallationAndActivation",
+          "serviceName": "InstallationAndActivationService",
+          "description": "Openreach engineer installs the line/ONT if required, BT provisions the service, activates broadband, and runs post-activation line tests to confirm performance and stability. Business events: engineer_arrived, installation_started, installation_completed, activation_started, activation_successful, activation_failed, post_activation_test_run, post_activation_test_failed, low_speed_detected.",
+          "category": "Activation",
+          "estimatedDuration": 60,
+          "businessRationale": "Engineer visits for fibre installation typically take 45–90 minutes; successful activation and post-activation testing are critical to first-day experience, churn risk, and the ability to recognise revenue from the subscription.",
+          "substeps": [
+            {
+              "substepName": "OnSiteInstallationAndCPESetup",
+              "duration": 35
+            },
+            {
+              "substepName": "NetworkProvisioningAndServiceActivation",
+              "duration": 15
+            },
+            {
+              "substepName": "PostActivationLineAndSpeedTesting",
+              "duration": 10
+            }
+          ],
+          "hasError": false
+        }
+      ]
+    },
+    "customerProfile": {
+      "userId": "user_bt_001",
+      "email": "testuser@bt.com",
+      "userSegment": "New",
+      "digitalBehaviorPattern": "Researches broadband options online, compares speeds and prices, and completes purchase in a single session if eligibility and pricing are clear.",
+      "businessValueTier": "High",
+      "experienceExpectations": "Fast page loads, clear speed and price information, frictionless payment, and reliable installation on the first appointment.",
+      "conversionLikelihood": 0.68,
+      "technologyProfile": "Primarily desktop and laptop usage with Chrome on a stable home connection; comfortable with online checkout and digital communications."
+    },
+    "traceMetadata": {
+      "correlationId": "trace_bt_2025",
+      "sessionId": "session_bt_001",
+      "businessContext": {
+        "campaignSource": "Paid Search",
+        "customerSegment": "standard",
+        "businessValue": "£1,080",
+        "revenueImpact": "£540",
+        "transactionAmount": "£39.99"
+      }
+    },
+    "additionalFields": {
+      "deviceType": "Desktop",
+      "entryChannel": "Paid Search",
+      "customerIntent": "Set up new fibre broadband service with BT including router delivery and installation.",
+      "loyaltyStatus": "NewCustomer",
+      "sessionId": "session_bt_${timestamp}",
+      "transactionValue": "£39.99",
+      "currency": "GBP",
+      "businessEventType": "purchase_completed",
+      "revenueImpact": "£540",
+      "conversionFunnelStage": "Purchase",
+      "customerLifetimeValue": "£1,080",
+      "acquisitionChannel": "Search",
+      "businessCriticalityScore": 9,
+      "performanceThresholds": {
+        "maxAcceptableLatency": "2.5s for checkout, 800ms for eligibility and availability APIs",
+        "minConversionRate": 0.03,
+        "targetErrorRate": 0.001
+      },
+      "businessMetrics": {
+        "expectedConversionRate": 0.04,
+        "averageOrderValue": "£39.99",
+        "customerRetentionImpact": "Successful activation and good initial speeds significantly reduce early-life churn and support calls.",
+        "revenueAttribution": "Monthly broadband subscription revenue plus activation fee and any add-on services are directly tied to this journey completing successfully."
+      },
+      "observabilityRequirements": {
+        "businessEventTracking": "package_viewed, package_selected, address_lookup_performed, eligibility_result_returned, payment_successful, order_created, appointment_confirmed, dispatch_confirmed, activation_successful, post_activation_test_run",
+        "performanceKPIs": "End-to-end journey time, API response times for eligibility and payment, error rates per step, activation success rate, order completion rate.",
+        "alertingPriority": "Critical",
+        "dashboardMetrics": "Conversion rate by step, drop-off at eligibility and payment, payment failure rate, engineer utilisation, dispatch accuracy, provisioning backlog, activation success vs failure, post-activation speed compliance."
+      },
+      "realUserMonitoring": {
+        "coreWebVitals": "LCP < 2.5s, FID < 100ms, CLS < 0.1 across key broadband purchase pages.",
+        "businessImpactOfSlowness": "Estimated £0.50 revenue lost per 100ms delay on checkout and eligibility pages due to increased abandonment.",
+        "errorBusinessConsequences": "Eligibility errors, payment failures, or activation issues cause immediate revenue loss, higher contact centre volume, and increased churn risk in the first 90 days."
+      }
+    }
+  },
+  "timestamp": "2026-02-11T15:15:49.713Z",
+  "name": "BT Broadband Journeys",
+  "id": "1770822949713",
+  "serverTimestamp": "2026-02-11T15:15:49.896Z",
+  "version": "1.0"
+}

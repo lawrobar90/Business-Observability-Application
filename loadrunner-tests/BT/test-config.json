@@ -1,0 +1,174 @@
+{
+  "companyName": "BT",
+  "domain": "www.bt.com",
+  "industryType": "Telecommunications",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "PackageSelection",
+      "serviceName": "PackageSelectionService",
+      "description": "Customer browses BT broadband packages, compares speeds, and selects a plan.",
+      "category": "Acquisition",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 4,
+      "businessRationale": "Telecom customers typically spend 3–5 minutes comparing fibre tiers; this step strongly influences conversion and ARPU.",
+      "substeps": [
+        {
+          "substepName": "LoadPackageCatalog",
+          "duration": 1
+        },
+        {
+          "substepName": "ComparePackages",
+          "duration": 2
+        },
+        {
+          "substepName": "SelectPackage",
+          "duration": 1
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "EligibilityCheck",
+      "serviceName": "EligibilityCheckService",
+      "description": "BT checks address availability, fibre coverage, and estimated speeds using Openreach data.",
+      "category": "Qualification",
+      "estimatedDuration": 3,
+      "businessRationale": "Address and speed checks typically take 2–4 minutes due to API calls and customer review; failures here directly block revenue.",
+      "substeps": [
+        {
+          "substepName": "AddressLookup",
+          "duration": 1
+        },
+        {
+          "substepName": "CoverageCheck",
+          "duration": 1
+        },
+        {
+          "substepName": "SpeedEstimateReview",
+          "duration": 1
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "OrderPlacement",
+      "serviceName": "OrderPlacementService",
+      "description": "Customer enters personal details, payment information, and BT creates the broadband order.",
+      "category": "Transaction",
+      "estimatedDuration": 6,
+      "businessRationale": "Payment entry, credit checks, and identity validation typically take 5–7 minutes; this step directly generates revenue.",
+      "substeps": [
+        {
+          "substepName": "EnterCustomerDetails",
+          "duration": 2
+        },
+        {
+          "substepName": "PaymentProcessing",
+          "duration": 2
+        },
+        {
+          "substepName": "OrderCreation",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "AppointmentScheduling",
+      "serviceName": "AppointmentSchedulingService",
+      "description": "Customer selects an engineer appointment slot if installation is required.",
+      "category": "Fulfilment",
+      "estimatedDuration": 5,
+      "businessRationale": "Slot selection and availability checks take 4–6 minutes; scheduling failures cause major churn risk.",
+      "substeps": [
+        {
+          "substepName": "LoadAvailableSlots",
+          "duration": 2
+        },
+        {
+          "substepName": "SelectSlot",
+          "duration": 2
+        },
+        {
+          "substepName": "ConfirmAppointment",
+          "duration": 1
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "EquipmentDispatch",
+      "serviceName": "EquipmentDispatchService",
+      "description": "BT dispatches the Smart Hub and any add-ons to the customer.",
+      "category": "Logistics",
+      "estimatedDuration": 2,
+      "businessRationale": "Dispatch orchestration takes 1–3 minutes in backend systems; errors here cause activation delays and support calls.",
+      "substeps": [
+        {
+          "substepName": "GenerateDispatchOrder",
+          "duration": 1
+        },
+        {
+          "substepName": "AssignCourier",
+          "duration": 1
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "InstallationAndActivation",
+      "serviceName": "InstallationAndActivationService",
+      "description": "Openreach installs the line/ONT and BT activates the broadband service.",
+      "category": "Activation",
+      "estimatedDuration": 45,
+      "businessRationale": "Engineer visits typically take 40–60 minutes; activation success directly impacts churn and first‑day experience.",
+      "substeps": [
+        {
+          "substepName": "EngineerInstallation",
+          "duration": 30
+        },
+        {
+          "substepName": "ServiceProvisioning",
+          "duration": 10
+        },
+        {
+          "substepName": "ActivationConfirmation",
+          "duration": 5
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-12T15:10:31.275Z"
+}

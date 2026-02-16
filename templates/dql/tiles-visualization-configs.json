@@ -1,0 +1,404 @@
+{
+  "_comment": "Complete visualization settings for every tile type. The template resolver merges these with DQL queries to produce full tile objects. Extracted verbatim from the verified working Manufacturing dashboard.",
+
+  "querySettings": {
+    "_comment": "Universal — every data tile uses this identical block",
+    "maxResultRecords": 1000,
+    "defaultScanLimitGbytes": 500,
+    "maxResultMegaBytes": 1,
+    "defaultSamplingRatio": 10,
+    "enableSampling": false
+  },
+
+  "davis": {
+    "dataTile": { "enabled": false, "davisVisualization": { "isAvailable": true } },
+    "headerTile": { "davisVisualization": { "isAvailable": true } }
+  },
+
+  "sectionHeaders": {
+    "_comment": "Section header tiles — data record() singleValue with colored background",
+    "icons": {
+      "overall":    "RocketIcon",
+      "filtered":   "FilterIcon",
+      "performance":"ChartLineIcon",
+      "traffic":    "BarChartIcon",
+      "latency":    "LineChartIcon",
+      "errors":     "WarningIcon",
+      "saturation": "ContainerIcon"
+    },
+    "colors": {
+      "overall":    "#478ACA",
+      "filtered":   "#7C38A1",
+      "performance":"#2AB06F",
+      "traffic":    "#478ACA",
+      "latency":    "#478ACA",
+      "errors":     "#7C3AED",
+      "saturation": "#7C3AED"
+    },
+    "template": {
+      "type": "data",
+      "visualization": "singleValue",
+      "visualizationSettings": {
+        "singleValue": {
+          "labelMode": "none",
+          "isIconVisible": true,
+          "prefixIcon": "{{ICON}}",
+          "colorThresholdTarget": "background"
+        },
+        "thresholds": [
+          {
+            "id": 1,
+            "field": "a",
+            "isEnabled": true,
+            "rules": [
+              { "id": 1, "color": "{{COLOR}}", "comparator": "!=", "value": "x" }
+            ]
+          }
+        ]
+      }
+    }
+  },
+
+  "kpiSingleValues": {
+    "_comment": "KPI single-value tiles — per-tile config",
+    "total_journey_volume": {
+      "singleValue": { "label": "TOTAL VOLUME", "recordField": "TotalEvents", "prefixIcon": "ActivityIcon", "colorThresholdTarget": "background" },
+      "thresholds": [],
+      "unitsOverrides": [{ "identifier": "TotalEvents", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }]
+    },
+    "journey_success_rate": {
+      "singleValue": { "label": "SUCCESS RATE", "recordField": "success_rate", "prefixIcon": "CheckmarkIcon" },
+      "thresholds": [
+        { "id": 1, "field": "success_rate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#2ab06f" }, "comparator": "≥", "value": 95 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": "≥", "value": 85 },
+          { "id": 3, "color": { "Default": "#dc2626" }, "comparator": "<", "value": 85 }
+        ]}
+      ],
+      "unitsOverrides": [{ "identifier": "success_rate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 1, "suffix": "%", "delimiter": true, "added": 1771077322092 }]
+    },
+    "total_revenue": {
+      "singleValue": { "label": "REVENUE", "recordField": "revenue", "prefixIcon": "MoneyIcon", "colorThresholdTarget": "background" },
+      "thresholds": [],
+      "unitsOverrides": [{ "identifier": "revenue", "unitCategory": "currency", "baseUnit": "usd", "displayUnit": null, "decimals": 0, "suffix": "$", "delimiter": true, "added": 1771077322092 }]
+    },
+    "total_errors": {
+      "singleValue": { "label": "ERRORS", "recordField": "errors", "colorThresholdTarget": "background" },
+      "thresholds": [
+        { "id": 1, "field": "errors", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 10 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": ">", "value": 5 },
+          { "id": 3, "color": { "Default": "#2ab06f" }, "comparator": "≤", "value": 5 }
+        ]}
+      ],
+      "unitsOverrides": [{ "identifier": "errors", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }]
+    },
+    "filtered_journey_events": {
+      "singleValue": { "label": "TOTAL EVENTS", "recordField": "total", "prefixIcon": "ProcessesIcon", "colorThresholdTarget": "background" },
+      "thresholds": [],
+      "unitsOverrides": [{ "identifier": "total", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }]
+    },
+    "filtered_revenue": {
+      "singleValue": { "label": "REVENUE", "recordField": "revenue", "prefixIcon": "MoneyIcon", "colorThresholdTarget": "background" },
+      "thresholds": [],
+      "unitsOverrides": [{ "identifier": "revenue", "unitCategory": "currency", "baseUnit": "usd", "displayUnit": null, "decimals": 0, "suffix": "$", "delimiter": true, "added": 1771077322092 }]
+    },
+    "avg_order_value": {
+      "singleValue": { "label": "AOV", "recordField": "avg", "colorThresholdTarget": "background" },
+      "thresholds": [],
+      "unitsOverrides": [{ "identifier": "avg", "unitCategory": "currency", "baseUnit": "usd", "displayUnit": null, "decimals": 2, "suffix": "$", "delimiter": true, "added": 1771077322092 }]
+    },
+    "p90_response_time": {
+      "singleValue": { "label": "P90 RESPONSE TIME", "recordField": "p90", "colorThresholdTarget": "background" },
+      "thresholds": [
+        { "id": 1, "field": "p90", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#2ab06f" }, "comparator": "≤", "value": 50 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": "≤", "value": 100 },
+          { "id": 3, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 100 }
+        ]}
+      ],
+      "unitsOverrides": [{ "identifier": "p90", "unitCategory": "time", "baseUnit": "millisecond", "displayUnit": null, "decimals": 0, "suffix": " ms", "delimiter": true, "added": 1771077322092 }]
+    }
+  },
+
+  "tables": {
+    "_comment": "Table-specific visualization settings per tile template",
+    "journey_step_metrics": {
+      "columnWidths": { "json.stepName": 200, "OrdersInStep": 120, "SuccessRate": 120, "AvgTimeInStep": 120, "ErrorsInStep": 120, "ErrorRate": 120 },
+      "thresholds": [
+        { "id": 1, "field": "SuccessRate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#2ab06f" }, "comparator": "≥", "value": 95 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": "≥", "value": 85 },
+          { "id": 3, "color": { "Default": "#dc2626" }, "comparator": "<", "value": 85 }
+        ]},
+        { "id": 2, "field": "ErrorRate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 5 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": ">", "value": 2 },
+          { "id": 3, "color": { "Default": "#2ab06f" }, "comparator": "≤", "value": 2 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "SuccessRate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 3, "suffix": "%", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "AvgTimeInStep", "unitCategory": null, "baseUnit": null, "displayUnit": null, "decimals": 0, "suffix": "ms", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "ErrorRate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 2, "suffix": "%", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "OrdersInStep", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ]
+    },
+    "step_performance": {
+      "columnWidths": { "json.stepName": 200, "Events": 100, "AvgTime": 100, "ErrorRate": 100 },
+      "thresholds": [
+        { "id": 1, "field": "ErrorRate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 5 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": ">", "value": 2 },
+          { "id": 3, "color": { "Default": "#2ab06f" }, "comparator": "≤", "value": 2 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "AvgTime", "unitCategory": null, "baseUnit": null, "displayUnit": null, "decimals": 0, "suffix": "ms", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "ErrorRate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 2, "suffix": "%", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "Events", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ]
+    },
+    "sla_compliance": {
+      "columnWidths": { "json.stepName": 200, "TotalEvents": 120, "WithinSLA": 120, "ComplianceRate": 120 },
+      "thresholds": [
+        { "id": 1, "field": "ComplianceRate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#2ab06f" }, "comparator": "≥", "value": 95 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": "≥", "value": 80 },
+          { "id": 3, "color": { "Default": "#dc2626" }, "comparator": "<", "value": 80 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "ComplianceRate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 1, "suffix": "%", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "TotalEvents", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 },
+        { "identifier": "WithinSLA", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ]
+    },
+    "errors_by_step": {
+      "columnWidths": {},
+      "thresholds": [],
+      "unitsOverrides": [
+        { "identifier": "ErrorCount", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ],
+      "autoSelectVisualization": false
+    },
+    "error_details": {
+      "columnWidths": { "json.stepName": 200, "additionalfields.errorMessage": 400, "Occurrences": 100 },
+      "thresholds": [],
+      "unitsOverrides": [
+        { "identifier": "Occurrences", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ]
+    },
+    "active_davis_problems": {
+      "columnWidths": { "display_id": 100, "title": 300, "affected_entity_ids": 200, "event.start": 150, "event.status": 100, "management_zone": 150 },
+      "thresholds": [],
+      "unitsOverrides": []
+    },
+    "top_exceptions": {
+      "columnWidths": { "event.name": 300, "dt.entity.service": 200, "serviceName": 150, "occurrences": 100, "lastSeen": 150 },
+      "thresholds": [
+        { "id": 1, "field": "occurrences", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 10 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": ">", "value": 3 },
+          { "id": 3, "color": { "Default": "#2ab06f" }, "comparator": "≤", "value": 3 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "occurrences", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322092 }
+      ]
+    },
+    "recent_log_errors": {
+      "columnWidths": { "timestamp": 180, "loglevel": 80, "content": 500, "dt.entity.service": 150, "serviceName": 150 },
+      "thresholds": [
+        { "id": 1, "field": "loglevel", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": "==", "value": "ERROR" },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": "==", "value": "WARN" }
+        ]}
+      ],
+      "unitsOverrides": [],
+      "columnTypeOverrides": [
+        { "fields": ["content"], "id": 1771197666892, "value": "log-content", "disableRemoval": true }
+      ]
+    },
+    "traces_with_exceptions": {
+      "columnWidths": { "Time": 180, "Service": 150, "Endpoint": 250, "ExceptionClass": 200, "ExceptionMesssage": 300, "Duration": 100 },
+      "thresholds": [],
+      "unitsOverrides": [
+        { "identifier": "Duration", "unitCategory": "time", "baseUnit": "nanosecond", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771077322093 }
+      ]
+    }
+  },
+
+  "charts": {
+    "_comment": "Chart-specific visualization settings",
+
+    "volume_over_time": {
+      "chartSettings": {
+        "fieldMapping": { "leftAxisValues": ["successful", "failed"], "timestamp": "timeframe" },
+        "seriesOverrides": [
+          { "seriesId": ["successful"], "override": { "color": "#2AB06F" } },
+          { "seriesId": ["failed"], "override": { "color": "#C62239" } }
+        ],
+        "gapPolicy": "connect"
+      },
+      "thresholds": [],
+      "unitsOverrides": []
+    },
+    "events_over_time_filtered": {
+      "chartSettings": {
+        "seriesOverrides": [
+          { "seriesId": ["events"], "override": { "color": "#2AB06F" } }
+        ],
+        "gapPolicy": "connect"
+      },
+      "thresholds": [],
+      "unitsOverrides": []
+    },
+    "events_by_step": {
+      "chartSettings": {
+        "circleChartSettings": { "valueType": "relative", "showTotalValue": true }
+      },
+      "legend": { "ratio": 27 },
+      "thresholds": [],
+      "unitsOverrides": []
+    },
+    "events_by_step_filtered": {
+      "chartSettings": { "categoricalBarChartSettings": {} },
+      "thresholds": [],
+      "unitsOverrides": []
+    },
+    "hourly_activity": {
+      "autoSelectVisualization": false,
+      "thresholds": [],
+      "unitsOverrides": [
+        { "identifier": "Events", "unitCategory": "unspecified", "baseUnit": "count", "displayUnit": null, "decimals": 0, "suffix": "", "delimiter": true, "added": 1771077322093 }
+      ]
+    },
+    "error_rate_trend": {
+      "chartSettings": {
+        "seriesOverrides": [
+          { "seriesId": ["ErrorRate"], "override": { "color": "#C62239" } }
+        ],
+        "gapPolicy": "connect"
+      },
+      "thresholds": [
+        { "id": 1, "field": "ErrorRate", "isEnabled": true, "rules": [
+          { "id": 1, "color": { "Default": "#dc2626" }, "comparator": ">", "value": 5 },
+          { "id": 2, "color": { "Default": "#f5d30f" }, "comparator": ">", "value": 2 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "ErrorRate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": 2, "suffix": "%", "delimiter": true, "added": 1771077322093 }
+      ]
+    },
+
+    "serviceMetric": {
+      "_comment": "Shared by ALL 12 service-metric tiles (lineChart and barChart). Byte-for-byte identical across tiles 25,43,44,45,47-54.",
+      "chartSettings": { "legend": { "hidden": true } },
+      "autoSelectVisualization": false,
+      "thresholds": [
+        { "id": 1, "field": "Failure Rate", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "=", "label": "" },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "≥", "label": "", "value": 2 },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": ">", "label": "", "value": 0 }
+        ]},
+        { "id": 2, "field": "Errors", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "=", "label": "", "value": 0 },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "≥", "label": "" },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "≥", "label": "", "value": 0 }
+        ]},
+        { "id": 3, "field": "5xx", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "=", "label": "", "value": "0" },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "=", "label": "" },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "=", "label": "", "value": "0" }
+        ]},
+        { "id": 4, "field": "Requests", "title": "", "isEnabled": true, "rules": [
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-categorical-themed-blue-steel-color-01-default, #438fb1)" }, "comparator": ">", "label": "", "value": 0 }
+        ]},
+        { "id": 5, "field": "Status", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "=", "label": "", "value": "H" },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "=", "label": "", "value": "P" }
+        ]},
+        { "id": 6, "field": "4xx", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "=", "label": "", "value": "0" },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-apdex-poor-default, #d56b1a)" }, "comparator": "=", "label": "" }
+        ]},
+        { "id": 7, "field": "Latency_p50", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "≥", "label": "", "value": 0 },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "≥", "label": "", "value": 1000000 },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "≥", "label": "", "value": 2000000 }
+        ]},
+        { "id": 8, "field": "Latency_p90", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "≥", "label": "", "value": 0 },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "≥", "label": "", "value": 1000000 },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "≥", "label": "", "value": 2000000 }
+        ]},
+        { "id": 9, "field": "Latency_p99", "title": "", "isEnabled": true, "rules": [
+          { "id": 0, "color": { "Default": "var(--dt-colors-charts-status-ideal-default, #2f6862)" }, "comparator": "≥", "label": "", "value": 0 },
+          { "id": 1, "color": { "Default": "var(--dt-colors-charts-status-warning-default, #eea53c)" }, "comparator": "≥", "label": "", "value": 1000000 },
+          { "id": 2, "color": { "Default": "var(--dt-colors-charts-status-critical-default, #c62239)" }, "comparator": "≥", "label": "", "value": 2000000 }
+        ]}
+      ],
+      "unitsOverrides": [
+        { "identifier": "Requests", "unitCategory": "unspecified", "baseUnit": "none", "displayUnit": null, "decimals": 2, "suffix": "%", "delimiter": true, "added": 1771077322093 },
+        { "identifier": "Failure Rate", "unitCategory": "percentage", "baseUnit": "percent", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771233366538 },
+        { "identifier": "Errors", "unitCategory": "unspecified", "baseUnit": "none", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771233368267 },
+        { "identifier": "Latency_p50", "unitCategory": "time", "baseUnit": "microsecond", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771233369115 },
+        { "identifier": "Latency_p90", "unitCategory": "time", "baseUnit": "microsecond", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771233370092 },
+        { "identifier": "Latency_p99", "unitCategory": "time", "baseUnit": "microsecond", "displayUnit": null, "decimals": null, "suffix": "", "delimiter": false, "added": 1771233371292 }
+      ]
+    }
+  },
+
+  "layouts": {
+    "_comment": "Complete grid layout. Keys match tile order in the working dashboard. 24-column grid.",
+    "static": {
+      "0":  { "x": 0,  "y": 0,  "w": 24, "h": 3 },
+      "1":  { "x": 0,  "y": 3,  "w": 24, "h": 3 },
+      "2":  { "x": 0,  "y": 6,  "w": 24, "h": 6 },
+      "3":  { "x": 0,  "y": 12, "w": 24, "h": 1 },
+      "4":  { "x": 0,  "y": 13, "w": 6,  "h": 3 },
+      "5":  { "x": 6,  "y": 13, "w": 6,  "h": 3 },
+      "6":  { "x": 12, "y": 13, "w": 6,  "h": 3 },
+      "7":  { "x": 18, "y": 13, "w": 6,  "h": 3 },
+      "8":  { "x": 0,  "y": 16, "w": 12, "h": 4 },
+      "9":  { "x": 12, "y": 16, "w": 12, "h": 4 },
+      "10": { "x": 0,  "y": 20, "w": 24, "h": 1 },
+      "11": { "x": 0,  "y": 21, "w": 6,  "h": 3 },
+      "12": { "x": 6,  "y": 21, "w": 6,  "h": 3 },
+      "13": { "x": 12, "y": 21, "w": 6,  "h": 3 },
+      "14": { "x": 18, "y": 21, "w": 6,  "h": 3 },
+      "15": { "x": 0,  "y": 24, "w": 12, "h": 4 },
+      "16": { "x": 12, "y": 24, "w": 12, "h": 4 },
+      "17": { "x": 0,  "y": 28, "w": 24, "h": 1 },
+      "18": { "x": 0,  "y": 29, "w": 12, "h": 5 },
+      "19": { "x": 12, "y": 29, "w": 12, "h": 5 },
+      "20": { "x": 0,  "y": 34, "w": 12, "h": 4 },
+      "21": { "x": 12, "y": 34, "w": 12, "h": 4 },
+      "22": { "x": 0,  "y": 38, "w": 12, "h": 4 },
+      "23": { "x": 12, "y": 38, "w": 12, "h": 4 },
+      "24": { "x": 0,  "y": 42, "w": 6,  "h": 1 },
+      "42": { "x": 6,  "y": 42, "w": 6,  "h": 1 },
+      "40": { "x": 12, "y": 42, "w": 6,  "h": 1 },
+      "41": { "x": 18, "y": 42, "w": 6,  "h": 1 },
+      "25": { "x": 0,  "y": 43, "w": 6,  "h": 5 },
+      "43": { "x": 6,  "y": 43, "w": 6,  "h": 5 },
+      "44": { "x": 12, "y": 43, "w": 6,  "h": 5 },
+      "45": { "x": 18, "y": 43, "w": 6,  "h": 5 },
+      "47": { "x": 0,  "y": 48, "w": 6,  "h": 5 },
+      "48": { "x": 6,  "y": 48, "w": 6,  "h": 5 },
+      "49": { "x": 12, "y": 48, "w": 6,  "h": 5 },
+      "50": { "x": 18, "y": 48, "w": 6,  "h": 5 },
+      "51": { "x": 0,  "y": 53, "w": 6,  "h": 5 },
+      "52": { "x": 6,  "y": 53, "w": 6,  "h": 5 },
+      "53": { "x": 12, "y": 53, "w": 6,  "h": 5 },
+      "54": { "x": 18, "y": 53, "w": 6,  "h": 5 },
+      "28": { "x": 0,  "y": 58, "w": 24, "h": 5 },
+      "39": { "x": 0,  "y": 63, "w": 24, "h": 5 },
+      "33": { "x": 0,  "y": 68, "w": 12, "h": 5 },
+      "34": { "x": 12, "y": 68, "w": 12, "h": 5 },
+      "35": { "x": 0,  "y": 73, "w": 24, "h": 7 },
+      "36": { "x": 0,  "y": 80, "w": 24, "h": 1 }
+    }
+  }
+}

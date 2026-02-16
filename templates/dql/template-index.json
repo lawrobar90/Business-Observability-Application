@@ -1,0 +1,173 @@
+{
+  "_comment": "Master template index. Defines the full dashboard layout: which tiles to include, in what order, grouped into sections. The assembler reads this to build the final dashboard JSON.",
+
+  "version": "1.0.0",
+  "schemaVersion": 21,
+
+  "templateFiles": {
+    "variables":     "variables.json",
+    "bizevent":      "tiles-bizevent.json",
+    "timeseries":    "tiles-timeseries.json",
+    "observability": "tiles-observability.json",
+    "headers":       "tiles-headers.json",
+    "dynamic":       "tiles-dynamic.json",
+    "classifier":    "field-classifier.json"
+  },
+
+  "requiredTokens": {
+    "_comment": "These MUST be resolved before the dashboard can be generated",
+    "COMPANY":          "From journey config: companyName",
+    "REVENUE_FIELD":    "From field classifier: first field matching domain=revenue with templateSlot=REVENUE_FIELD → 'additionalfields.<name>'",
+    "DURATION_FIELD":   "From field classifier: first field matching domain=duration with templateSlot=DURATION_FIELD → 'additionalfields.<name>'",
+    "ERROR_BOOL_FIELD": "From field classifier: first field matching domain=error, type=boolean → 'additionalfields.<name>'",
+    "ERROR_MSG_FIELD":  "From field classifier: first field matching domain=error, type=string → 'additionalfields.<name>'"
+  },
+
+  "dashboardSections": [
+    {
+      "name": "Overall Journey Performance",
+      "header": "header_overall",
+      "tiles": [
+        "total_journey_volume",
+        "journey_success_rate",
+        "total_revenue",
+        "total_errors",
+        "volume_over_time",
+        "events_by_step",
+        "journey_step_metrics"
+      ],
+      "always": true
+    },
+    {
+      "name": "Filtered View - By Selected Step",
+      "header": "header_filtered",
+      "tiles": [
+        "filtered_journey_events",
+        "filtered_revenue",
+        "avg_order_value",
+        "p90_response_time",
+        "events_over_time_filtered",
+        "events_by_step_filtered"
+      ],
+      "always": true
+    },
+    {
+      "name": "Performance & Operations",
+      "header": "header_performance",
+      "tiles": [
+        "step_performance",
+        "sla_compliance",
+        "error_rate_trend",
+        "errors_by_step",
+        "error_details",
+        "hourly_activity"
+      ],
+      "always": true
+    },
+    {
+      "name": "Traffic (USE Method)",
+      "header": "header_traffic",
+      "source": "timeseries",
+      "tiles": [
+        "requests_total",
+        "requests_key_requests"
+      ],
+      "always": true
+    },
+    {
+      "name": "Errors (USE Method)",
+      "header": "header_errors",
+      "source": "timeseries",
+      "tiles": [
+        "requests_failed",
+        "requests_success_vs_failed",
+        "errors_5xx",
+        "errors_4xx"
+      ],
+      "always": true
+    },
+    {
+      "name": "Latency",
+      "header": "header_latency",
+      "source": "timeseries",
+      "tiles": [
+        "latency_p50",
+        "latency_p90",
+        "latency_p99"
+      ],
+      "always": true
+    },
+    {
+      "name": "Saturation (USE Method)",
+      "header": "header_saturation",
+      "source": "timeseries",
+      "tiles": [
+        "cpu_usage",
+        "memory_usage",
+        "gc_suspension_time"
+      ],
+      "always": true
+    },
+    {
+      "name": "Observability",
+      "header": null,
+      "source": "observability",
+      "tiles": [
+        "active_davis_problems",
+        "top_exceptions",
+        "recent_log_errors",
+        "traces_with_exceptions"
+      ],
+      "always": true
+    },
+    {
+      "name": "Dynamic Business Fields",
+      "header": null,
+      "source": "dynamic",
+      "tiles": "_AUTO_",
+      "always": false,
+      "_comment": "This section is auto-populated by the assembler based on fields in the journey config that don't map to core templateSlots. The assembler picks from tiles-dynamic.json based on field type."
+    }
+  ],
+
+  "layoutDefaults": {
+    "_comment": "Grid layout constants matching the working dashboard format",
+    "gridColumns": 42,
+    "headerHeight": 1,
+    "singleValueWidth": 5,
+    "singleValueHeight": 4,
+    "chartWidth": 14,
+    "chartHeight": 7,
+    "tableWidth": 21,
+    "tableHeight": 9,
+    "wideTableWidth": 42,
+    "wideTableHeight": 11,
+    "sectionGap": 1
+  },
+
+  "visualizationConfig": {
+    "_comment": "Default visualization settings per type, matching the working dashboard",
+    "singleValue": {
+      "sparklineHidden": true,
+      "trendHidden": true,
+      "labelHidden": true
+    },
+    "lineChart": {
+      "legend": { "hidden": true }
+    },
+    "barChart": {
+      "legend": { "hidden": true }
+    },
+    "areaChart": {
+      "legend": { "hidden": true }
+    },
+    "donutChart": {
+      "legend": { "position": "right" }
+    },
+    "table": {
+      "columns": "_AUTO_"
+    },
+    "categoricalBarChart": {},
+    "pieChart": {}
+  }
+}

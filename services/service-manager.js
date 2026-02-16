@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -12,6 +12,94 @@ const __dirname = path.dirname(__filename);
 // Track running child services and their context
 const childServices = {};
 const childServiceMeta = {};
+
+// Enhanced metrics tracking per service
+const serviceMetrics = {
+  // serviceName: { requests: 0, lastRequest: null, startTime: Date.now(), errors: 0, lastHealth: 'unknown' }
+};
+
+/**
+ * Kill orphaned service processes from previous server sessions.
+ * These zombie processes hold ports in the 8081-8120 range and prevent
+ * new services from starting (port exhaustion).
+ * Called on server startup to ensure a clean port range.
+ */
+export function cleanupOrphanedServiceProcesses() {
+  const myPid = process.pid;
+  console.log(`🧹 [service-manager] Cleaning up orphaned service processes (server PID: ${myPid})...`);
+  
+  try {
+    // Find all node processes running .dynamic-runners wrapper scripts
+    // These are child service processes; only keep ones parented by THIS server
+    const psOutput = execSync(
+      `ps -eo pid,ppid,args --no-headers 2>/dev/null || true`,
+      { encoding: 'utf-8', timeout: 5000 }
+    );
+    
+    const myChildren = new Set();
+    const orphanPids = [];
+    
+    for (const line of psOutput.split('\n')) {
+      const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/);
+      if (!match) continue;
+      
+      const [, pidStr, ppidStr, args] = match;
+      const pid = parseInt(pidStr);
+      const ppid = parseInt(ppidStr);
+      
+      // Skip self
+      if (pid === myPid) continue;
+      
+      // Track our own children
+      if (ppid === myPid) {
+        myChildren.add(pid);
+        continue;
+      }
+      
+      // Match service processes: node processes running .dynamic-runners wrappers
+      // or processes with Service-style names (e.g. "BasketCreationService")
+      const isServiceProcess = (
+        args.includes('.dynamic-runners') ||
+        args.includes('dynamic-step-service.cjs') ||
+        args.includes('service-runner.cjs') ||
+        /^(node\s+.*)?[A-Z][a-zA-Z]+Service\s*$/.test(args.trim()) ||
+        /^[A-Z][a-zA-Z]+Service$/.test(args.trim())
+      );
+      
+      if (isServiceProcess && ppid !== myPid) {
+        orphanPids.push({ pid, args: args.trim().substring(0, 60) });
+      }
+    }
+    
+    if (orphanPids.length === 0) {
+      console.log(`✅ [service-manager] No orphaned service processes found`);
+      return 0;
+    }
+    
+    console.log(`⚠️ [service-manager] Found ${orphanPids.length} orphaned service processes, killing them...`);
+    let killed = 0;
+    
+    for (const { pid, args } of orphanPids) {
+      try {
+        process.kill(pid, 'SIGTERM');
+        killed++;
+        console.log(`  🔪 Killed orphan PID ${pid}: ${args}`);
+      } catch (e) {
+        // Process already dead or permission denied
+        if (e.code !== 'ESRCH') {
+          console.warn(`  ⚠️ Failed to kill PID ${pid}: ${e.message}`);
+        }
+      }
+    }
+    
+    console.log(`🧹 [service-manager] Cleaned up ${killed}/${orphanPids.length} orphaned processes`);
+    return killed;
+    
+  } catch (error) {
+    console.error(`⚠️ [service-manager] Orphan cleanup failed: ${error.message}`);
+    return 0;
+  }
+}
 
 // Check if a service port is ready to accept connections
 export async function isServiceReady(port, timeout = 5000) {
@@ -116,7 +204,12 @@ export function getServiceNameFromStep(stepName, context = {}) {
 }
 
 // Get port for service using robust port manager
-export async function getServicePort(stepName, companyName = 'DefaultCompany') {
+export async function getServicePort(stepName, companyName = null) {
+  if (!companyName) {
+    console.warn('[service-manager] ⚠️ getServicePort called without companyName - this should not happen in production');
+    return null;
+  }
+  
   const baseServiceName = getServiceNameFromStep(stepName);
   if (!baseServiceName) return null;
   
@@ -170,7 +263,7 @@ function cleanupDeadServices() {
 }
 
 // Start child service process
-export async function startChildService(internalServiceName, scriptPath, env = {}) {
+export async function startChildService(internalServiceName, scriptPath, portParam = null, env = {}) {
   // Use the original step name from env, not derived from service name
   const stepName = env.STEP_NAME;
   if (!stepName) {
@@ -188,10 +281,22 @@ export async function startChildService(internalServiceName, scriptPath, env = {
   
   let port; // Declare port outside try block for error handling
   try {
-    port = await getServicePort(stepName, companyName);
+    // Use provided port if available, otherwise allocate new one
+    if (portParam) {
+      port = portParam;
+      console.log(`[service-manager] Using pre-allocated port ${port} for ${dynatraceServiceName}`);
+    } else {
+      port = await getServicePort(stepName, companyName);
+      console.log(`[service-manager] Allocated new port ${port} for ${dynatraceServiceName}`);
+    }
     console.log(`🚀 Starting child service: ${dynatraceServiceName} (${internalServiceName}) on port ${port} for company: ${companyName} (domain: ${domain}, industry: ${industryType})`);
     
+    // cwd: If a service-specific directory is provided (with its own package.json),
+    // spawn the process there so OneAgent reads THAT package.json name instead of the parent's
+    const spawnCwd = env._SERVICE_CWD || undefined;
+    
     const child = spawn('node', [`--title=${dynatraceServiceName}`, scriptPath, dynatraceServiceName], {
+      cwd: spawnCwd,
       env: { 
         ...process.env, 
         SERVICE_NAME: dynatraceServiceName, 
@@ -203,37 +308,42 @@ export async function startChildService(internalServiceName, scriptPath, env = {
         DOMAIN: domain,
         INDUSTRY_TYPE: industryType,
         CATEGORY: env.CATEGORY || 'general',
-        // Dynatrace service identification (OneAgent recognizes these) - use clean service name
-        DT_SERVICE_NAME: dynatraceServiceName,
-        DYNATRACE_SERVICE_NAME: dynatraceServiceName,
-        DT_LOGICAL_SERVICE_NAME: dynatraceServiceName,
-        // Node.js specific environment variables that OneAgent reads
-        NODEJS_APP_NAME: dynatraceServiceName,
-        // Process group identification
-        DT_PROCESS_GROUP_NAME: dynatraceServiceName,
-        DT_PROCESS_GROUP_INSTANCE: `${dynatraceServiceName}-${port}`,
-        // Application context - use consistent app name like old working version
-        DT_APPLICATION_NAME: 'BizObs-CustomerJourney',
-        DT_CLUSTER_ID: dynatraceServiceName,
-        DT_NODE_ID: `${dynatraceServiceName}-node`,
-        // Dynatrace tags - comprehensive metadata for business observability (all lowercase, clean format)
-        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} app=bizobs-journey service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} release-stage=production owner=ace-box-demo customer-id=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}-demo environment=ace-box product=dynatrace domain=${domain.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} industry-type=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
-        // Release information
+        MAIN_SERVER_PORT: '8080',
+        // ═══════════════════════════════════════════════════════════════
+        // DYNATRACE ONEAGENT - OFFICIAL ENVIRONMENT VARIABLES
+        // These are the REAL variables that OneAgent reads for service detection
+        // ═══════════════════════════════════════════════════════════════
+        
+        // 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
+        // This is what OneAgent uses for service detection/naming
+        DT_APPLICATION_ID: dynatraceServiceName,
+        
+        // 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service
+        DT_CUSTOM_PROP: `dtServiceName=${dynatraceServiceName} companyName=${companyName} domain=${domain} industryType=${industryType} stepName=${stepName || 'unknown'}`,
+        
+        // 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags
+        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} app=bizobs-journey environment=ace-box industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
+        
+        // 📦 DT_RELEASE_*: Release tracking metadata
         DT_RELEASE_PRODUCT: 'BizObs-Engine',
         DT_RELEASE_STAGE: 'production',
-        // Override OneAgent service naming (critical for service detection) - use clean service name
-        RUXIT_APPLICATION_ID: dynatraceServiceName,
-        RUXIT_APPLICATIONID: dynatraceServiceName,
-        RUXIT_PROCESS_GROUP: dynatraceServiceName,
-        // Force OneAgent to use environment for service naming
-        DT_APPLICATIONID: dynatraceServiceName,
+        DT_RELEASE_VERSION: '1.0.0',
+        
+        // 🔗 DT_CLUSTER_ID / DT_NODE_ID: Cluster and node identification
+        DT_CLUSTER_ID: dynatraceServiceName,
+        DT_NODE_ID: `${dynatraceServiceName}-node`,
+        
+        // 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id
         DT_APPLICATION_ID: dynatraceServiceName,
-        // Node.js web application override (prevents package.json name from being used)
-        DT_WEB_APPLICATION_ID: dynatraceServiceName,
-        DT_APPLICATION_BUILD_VERSION: dynatraceServiceName,
-        // Additional service detection overrides
-        DT_SERVICE_DETECTION_FULL_NAME: dynatraceServiceName,
-        DT_SERVICE_DETECTION_RULE_NAME: dynatraceServiceName,
+        
+        // 📋 Internal env vars for app-level code (NOT read by OneAgent)
+        DT_SERVICE_NAME: dynatraceServiceName,
+        DYNATRACE_SERVICE_NAME: dynatraceServiceName,
+        
+        // Override inherited parent values that would confuse OneAgent
+        DT_LOGICAL_SERVICE_NAME: dynatraceServiceName,
+        DT_APPLICATION_NAME: dynatraceServiceName,
+        DT_PROCESS_GROUP_NAME: dynatraceServiceName,
         ...env 
       },
       stdio: ['ignore', 'pipe', 'pipe']
@@ -258,7 +368,9 @@ export async function startChildService(internalServiceName, scriptPath, env = {
       domain, 
       industryType, 
       startTime: child.startTime,
-      port 
+      port,
+      stepName: stepName,  // Include step name for UI display
+      baseServiceName: dynatraceServiceName
     };
     return child;
     
@@ -300,7 +412,8 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
     companyName,
     domain,
     industryType,
-    baseServiceName
+    baseServiceName,
+    stepName: stepEnvName  // Include step name for UI display
   };
 
   const existing = childServices[internalServiceName];
@@ -344,12 +457,11 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
     const dynamicServicePath = path.join(__dirname, 'dynamic-step-service.cjs');
     // Create a per-service wrapper so the Node entrypoint filename matches the service name
     const runnersDir = path.join(__dirname, '.dynamic-runners');
-    const wrapperPath = path.join(runnersDir, `${internalServiceName}.cjs`);
     try {
       // Check if specific service exists
       if (fs.existsSync(specificServicePath)) {
         console.log(`[service-manager] Starting specific service: ${specificServicePath}`);
-        const child = await startChildService(internalServiceName, specificServicePath, { 
+        const child = await startChildService(internalServiceName, specificServicePath, null, { 
           STEP_NAME: stepEnvName,
           COMPANY_NAME: companyName,
           DOMAIN: domain,
@@ -374,7 +486,29 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
         if (!fs.existsSync(runnersDir)) {
           fs.mkdirSync(runnersDir, { recursive: true });
         }
+        // ALLOCATE PORT BEFORE CREATING WRAPPER so we can include it in the wrapper
+        const allocatedPort = await getServicePort(stepEnvName, companyName);
+        if (!allocatedPort) {
+          throw new Error(`Failed to allocate port for ${dynatraceServiceName}`);
+        }
+        console.log(`[service-manager] Pre-allocated port ${allocatedPort} for ${dynatraceServiceName}`);
+        
         // Create/overwrite wrapper with service-specific entrypoint
+        // Each service gets its own subdirectory with a package.json so OneAgent
+        // detects a unique "Web application id" instead of using the parent's package.json name
+        const serviceDir = path.join(runnersDir, dynatraceServiceName);
+        if (!fs.existsSync(serviceDir)) {
+          fs.mkdirSync(serviceDir, { recursive: true });
+        }
+        // Write a per-service package.json — OneAgent reads this for Web application id
+        const servicePkgJson = JSON.stringify({
+          name: dynatraceServiceName.toLowerCase(),
+          version: "1.0.0",
+          private: true
+        }, null, 2);
+        fs.writeFileSync(path.join(serviceDir, 'package.json'), servicePkgJson, 'utf-8');
+        
+        const wrapperPath = path.join(serviceDir, 'index.cjs');
         const wrapperSource = `// Auto-generated wrapper for ${dynatraceServiceName}\n` +
 `process.env.SERVICE_NAME = ${JSON.stringify(dynatraceServiceName)};\n` +
 `process.env.FULL_SERVICE_NAME = ${JSON.stringify(dynatraceServiceName)};\n` +
@@ -383,33 +517,50 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DOMAIN = ${JSON.stringify(domain)};\n` +
 `process.env.INDUSTRY_TYPE = ${JSON.stringify(industryType)};\n` +
 `process.env.CATEGORY = ${JSON.stringify(category)};\n` +
+`process.env.PORT = ${JSON.stringify(String(allocatedPort))};\n` +
+`process.env.MAIN_SERVER_PORT = '8080';\n` +
 `process.title = process.env.SERVICE_NAME;\n` +
-`// Plain env tags often picked as [Environment] in Dynatrace\n` +
-`process.env.company = process.env.COMPANY_NAME;\n` +
-`process.env.app = 'BizObs-CustomerJourney';\n` +
-`process.env.service = process.env.SERVICE_NAME;\n` +
-`// Dynatrace service detection\n` +
-`process.env.DT_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
-`process.env.DYNATRACE_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
-`process.env.DT_LOGICAL_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
-`process.env.DT_PROCESS_GROUP_NAME = process.env.SERVICE_NAME;\n` +
-`process.env.DT_PROCESS_GROUP_INSTANCE = process.env.SERVICE_NAME + '-' + (process.env.PORT || '');\n` +
-`process.env.DT_APPLICATION_NAME = 'BizObs-CustomerJourney';\n` +
-`process.env.DT_CLUSTER_ID = process.env.SERVICE_NAME;\n` +
-`process.env.DT_NODE_ID = process.env.SERVICE_NAME + '-node';\n` +
-`// Dynatrace comprehensive tags for business observability (all lowercase, clean format)\n` +
-`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' app=bizobs-journey service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' release-stage=production owner=ace-box-demo customer-id=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + '-demo environment=ace-box product=dynatrace domain=' + process.env.DOMAIN.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' industry-type=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.JOURNEY_DETAIL || process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
-`// Node.js web application override (prevents package.json name from being used)\n` +
-`process.env.DT_WEB_APPLICATION_ID = process.env.SERVICE_NAME;\n` +
-`process.env.DT_APPLICATION_BUILD_VERSION = process.env.SERVICE_NAME;\n` +
-`process.env.DT_SERVICE_DETECTION_FULL_NAME = process.env.SERVICE_NAME;\n` +
-`process.env.DT_SERVICE_DETECTION_RULE_NAME = process.env.SERVICE_NAME;\n` +
 `// Override argv[0] for Dynatrace process detection\n` +
 `if (process.argv && process.argv.length > 0) process.argv[0] = process.env.SERVICE_NAME;\n` +
+`\n` +
+`// ════════════════════════════════════════════════════════════\n` +
+`// DYNATRACE ONEAGENT - OFFICIAL ENVIRONMENT VARIABLES\n` +
+`// ════════════════════════════════════════════════════════════\n` +
+`\n` +
+`// 🔑 DT_APPLICATION_ID: Overrides package.json name for Web application id\n` +
+`// This is what OneAgent uses for service detection/naming (Web application id)\n` +
+`process.env.DT_APPLICATION_ID = process.env.SERVICE_NAME;\n` +
+`\n` +
+`// 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service\n` +
+`process.env.DT_CUSTOM_PROP = 'dtServiceName=' + process.env.SERVICE_NAME + ' companyName=' + process.env.COMPANY_NAME + ' domain=' + process.env.DOMAIN + ' industryType=' + process.env.INDUSTRY_TYPE + ' stepName=' + process.env.STEP_NAME;\n` +
+`\n` +
+`// 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags\n` +
+`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' app=bizobs-journey environment=ace-box industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
+`\n` +
+`// 📦 DT_RELEASE_*: Release tracking\n` +
+`process.env.DT_RELEASE_PRODUCT = 'BizObs-Engine';\n` +
+`process.env.DT_RELEASE_STAGE = 'production';\n` +
+`process.env.DT_RELEASE_VERSION = '1.0.0';\n` +
+`\n` +
+`// 🔗 DT_CLUSTER_ID / DT_NODE_ID: Cluster and node identification\n` +
+`process.env.DT_CLUSTER_ID = process.env.SERVICE_NAME;\n` +
+`process.env.DT_NODE_ID = process.env.SERVICE_NAME + '-node';\n` +
+`\n` +
+`// Internal env vars for app-level code (NOT read by OneAgent)\n` +
+`process.env.DT_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
+`process.env.DYNATRACE_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
+`\n` +
+`// Override inherited parent values that would confuse OneAgent\n` +
+`process.env.DT_LOGICAL_SERVICE_NAME = process.env.SERVICE_NAME;\n` +
+`process.env.DT_APPLICATION_NAME = process.env.SERVICE_NAME;\n` +
+`process.env.DT_PROCESS_GROUP_NAME = process.env.SERVICE_NAME;\n` +
+`\n` +
+`console.log('[wrapper] DT_APPLICATION_ID=' + process.env.DT_APPLICATION_ID);\n` +
+`console.log('[wrapper] DT_CUSTOM_PROP=' + process.env.DT_CUSTOM_PROP);\n` +
 `require(${JSON.stringify(dynamicServicePath)}).createStepService(process.env.SERVICE_NAME, process.env.STEP_NAME);\n`;
         fs.writeFileSync(wrapperPath, wrapperSource, 'utf-8');
         console.log(`[service-manager] Starting dynamic service via wrapper: ${wrapperPath}`);
-        const child = await startChildService(internalServiceName, wrapperPath, { 
+        const child = await startChildService(internalServiceName, wrapperPath, allocatedPort, { 
           STEP_NAME: stepEnvName,
           COMPANY_NAME: companyName,
           DOMAIN: domain,
@@ -417,10 +568,9 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
           CATEGORY: category,
           BASE_SERVICE_NAME: baseServiceName,
           DYNATRACE_SERVICE_NAME: dynatraceServiceName,
-          JOURNEY_DETAIL: companyContext.journeyDetail || stepName || 'Unknown_Journey'
+          JOURNEY_DETAIL: companyContext.journeyDetail || stepName || 'Unknown_Journey',
+          _SERVICE_CWD: serviceDir
         });
-        const meta = childServiceMeta[internalServiceName];
-        const allocatedPort = meta?.port;
         // Wait for service health endpoint to be ready before returning port
         if (allocatedPort) {
           const ready = await isServiceReady(allocatedPort, 5000);
@@ -471,6 +621,139 @@ export function getChildServices() {
 // Get service metadata
 export function getChildServiceMeta() {
   return childServiceMeta;
+}
+
+/**
+ * Initialize metrics for a service
+ */
+function initServiceMetrics(serviceName) {
+  if (!serviceMetrics[serviceName]) {
+    serviceMetrics[serviceName] = {
+      requests: 0,
+      errors: 0,
+      lastRequest: null,
+      startTime: Date.now(),
+      lastHealthCheck: null,
+      healthStatus: 'unknown',
+      responseTime: []
+    };
+  }
+  return serviceMetrics[serviceName];
+}
+
+/**
+ * Record a request to a service
+ */
+export function recordServiceRequest(serviceName, responseTime, isError = false) {
+  const metrics = initServiceMetrics(serviceName);
+  metrics.requests++;
+  metrics.lastRequest = Date.now();
+  if (isError) metrics.errors++;
+  if (responseTime) {
+    metrics.responseTime.push(responseTime);
+    // Keep only last 100 response times
+    if (metrics.responseTime.length > 100) {
+      metrics.responseTime.shift();
+    }
+  }
+}
+
+/**
+ * Get services grouped by company with detailed metrics
+ */
+export async function getServicesGroupedByCompany() {
+  const byCompany = {};
+  
+  for (const [serviceName, child] of Object.entries(childServices)) {
+    const meta = childServiceMeta[serviceName] || {};
+    const companyName = meta.companyName || 'Unknown';
+    
+    if (!byCompany[companyName]) {
+      byCompany[companyName] = {
+        companyName,
+        services: [],
+        totalServices: 0,
+        runningServices: 0,
+        totalRequests: 0,
+        totalErrors: 0
+      };
+    }
+    
+    const metrics = initServiceMetrics(serviceName);
+    const port = meta.port || 'unknown';
+    const uptime = meta.startTime ? Date.now() - meta.startTime : 0;
+    const isAlive = !child.killed && child.exitCode === null;
+    
+    // Check service health
+    let healthStatus = 'unknown';
+    if (isAlive && port !== 'unknown') {
+      try {
+        const isHealthy = await isServiceReady(port, 1000);
+        healthStatus = isHealthy ? 'healthy' : 'unhealthy';
+        metrics.lastHealthCheck = Date.now();
+        metrics.healthStatus = healthStatus;
+      } catch (e) {
+        healthStatus = 'error';
+      }
+    } else {
+      healthStatus = 'stopped';
+    }
+    
+    // Calculate average response time
+    const avgResponseTime = metrics.responseTime.length > 0
+      ? metrics.responseTime.reduce((a, b) => a + b, 0) / metrics.responseTime.length
+      : 0;
+    
+    const serviceInfo = {
+      serviceName,
+      displayName: meta.stepName || serviceName.replace('Service-' + companyName, ''),
+      port,
+      pid: child.pid,
+      status: isAlive ? 'running' : 'stopped',
+      healthStatus,
+      uptime,
+      uptimeFormatted: formatUptime(uptime),
+      startTime: meta.startTime || null,
+      requests: metrics.requests,
+      errors: metrics.errors,
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0,
+      lastRequest: metrics.lastRequest,
+      lastRequestAgo: metrics.lastRequest ? Date.now() - metrics.lastRequest : null,
+      avgResponseTime: avgResponseTime.toFixed(2),
+      lastHealthCheck: metrics.lastHealthCheck
+    };
+    
+    byCompany[companyName].services.push(serviceInfo);
+    byCompany[companyName].totalServices++;
+    if (isAlive) byCompany[companyName].runningServices++;
+    byCompany[companyName].totalRequests += metrics.requests;
+    byCompany[companyName].totalErrors += metrics.errors;
+  }
+  
+  // Sort companies by name
+  const sorted = Object.values(byCompany).sort((a, b) => a.companyName.localeCompare(b.companyName));
+  
+  return {
+    companies: sorted,
+    totalCompanies: sorted.length,
+    totalServices: Object.keys(childServices).length,
+    totalRunningServices: Object.values(childServices).filter(c => !c.killed && c.exitCode === null).length
+  };
+}
+
+/**
+ * Format uptime in human-readable format
+ */
+function formatUptime(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
 }
 
 // Stop all services and free all ports
@@ -540,6 +823,121 @@ export function stopCustomerJourneyServices() {
   });
   
   console.log(`[service-manager] Stopped ${stoppedCount} customer journey services, preserved ${essentialServices.length} essential services`);
+}
+
+/**
+ * Stop services for a specific company only
+ * Keeps other companies' services running (multi-tenant)
+ */
+export async function stopServicesForCompany(companyName) {
+  if (!companyName) {
+    console.warn('[service-manager] ⚠️ No companyName provided to stopServicesForCompany');
+    return 0;
+  }
+
+  console.log(`[service-manager] 🎯 Stopping services for company: ${companyName}`);
+  
+  let stoppedCount = 0;
+  const servicesToStop = [];
+
+  // Find all services for this company
+  Object.keys(childServices).forEach(serviceName => {
+    const meta = childServiceMeta[serviceName];
+    if (meta && meta.companyName === companyName) {
+      servicesToStop.push({ serviceName, meta });
+    }
+  });
+
+  // Stop each service
+  for (const { serviceName, meta } of servicesToStop) {
+    const child = childServices[serviceName];
+    if (child) {
+      try {
+        child.kill('SIGKILL');
+        stoppedCount++;
+        console.log(`[service-manager] 🛑 Killed service: ${serviceName} for ${companyName}`);
+      } catch (e) {
+        console.warn(`[service-manager] ⚠️ Error killing ${serviceName}: ${e.message}`);
+      }
+    }
+
+    // Release port
+    if (meta.port) {
+      portManager.releasePort(meta.port, serviceName);
+    }
+
+    // Clean up tracking
+    delete childServices[serviceName];
+    delete childServiceMeta[serviceName];
+  }
+
+  // Also kill any zombie services for this company using pkill
+  try {
+    const { execSync } = await import('child_process');
+    // This will kill services matching the company name pattern
+    const killCommand = `pkill -9 -f "${companyName}.*Service$"`;
+    execSync(killCommand, { stdio: 'ignore' });
+    console.log(`[service-manager] ✅ Killed zombie services for ${companyName} using pkill`);
+  } catch (e) {
+    // pkill returns exit code 1 if no processes found
+    console.log(`[service-manager] No zombie services found for ${companyName}`);
+  }
+
+  // Release all ports for this company
+  const portsReleased = portManager.releasePortsForCompany(companyName);
+
+  console.log(`[service-manager] ✅ Stopped ${stoppedCount} services for ${companyName} (${portsReleased} ports released)`);
+  return stoppedCount;
+}
+
+/**
+ * Stop a single service by name
+ */
+export async function stopService(serviceName) {
+  if (!serviceName) {
+    throw new Error('serviceName required');
+  }
+
+  const child = childServices[serviceName];
+  if (!child) {
+    throw new Error(`Service ${serviceName} not found`);
+  }
+
+  console.log(`[service-manager] 🛑 Stopping service: ${serviceName}`);
+
+  try {
+    child.kill('SIGTERM');
+    
+    // Wait for graceful shutdown
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        if (!child.killed) {
+          console.log(`[service-manager] ⚠️ Forcing kill of ${serviceName}`);
+          child.kill('SIGKILL');
+        }
+        resolve();
+      }, 3000);
+      
+      child.once('exit', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    
+    console.log(`[service-manager] ✅ Stopped service: ${serviceName}`);
+  } catch (e) {
+    console.warn(`[service-manager] ⚠️ Error stopping ${serviceName}: ${e.message}`);
+  }
+
+  // Release port
+  const meta = childServiceMeta[serviceName];
+  if (meta && meta.port) {
+    portManager.releasePort(meta.port, serviceName);
+  }
+
+  // Clean up tracking
+  delete childServices[serviceName];
+  delete childServiceMeta[serviceName];
 }
 
 // Convenience helper: ensure a service is started and ready (health endpoint responding)

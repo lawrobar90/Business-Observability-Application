@@ -1,0 +1,161 @@
+{
+  "companyName": "Financial Services",
+  "domain": "https://www.finance.com",
+  "industryType": "Wealth Management & Retail Investment Platform",
+  "journeyType": "Investment Account Opening",
+  "description": "Digital investment account opening journey from application through portfolio setup",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "TransferRequestInitiation",
+      "serviceName": "TransferRequestInitiationService",
+      "description": "Customer initiates an ISA transfer request by selecting the provider, entering account details, and confirming transfer type.",
+      "category": "TransferStart",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 7,
+      "businessRationale": "Initiation requires regulatory disclosures, provider lookup, and validation of ISA eligibility. Smooth UX reduces abandonment and increases transfer completion likelihood.",
+      "substeps": [
+        {
+          "substepName": "ProviderSelection",
+          "duration": 3
+        },
+        {
+          "substepName": "AccountDetailsEntryAndValidation",
+          "duration": 4
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "TransferAuthorisation",
+      "serviceName": "TransferAuthorisationService",
+      "description": "Customer signs digital transfer authority forms and HL submits the request to the existing ISA provider.",
+      "category": "Compliance",
+      "timestamp": "2026-02-05T21:36:20.046Z",
+      "estimatedDuration": 6,
+      "businessRationale": "Digital signatures and regulatory confirmations require secure workflows. This step is critical for legal compliance and transfer acceptance.",
+      "substeps": [
+        {
+          "substepName": "DigitalSignatureCapture",
+          "duration": 2
+        },
+        {
+          "substepName": "TransferFormSubmission",
+          "duration": 4
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "ProviderProcessing",
+      "serviceName": "ProviderProcessingService",
+      "description": "The existing ISA provider processes the transfer request, validates holdings, and prepares funds for movement.",
+      "category": "ExternalProcessing",
+      "timestamp": "2026-02-05T21:36:20.046Z",
+      "estimatedDuration": 1440,
+      "businessRationale": "ISA transfers typically take 1–2 weeks depending on provider responsiveness. HL must track SLAs and notify customers of delays.",
+      "substeps": [
+        {
+          "substepName": "ProviderValidation",
+          "duration": 720
+        },
+        {
+          "substepName": "FundsPreparation",
+          "duration": 720
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "FundsMovement",
+      "serviceName": "FundsMovementService",
+      "description": "Funds are transferred from the old provider to HL, either as cash or re-registered assets.",
+      "category": "Settlement",
+      "timestamp": "2026-02-05T21:36:20.046Z",
+      "estimatedDuration": 180,
+      "businessRationale": "Settlement and reconciliation require coordination between custodians. Delays directly impact customer satisfaction and AUM growth.",
+      "substeps": [
+        {
+          "substepName": "FundsTransferExecution",
+          "duration": 120
+        },
+        {
+          "substepName": "ReconciliationAndAllocation",
+          "duration": 60
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "TransferCompletionConfirmation",
+      "serviceName": "TransferCompletionConfirmationService",
+      "description": "HL confirms transfer completion, updates the customer’s ISA balance, and sends notifications.",
+      "category": "Notification",
+      "timestamp": "2026-02-05T21:36:20.046Z",
+      "estimatedDuration": 5,
+      "businessRationale": "Timely confirmation improves trust and reduces support queries. This step triggers AUM recognition for HL.",
+      "substeps": [
+        {
+          "substepName": "BalanceUpdate",
+          "duration": 2
+        },
+        {
+          "substepName": "CustomerNotification",
+          "duration": 3
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "PortfolioReview",
+      "serviceName": "PortfolioReviewService",
+      "description": "Customer reviews transferred funds, explores investment options, and may set up recurring investments.",
+      "category": "PortfolioManagement",
+      "timestamp": "2026-02-05T21:36:20.046Z",
+      "estimatedDuration": 9,
+      "businessRationale": "Portfolio review is a high‑value engagement moment that drives future trades, recurring investments, and long-term retention.",
+      "substeps": [
+        {
+          "substepName": "HoldingsReview",
+          "duration": 4
+        },
+        {
+          "substepName": "InvestmentOptionExploration",
+          "duration": 5
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": false,
+        "shouldSimulateError": false
+      }
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-09T14:34:49.813Z"
+}

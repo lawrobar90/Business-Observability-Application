@@ -1,0 +1,37 @@
+# DQL Query Examples
+
+## Business Events
+```dql
+fetch bizevents
+| filter event.type == "bizevents.{company}.journey.completed"
+| summarize count(), by: {journey_type}
+```
+
+## Time Series
+```dql
+timeseries requests = count(), by: {step_name}
+```
+
+## Success Rate
+```dql
+fetch bizevents
+| summarize 
+    total = count(),
+    successful = countIf(success == true)
+| fieldsAdd success_rate = (successful / total) * 100
+```
+
+## Top Errors
+```dql
+fetch bizevents
+| filter error_occurred == true
+| summarize errors = count(), by: {error_type}
+| sort errors desc
+| limit 10
+```
+
+## Performance P95
+```dql
+fetch bizevents
+| summarize p95 = percentile(duration_ms, 95), by: {step_name}
+```

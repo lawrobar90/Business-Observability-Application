@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
-import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus } from './services/service-manager.js';
+import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus, cleanupOrphanedServiceProcesses } from './services/service-manager.js';
 import portManager from './services/port-manager.js';
 
 import journeyRouter from './routes/journey.js';
@@ -30,8 +30,10 @@ import serviceProxyRouter from './routes/serviceProxy.js';
 import journeySimulationRouter from './routes/journey-simulation.js';
 import configRouter from './routes/config.js';
 import loadrunnerRouter from './routes/loadrunner-integration.js';
+import loadrunnerServiceRouter from './routes/loadrunner-service.js';
 import oauthRouter from './routes/oauth.js';
-import mcpRouter from './routes/mcp-integration.js';
+import aiDashboardRouter from './routes/ai-dashboard.js';
+// MCP integration removed - not needed for core functionality
 import { injectDynatraceMetadata, injectErrorMetadata, propagateMetadata, validateMetadata } from './middleware/dynatrace-metadata.js';
 import { performComprehensiveHealthCheck } from './middleware/observability-hygiene.js';
 // MongoDB integration removed
@@ -296,11 +298,13 @@ const eventService = {
         const results = [];
         
         for (const substep of substeps) {
-          const serviceName = getServiceNameFromStep(substep.stepName);
+          // Substeps use substepName property, not stepName
+          const substepName = substep.substepName || substep.stepName;
+          const serviceName = getServiceNameFromStep(substepName);
           
           try {
             // Ensure the service is running using service manager
-            ensureServiceRunning(substep.stepName);
+            ensureServiceRunning(substepName);
             
             // Wait a moment for service to be ready
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -308,12 +312,13 @@ const eventService = {
             // Call the dedicated service
             const payload = {
               ...substep,
+              stepName: substepName,  // Normalize to stepName for service
               correlationId,
               parentStep: stepName,
               timestamp: new Date().toISOString()
             };
             
-            const servicePort = getServicePort(substep.stepName);
+            const servicePort = getServicePort(substepName);
             const result = await callChildService(serviceName, payload, servicePort);
             results.push(result);
             
@@ -323,7 +328,7 @@ const eventService = {
             
             // Create comprehensive error result with trace information
             const errorResult = {
-              stepName: substep.stepName,
+              stepName: substepName,
               service: serviceName,
               status: 'error',
               error: error.message,
@@ -342,7 +347,7 @@ const eventService = {
               // Emit trace failure event
               io.emit('trace_failure', {
                 correlationId,
-                stepName: substep.stepName,
+                stepName: substepName,
                 serviceName,
                 error: error.message,
                 errorType: error.errorType,
@@ -393,8 +398,386 @@ app.use('/api/service-proxy', serviceProxyRouter);
 app.use('/api/journey-simulation', journeySimulationRouter);
 app.use('/api/config', configRouter);
 app.use('/api/loadrunner', loadrunnerRouter);
+app.use('/api/loadrunner-service', loadrunnerServiceRouter);
 app.use('/api/oauth', oauthRouter);
-app.use('/api/mcp', mcpRouter);
+app.use('/api/ai-dashboard', aiDashboardRouter);
+// MCP routes removed - not needed
+
+// 🚦 FEATURE FLAG API - Generic, scalable, future-proof
+// Default values for all feature flags
+const DEFAULT_FEATURE_FLAGS = {
+  errors_per_transaction: 0.1,
+  errors_per_visit: 0.001,
+  errors_per_minute: 0.5,
+  regenerate_every_n_transactions: 100
+};
+
+// Current feature flag values (starts as copy of defaults)
+let globalFeatureFlags = { ...DEFAULT_FEATURE_FLAGS };
+
+// GET all feature flags (with optional filtering by journey/company)
+app.get('/api/feature_flag', async (req, res) => {
+  const { journey, company, companyName } = req.query;
+  
+  // Get currently running journeys and companies from active tests and services
+  const { getChildServiceMeta } = await import('./services/service-manager.js');
+  const metadata = getChildServiceMeta();
+  
+  // Extract unique companies and journeys from active services
+  const runningCompanies = new Set();
+  const runningJourneys = new Set();
+  const activeServicesByCompany = {};
+  
+  Object.entries(metadata).forEach(([serviceName, meta]) => {
+    if (meta.companyName) {
+      runningCompanies.add(meta.companyName);
+      if (!activeServicesByCompany[meta.companyName]) {
+        activeServicesByCompany[meta.companyName] = {
+          companyName: meta.companyName,
+          industry: meta.industry,
+          domain: meta.domain,
+          services: [],
+          journeyType: meta.journeyType || null
+        };
+      }
+      activeServicesByCompany[meta.companyName].services.push(serviceName);
+      
+      if (meta.journeyType) {
+        runningJourneys.add(meta.journeyType);
+        activeServicesByCompany[meta.companyName].journeyType = meta.journeyType;
+      }
+    }
+  });
+  
+  // Add LoadRunner test data
+  const activeTestData = Object.values(loadTests).map(test => ({
+    companyName: test.companyName,
+    scenarioType: test.scenarioType,
+    uptime: Math.floor((Date.now() - new Date(test.startTime).getTime()) / 1000)
+  }));
+  
+  activeTestData.forEach(test => {
+    if (test.companyName) {
+      runningCompanies.add(test.companyName);
+      if (!activeServicesByCompany[test.companyName]) {
+        activeServicesByCompany[test.companyName] = {
+          companyName: test.companyName,
+          services: [],
+          journeyType: test.scenarioType || null
+        };
+      }
+      if (test.scenarioType) {
+        runningJourneys.add(test.scenarioType);
+        activeServicesByCompany[test.companyName].journeyType = test.scenarioType;
+      }
+    }
+  });
+  
+  const filterInfo = journey ? `journey: ${journey}` : 
+                     (company || companyName) ? `company: ${company || companyName}` : 
+                     'global';
+  
+  console.log(`📊 [Feature Flags API] GET all flags (${filterInfo}):`, globalFeatureFlags);
+  
+  res.json({
+    success: true,
+    flags: globalFeatureFlags,
+    defaults: DEFAULT_FEATURE_FLAGS,
+    currently_running: {
+      companies: Array.from(runningCompanies),
+      journeys: Array.from(runningJourneys),
+      active_by_company: activeServicesByCompany,
+      total_companies: runningCompanies.size,
+      total_journeys: runningJourneys.size
+    },
+    filter: {
+      journey: journey || null,
+      company: company || companyName || null
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// POST to set feature flags (can target specific company/journey from workflow)
+app.post('/api/feature_flag', async (req, res) => {
+  const body = req.body;
+  
+  // Check if this is the full GET response payload from step 1
+  let targetCompanies = [];
+  let targetJourneys = [];
+  let actionToPerform = null;
+  let previousFlags = { ...globalFeatureFlags };
+  
+  // If body contains 'currently_running' (from GET response), extract from it
+  if (body.currently_running) {
+    targetCompanies = body.currently_running.companies || [];
+    targetJourneys = body.currently_running.journeys || [];
+    actionToPerform = 'disable'; // Default action when GET payload is sent
+    
+    console.log('📦 [Feature Flags API] POST - Received GET payload, extracting running entities:', {
+      companies: targetCompanies,
+      journeys: targetJourneys
+    });
+  } 
+  // Otherwise, check for explicit fields
+  else {
+    const { companies, journeys, companyName, journeyType, action, flags } = body;
+    targetCompanies = companies || (companyName ? [companyName] : []);
+    targetJourneys = journeys || (journeyType ? [journeyType] : []);
+    actionToPerform = action;
+    
+    // Handle direct flag updates
+    if (flags && typeof flags === 'object') {
+      const changes = [];
+      Object.entries(flags).forEach(([key, value]) => {
+        if (key in globalFeatureFlags) {
+          const oldValue = globalFeatureFlags[key];
+          globalFeatureFlags[key] = value;
+          changes.push({
+            flag: key,
+            previous_value: oldValue,
+            new_value: value
+          });
+          
+          console.log(`🎛️  [Feature Flags API] POST - ${key}: ${oldValue} → ${value}`);
+        }
+      });
+      
+      return res.json({
+        success: true,
+        message: 'Feature flags updated',
+        changes: changes,
+        applied_to: {
+          companies: targetCompanies.length > 0 ? targetCompanies : 'all',
+          journeys: targetJourneys.length > 0 ? targetJourneys : 'all'
+        },
+        flags: globalFeatureFlags,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+  
+  // Execute the action (disable/enable)
+  if (actionToPerform === 'disable' || actionToPerform === 'stop') {
+    const changes = [{
+      flag: 'errors_per_transaction',
+      previous_value: previousFlags.errors_per_transaction,
+      new_value: 0
+    }];
+    
+    globalFeatureFlags.errors_per_transaction = 0;
+    
+    console.log(`⏸️  [Feature Flags API] POST - Errors DISABLED for:`, {
+      companies: targetCompanies.length > 0 ? targetCompanies : 'all',
+      journeys: targetJourneys.length > 0 ? targetJourneys : 'all'
+    });
+    
+    return res.json({
+      success: true,
+      message: `Feature flags disabled for ${targetCompanies.length} ${targetCompanies.length === 1 ? 'company' : 'companies'}`,
+      action: 'disable',
+      changes: changes,
+      applied_to: {
+        companies: targetCompanies.length > 0 ? targetCompanies : 'all',
+        journeys: targetJourneys.length > 0 ? targetJourneys : 'all',
+        total_affected: targetCompanies.length
+      },
+      flags: globalFeatureFlags,
+      previous_flags: previousFlags,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  if (actionToPerform === 'enable' || actionToPerform === 'start') {
+    const changes = [{
+      flag: 'errors_per_transaction',
+      previous_value: previousFlags.errors_per_transaction,
+      new_value: 0.1
+    }];
+    
+    globalFeatureFlags.errors_per_transaction = 0.1;
+    
+    console.log(`▶️  [Feature Flags API] POST - Errors ENABLED for:`, {
+      companies: targetCompanies.length > 0 ? targetCompanies : 'all',
+      journeys: targetJourneys.length > 0 ? targetJourneys : 'all'
+    });
+    
+    return res.json({
+      success: true,
+      message: `Feature flags enabled for ${targetCompanies.length} ${targetCompanies.length === 1 ? 'company' : 'companies'}`,
+      action: 'enable',
+      changes: changes,
+      applied_to: {
+        companies: targetCompanies.length > 0 ? targetCompanies : 'all',
+        journeys: targetJourneys.length > 0 ? targetJourneys : 'all',
+        total_affected: targetCompanies.length
+      },
+      flags: globalFeatureFlags,
+      previous_flags: previousFlags,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  res.status(400).json({
+    success: false,
+    error: 'Missing action or valid payload in request body',
+    hint: 'Send the full GET response from /api/feature_flag, or specify action: "disable"|"enable"',
+    expected: {
+      option1: 'Send full GET /api/feature_flag response',
+      option2: {
+        action: 'disable|enable',
+        companies: ['CompanyName'],
+        journeys: ['JourneyType']
+      },
+      option3: {
+        flags: { errors_per_transaction: 0 }
+      }
+    }
+  });
+});
+
+// GET specific feature flag
+app.get('/api/feature_flag/:flag_name', (req, res) => {
+  const { flag_name } = req.params;
+  
+  if (!(flag_name in globalFeatureFlags)) {
+    return res.status(404).json({
+      success: false,
+      error: `Feature flag '${flag_name}' not found`,
+      available_flags: Object.keys(globalFeatureFlags)
+    });
+  }
+  
+  console.log(`📊 [Feature Flags API] GET ${flag_name}:`, globalFeatureFlags[flag_name]);
+  res.json({
+    success: true,
+    flag: flag_name,
+    value: globalFeatureFlags[flag_name],
+    default: DEFAULT_FEATURE_FLAGS[flag_name],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// PUT to set feature flag value
+app.put('/api/feature_flag/:flag_name', (req, res) => {
+  const { flag_name } = req.params;
+  const { value } = req.body;
+  
+  if (!(flag_name in globalFeatureFlags)) {
+    return res.status(404).json({
+      success: false,
+      error: `Feature flag '${flag_name}' not found`,
+      available_flags: Object.keys(globalFeatureFlags)
+    });
+  }
+  
+  if (value === undefined) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing "value" in request body'
+    });
+  }
+  
+  const oldValue = globalFeatureFlags[flag_name];
+  globalFeatureFlags[flag_name] = value;
+  
+  // Special logging for error control
+  if (flag_name === 'errors_per_transaction') {
+    if (value === 0) {
+      console.log(`⏸️  [Feature Flags API] ${flag_name}: ${oldValue} → ${value} (DISABLED - Self-healing active!)`);
+    } else {
+      console.log(`🎛️  [Feature Flags API] ${flag_name}: ${oldValue} → ${value}`);
+    }
+  } else {
+    console.log(`🎛️  [Feature Flags API] ${flag_name}: ${oldValue} → ${value}`);
+  }
+  
+  res.json({
+    success: true,
+    flag: flag_name,
+    value: globalFeatureFlags[flag_name],
+    previous_value: oldValue,
+    message: `Feature flag '${flag_name}' updated`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// DELETE to reset feature flag to default
+app.delete('/api/feature_flag/:flag_name', (req, res) => {
+  const { flag_name } = req.params;
+  
+  if (!(flag_name in globalFeatureFlags)) {
+    return res.status(404).json({
+      success: false,
+      error: `Feature flag '${flag_name}' not found`,
+      available_flags: Object.keys(globalFeatureFlags)
+    });
+  }
+  
+  const oldValue = globalFeatureFlags[flag_name];
+  const defaultValue = DEFAULT_FEATURE_FLAGS[flag_name];
+  globalFeatureFlags[flag_name] = defaultValue;
+  
+  console.log(`🔄 [Feature Flags API] ${flag_name} RESET: ${oldValue} → ${defaultValue} (default)`);
+  
+  res.json({
+    success: true,
+    flag: flag_name,
+    value: globalFeatureFlags[flag_name],
+    previous_value: oldValue,
+    message: `Feature flag '${flag_name}' reset to default`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 🔄 BACKWARD COMPATIBILITY - Old error-config API
+// Redirects to new feature flag API for existing integrations
+app.get('/api/error-config', (req, res) => {
+  console.log('⚠️  [Legacy API] /api/error-config called (use /api/feature_flag instead)');
+  res.json({
+    success: true,
+    config: globalFeatureFlags,
+    status: globalFeatureFlags.errors_per_transaction === 0 ? 'disabled' : 'enabled',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/api/error-config', (req, res) => {
+  console.log('⚠️  [Legacy API] /api/error-config POST called (use PUT /api/feature_flag/:flag_name instead)');
+  const { errors_per_transaction, regenerate_every_n_transactions, action } = req.body;
+  
+  // Handle action shortcuts
+  if (action === 'disable' || action === 'stop') {
+    globalFeatureFlags.errors_per_transaction = 0;
+    console.log('⏸️  [Feature Flags API] errors_per_transaction: DISABLED via legacy action');
+  } else if (action === 'enable' || action === 'start') {
+    globalFeatureFlags.errors_per_transaction = 0.1;
+    console.log('▶️  [Feature Flags API] errors_per_transaction: ENABLED via legacy action');
+  } else {
+    if (typeof errors_per_transaction === 'number') {
+      globalFeatureFlags.errors_per_transaction = Math.max(0, Math.min(1, errors_per_transaction));
+    }
+    if (typeof regenerate_every_n_transactions === 'number') {
+      globalFeatureFlags.regenerate_every_n_transactions = Math.max(10, regenerate_every_n_transactions);
+    }
+  }
+  
+  res.json({
+    success: true,
+    message: 'Configuration updated via legacy API',
+    config: globalFeatureFlags,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Make feature flags available to other modules
+export function getGlobalErrorConfig() {
+  return globalFeatureFlags;
+}
+
+export function getFeatureFlags() {
+  return globalFeatureFlags;
+}
 
 // Internal business event endpoint for OneAgent capture
 app.post('/api/internal/bizevent', (req, res) => {
@@ -554,8 +937,8 @@ app.post('/api/admin/ensure-service', async (req, res) => {
     if (!stepName && !serviceName) {
       return res.status(400).json({ ok: false, error: 'stepName or serviceName required' });
     }
-    ensureServiceRunning(stepName || serviceName, { serviceName, ...(context || {}) });
-    res.json({ ok: true });
+    const port = await ensureServiceRunning(stepName || serviceName, { serviceName, ...(context || {}) });
+    res.json({ ok: true, port: port });  // Return the allocated port
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -583,7 +966,7 @@ app.get('/api/admin/services/status', (req, res) => {
     const detailedServices = Object.entries(running).map(([name, proc]) => {
       const meta = metadata[name] || {};
       const startTime = meta.startTime || null;
-      const port = meta.port || getServicePort(name) || 'unknown';
+      const port = meta.port || 'unknown';  // Don't call async getServicePort here
       
       return {
         service: name,
@@ -592,6 +975,7 @@ app.get('/api/admin/services/status', (req, res) => {
         startTime: startTime,
         uptime: startTime ? Math.floor((Date.now() - new Date(startTime).getTime()) / 1000) : 0,
         port: port,
+        stepName: meta.stepName || meta.baseServiceName || name,  // Include step name for display
         companyContext: {
           companyName: meta.companyName || 'unknown',
           domain: meta.domain || 'unknown',
@@ -608,6 +992,318 @@ app.get('/api/admin/services/status', (req, res) => {
       services: detailedServices,
       serverUptime: Math.floor(process.uptime()),
       serverPid: process.pid
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// --- NEW: Enhanced service status grouped by company with detailed metrics ---
+app.get('/api/admin/services/by-company', async (req, res) => {
+  try {
+    const { getServicesGroupedByCompany } = await import('./services/service-manager.js');
+    const groupedServices = await getServicesGroupedByCompany();
+    
+    res.json({
+      ok: true,
+      timestamp: new Date().toISOString(),
+      ...groupedServices
+    });
+  } catch (e) {
+    console.error('[API] Error fetching grouped services:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Service history tracking
+const serviceHistory = {
+  configurations: [],  // Historic service configs
+  maxHistory: 50
+};
+
+// Load test tracking
+const loadTests = {};
+
+// Stop ALL services and load runners - complete reset
+app.post('/api/admin/stop-all-and-clear', async (req, res) => {
+  try {
+    console.log('🛑 [Admin] Stopping all services and load runners...');
+    
+    // Stop all LoadRunner tests
+    const loadRunnerManager = (await import('./scripts/continuous-loadrunner.js')).default;
+    const stoppedTests = await loadRunnerManager.stopAllTests();
+    
+    // Stop all child services (this clears internal tracking)
+    await stopAllServices();
+    
+    // Force kill any remaining processes with extreme prejudice
+    const { execSync } = await import('child_process');
+    try {
+      execSync('pkill -9 -f "dynamic-step-service" 2>/dev/null', { stdio: 'ignore' });
+      execSync('pkill -9 -f "loadrunner-simulator" 2>/dev/null', { stdio: 'ignore' });
+      execSync('pkill -9 -f "Service-" 2>/dev/null', { stdio: 'ignore' });
+    } catch (e) {
+      // Ignore errors if no processes found
+    }
+    
+    // Double-check: Verify all services are cleared from service manager
+    const { getChildServices } = await import('./services/service-manager.js');
+    const remainingServices = Object.keys(getChildServices());
+    if (remainingServices.length > 0) {
+      console.warn(`[Admin] Warning: ${remainingServices.length} services still tracked:`, remainingServices);
+    }
+    
+    console.log('✅ [Admin] All services and load runners stopped');
+    
+    res.json({
+      ok: true,
+      message: 'All services and load runners stopped and cleared',
+      stoppedTests: stoppedTests || 0,
+      servicesStopped: true,
+      servicesCleared: remainingServices.length === 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('[Admin] Error stopping all:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stop individual service
+app.post('/api/admin/services/stop', async (req, res) => {
+  try {
+    const { serviceName } = req.body;
+    if (!serviceName) {
+      return res.status(400).json({ ok: false, error: 'serviceName required' });
+    }
+    
+    const { stopService, getChildServices } = await import('./services/service-manager.js');
+    const services = getChildServices();
+    
+    if (!services[serviceName]) {
+      return res.status(404).json({ ok: false, error: `Service ${serviceName} not found` });
+    }
+    
+    await stopService(serviceName);
+    res.json({ ok: true, message: `Service ${serviceName} stopped`, serviceName });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stop all services by company
+app.post('/api/admin/services/stop-by-company', async (req, res) => {
+  try {
+    const { companyName } = req.body;
+    if (!companyName) {
+      return res.status(400).json({ ok: false, error: 'companyName required' });
+    }
+    
+    const { getChildServices, getChildServiceMeta, stopService } = await import('./services/service-manager.js');
+    const services = getChildServices();
+    const metadata = getChildServiceMeta();
+    
+    const stoppedServices = [];
+    for (const [serviceName, proc] of Object.entries(services)) {
+      const meta = metadata[serviceName] || {};
+      if (meta.companyName === companyName) {
+        await stopService(serviceName);
+        stoppedServices.push(serviceName);
+      }
+    }
+    
+    res.json({ 
+      ok: true, 
+      message: `Stopped ${stoppedServices.length} services for ${companyName}`,
+      companyName,
+      stoppedServices
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Save service configuration to history
+app.post('/api/admin/services/save-config', async (req, res) => {
+  try {
+    const { getChildServices, getChildServiceMeta } = await import('./services/service-manager.js');
+    const services = getChildServices();
+    const metadata = getChildServiceMeta();
+    
+    const config = {
+      timestamp: new Date().toISOString(),
+      services: Object.entries(services).map(([name, proc]) => ({
+        serviceName: name,
+        ...metadata[name]
+      }))
+    };
+    
+    serviceHistory.configurations.unshift(config);
+    if (serviceHistory.configurations.length > serviceHistory.maxHistory) {
+      serviceHistory.configurations.pop();
+    }
+    
+    res.json({ ok: true, config, historyCount: serviceHistory.configurations.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Get service history
+app.get('/api/admin/services/history', (req, res) => {
+  try {
+    res.json({ 
+      ok: true, 
+      history: serviceHistory.configurations,
+      count: serviceHistory.configurations.length
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Restore services from history
+app.post('/api/admin/services/restore', async (req, res) => {
+  try {
+    const { timestamp } = req.body;
+    const config = serviceHistory.configurations.find(c => c.timestamp === timestamp);
+    
+    if (!config) {
+      return res.status(404).json({ ok: false, error: 'Configuration not found' });
+    }
+    
+    const { ensureServiceRunning } = await import('./services/service-manager.js');
+    const restoredServices = [];
+    
+    for (const svc of config.services) {
+      try {
+        await ensureServiceRunning(svc.serviceName, svc);
+        restoredServices.push(svc.serviceName);
+      } catch (err) {
+        console.error(`Failed to restore ${svc.serviceName}:`, err);
+      }
+    }
+    
+    res.json({ 
+      ok: true, 
+      message: `Restored ${restoredServices.length}/${config.services.length} services`,
+      restoredServices
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Delete configuration from history
+app.post('/api/admin/services/history/delete', (req, res) => {
+  try {
+    const { timestamp } = req.body;
+    if (!timestamp) {
+      return res.status(400).json({ ok: false, error: 'timestamp required' });
+    }
+    
+    const index = serviceHistory.configurations.findIndex(c => c.timestamp === timestamp);
+    if (index === -1) {
+      return res.status(404).json({ ok: false, error: 'Configuration not found' });
+    }
+    
+    serviceHistory.configurations.splice(index, 1);
+    
+    res.json({ 
+      ok: true, 
+      message: '✅ Configuration deleted',
+      remaining: serviceHistory.configurations.length
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Start load test
+app.post('/api/admin/loadtest/start', async (req, res) => {
+  try {
+    const { companyName, scenarioType = 'light-load' } = req.body;
+    if (!companyName) {
+      return res.status(400).json({ ok: false, error: 'companyName required' });
+    }
+    
+    if (loadTests[companyName]) {
+      return res.status(400).json({ ok: false, error: `Load test already running for ${companyName}` });
+    }
+    
+    const { spawn } = await import('child_process');
+    const loadTestPath = path.join(process.cwd(), 'scripts', 'loadrunner-simulator.js');
+    const testConfigPath = path.join(process.cwd(), 'loadrunner-tests', companyName);
+    
+    const proc = spawn('node', [loadTestPath, testConfigPath, scenarioType], {
+      detached: false,
+      stdio: 'pipe'
+    });
+    
+    loadTests[companyName] = {
+      pid: proc.pid,
+      companyName,
+      scenarioType,
+      startTime: new Date().toISOString(),
+      process: proc
+    };
+    
+    proc.on('exit', () => {
+      delete loadTests[companyName];
+    });
+    
+    res.json({ 
+      ok: true, 
+      message: `Load test started for ${companyName}`,
+      pid: proc.pid,
+      companyName
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stop load test
+app.post('/api/admin/loadtest/stop', async (req, res) => {
+  try {
+    const { companyName } = req.body;
+    if (!companyName) {
+      return res.status(400).json({ ok: false, error: 'companyName required' });
+    }
+    
+    const loadTest = loadTests[companyName];
+    if (!loadTest) {
+      return res.status(404).json({ ok: false, error: `No load test running for ${companyName}` });
+    }
+    
+    loadTest.process.kill();
+    delete loadTests[companyName];
+    
+    res.json({ 
+      ok: true, 
+      message: `Load test stopped for ${companyName}`,
+      companyName
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Get load test status
+app.get('/api/admin/loadtest/status', (req, res) => {
+  try {
+    const activeTests = Object.values(loadTests).map(test => ({
+      companyName: test.companyName,
+      pid: test.pid,
+      scenarioType: test.scenarioType,
+      startTime: test.startTime,
+      uptime: Math.floor((Date.now() - new Date(test.startTime).getTime()) / 1000)
+    }));
+    
+    res.json({ 
+      ok: true, 
+      activeTests,
+      count: activeTests.length
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -2191,21 +2887,28 @@ app.get('/api/admin/configs', async (req, res) => {
           const filePath = path.join(configDir, file);
           const data = await fs.readFile(filePath, 'utf8');
           const config = JSON.parse(data);
-          configs.push({
-            id: config.id,
-            name: config.name,
-            companyName: config.companyName,
-            timestamp: config.timestamp,
-            filename: file
-          });
+          // Use filename (without .json) as the ID for API calls
+          const fileId = file.replace('.json', '').replace('config-', '');
+          
+          // Filter out user-saved configs (numeric-only IDs from timestamps)
+          // Only include default library configs (descriptive names like "banking-account-opening")
+          if (!/^\d+$/.test(fileId)) {
+            configs.push({
+              id: fileId,
+              name: config.name,
+              companyName: config.companyName,
+              timestamp: config.timestamp,
+              filename: file
+            });
+          }
         } catch (error) {
           console.warn(`⚠️ Error reading config file ${file}:`, error.message);
         }
       }
     }
     
-    // Sort by timestamp (newest first)
-    configs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Sort by name (alphabetically)
+    configs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     
     res.json({
       ok: true,
@@ -2312,11 +3015,49 @@ app.get('/api/admin/configs/list', async (req, res) => {
 app.get('/api/admin/configs/:id', async (req, res) => {
   try {
     const configId = req.params.id;
-    const filename = `config-${configId}.json`;
-    const filePath = path.join(configDir, filename);
     
-    // Check if file exists
-    if (!existsSync(filePath)) {
+    // Try multiple filename patterns to support both old UUID-based and new named configs
+    const possibleFilenames = [
+      `config-${configId}.json`,           // New format: config-banking-account-opening.json
+      `config-${configId.toLowerCase()}.json`  // Case insensitive variant
+    ];
+    
+    let filePath = null;
+    let filename = null;
+    
+    // Try each possible filename
+    for (const fn of possibleFilenames) {
+      const testPath = path.join(configDir, fn);
+      if (existsSync(testPath)) {
+        filePath = testPath;
+        filename = fn;
+        break;
+      }
+    }
+    
+    // If still not found, search by internal ID in all config files
+    if (!filePath) {
+      const files = await fs.readdir(configDir);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          try {
+            const testPath = path.join(configDir, file);
+            const data = await fs.readFile(testPath, 'utf8');
+            const config = JSON.parse(data);
+            if (config.id === configId) {
+              filePath = testPath;
+              filename = file;
+              break;
+            }
+          } catch (err) {
+            // Skip files that can't be read
+          }
+        }
+      }
+    }
+    
+    // Check if file was found
+    if (!filePath) {
       return res.status(404).json({
         ok: false,
         error: 'Configuration not found',
@@ -2349,11 +3090,49 @@ app.get('/api/admin/configs/:id', async (req, res) => {
 app.delete('/api/admin/configs/:id', async (req, res) => {
   try {
     const configId = req.params.id;
-    const filename = `config-${configId}.json`;
-    const filePath = path.join(configDir, filename);
     
-    // Check if file exists
-    if (!existsSync(filePath)) {
+    // Try multiple filename patterns to support both old UUID-based and new named configs
+    const possibleFilenames = [
+      `config-${configId}.json`,           // New format: config-banking-account-opening.json
+      `config-${configId.toLowerCase()}.json`  // Case insensitive variant
+    ];
+    
+    let filePath = null;
+    let filename = null;
+    
+    // Try each possible filename
+    for (const fn of possibleFilenames) {
+      const testPath = path.join(configDir, fn);
+      if (existsSync(testPath)) {
+        filePath = testPath;
+        filename = fn;
+        break;
+      }
+    }
+    
+    // If still not found, search by internal ID in all config files
+    if (!filePath) {
+      const files = await fs.readdir(configDir);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          try {
+            const testPath = path.join(configDir, file);
+            const data = await fs.readFile(testPath, 'utf8');
+            const config = JSON.parse(data);
+            if (config.id === configId) {
+              filePath = testPath;
+              filename = file;
+              break;
+            }
+          } catch (err) {
+            // Skip files that can't be read
+          }
+        }
+      }
+    }
+    
+    // Check if file was found
+    if (!filePath) {
       return res.status(404).json({
         ok: false,
         error: 'Configuration not found',
@@ -2401,9 +3180,20 @@ app.post('/api/admin/configs/:id/run', async (req, res) => {
     const { 
       testProfile = 'medium', 
       durationMinutes = 5, 
-      errorSimulationEnabled = true,
+      featureFlags = {},
       useLoadRunner = false
     } = req.body;
+    
+    // Legacy support: convert errorSimulationEnabled to feature flags
+    if (req.body.errorSimulationEnabled === true && Object.keys(featureFlags).length === 0) {
+      console.log('⚠️ Legacy errorSimulationEnabled detected, converting to feature flags');
+      featureFlags.payment_gateway_timeout = {
+        enabled: true,
+        errorRate: 0.15,
+        errorType: 'timeout',
+        affectedSteps: ['PaymentProcessing', 'CheckoutService']
+      };
+    }
     
     // Load the configuration
     const filename = `config-${configId}.json`;
@@ -2430,7 +3220,7 @@ app.post('/api/admin/configs/:id/run', async (req, res) => {
           journeyConfig: config,
           testProfile,
           durationMinutes,
-          errorSimulationEnabled
+          featureFlags
         };
         
         // Make internal request to LoadRunner endpoint
@@ -2578,6 +3368,22 @@ server.listen(PORT, () => {
     console.log('✅ All essential dependencies validated successfully.');
   }
 
+  // --- Clean up orphaned service processes from previous server sessions ---
+  // These zombie processes hold ports in the service port range and cause
+  // "No available ports" errors for new journeys
+  try {
+    const killed = cleanupOrphanedServiceProcesses();
+    if (killed > 0) {
+      console.log(`🧹 Cleaned up ${killed} orphaned service processes from previous sessions`);
+      // Give ports a moment to be released by the OS after process termination
+      setTimeout(() => {
+        console.log('✅ Port cleanup settling complete - ports should be available now');
+      }, 2000);
+    }
+  } catch (error) {
+    console.warn('⚠️  Orphan process cleanup failed:', error.message);
+  }
+
   // --- Check directory structure and permissions ---
   const requiredDirectories = [
     './services',
@@ -2598,21 +3404,16 @@ server.listen(PORT, () => {
     }
   });
 
-  // --- Auto-start only essential services (on-demand for others) ---
+  // --- Auto-start disabled - all services now start on-demand per company ---
   const coreServices = [
-    // Only the most commonly used services - others start on-demand
-    'Discovery',      // Most common first step in journeys
-    'Purchase',       // Most common transaction step
-    'DataPersistence' // Always needed for data storage
+    // All services start on-demand when journeys are run
+    // No default services - prevents ShopMart, Global Financial, DefaultCompany from running
   ];
   
-  const companyContext = {
-    companyName: process.env.DEFAULT_COMPANY || 'DefaultCompany',
-    domain: process.env.DEFAULT_DOMAIN || 'default.com',
-    industryType: process.env.DEFAULT_INDUSTRY || 'general'
-  };
-  
-  console.log(`🚀 Starting ${coreServices.length} essential services (others will start on-demand)...`);
+  // ⚠️ No default company context - services only start when explicitly requested per journey
+  console.log(`🚀 Auto-start disabled - all services will start on-demand when journeys are run`);
+  console.log(`⚠️ No default services (ShopMart, Global Financial, DefaultCompany will NOT start)`);
+
   
   // Start services with proper error handling and logging
   const serviceStartPromises = coreServices.map(async (stepName, index) => {

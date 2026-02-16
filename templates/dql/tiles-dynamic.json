@@ -1,0 +1,86 @@
+{
+  "_comment": "Dynamic tile templates. These are generated on-the-fly for additionalFields that don't map to a core templateSlot. The assembler picks the right template based on the field's domain and type from field-classifier.json. Tokens: {{FIELD_PATH}} = additionalfields.fieldName, {{FIELD_LABEL}} = human-readable name, {{AGGREGATE}} = sum/avg/etc, {{GROUP_BY_FIELD}} = the field to group by.",
+
+  "tiles": {
+
+    "numeric_single_value": {
+      "id": "dyn_numeric_sv_{{FIELD_NAME}}",
+      "title": "📊 {{FIELD_LABEL}}",
+      "domain": "dynamic",
+      "visualization": "singleValue",
+      "forType": "number",
+      "forAggregate": ["sum", "avg"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize value = {{AGGREGATE}}({{FIELD_PATH}})"
+    },
+
+    "numeric_by_step": {
+      "id": "dyn_numeric_step_{{FIELD_NAME}}",
+      "title": "📊 {{FIELD_LABEL}} by Step",
+      "domain": "dynamic",
+      "visualization": "categoricalBarChart",
+      "forType": "number",
+      "forAggregate": ["sum", "avg"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize value = {{AGGREGATE}}({{FIELD_PATH}}), by: {json.stepName} \n| sort value desc"
+    },
+
+    "numeric_over_time": {
+      "id": "dyn_numeric_time_{{FIELD_NAME}}",
+      "title": "📈 {{FIELD_LABEL}} Over Time",
+      "domain": "dynamic",
+      "visualization": "lineChart",
+      "forType": "number",
+      "forAggregate": ["sum", "avg"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| makeTimeseries value = {{AGGREGATE}}({{FIELD_PATH}}), bins:30"
+    },
+
+    "categorical_distribution": {
+      "id": "dyn_cat_dist_{{FIELD_NAME}}",
+      "title": "📊 {{FIELD_LABEL}} Distribution",
+      "domain": "dynamic",
+      "visualization": "donutChart",
+      "forType": "string",
+      "forAggregate": ["groupBy"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize count = count(), by: {{{FIELD_PATH}}} \n| sort count desc \n| limit 10"
+    },
+
+    "categorical_by_step": {
+      "id": "dyn_cat_step_{{FIELD_NAME}}",
+      "title": "📊 {{FIELD_LABEL}} by Step",
+      "domain": "dynamic",
+      "visualization": "table",
+      "forType": "string",
+      "forAggregate": ["groupBy"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize count = count(), by: {json.stepName, {{FIELD_PATH}}} \n| sort count desc \n| limit 20"
+    },
+
+    "boolean_rate": {
+      "id": "dyn_bool_rate_{{FIELD_NAME}}",
+      "title": "📊 {{FIELD_LABEL}} Rate",
+      "domain": "dynamic",
+      "visualization": "singleValue",
+      "forType": "boolean",
+      "forAggregate": ["countIf"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize total = count(), flagged = countIf({{FIELD_PATH}} == true) \n| fieldsAdd rate = round((toDouble(flagged) / toDouble(total)) * 100, decimals:2)"
+    },
+
+    "boolean_trend": {
+      "id": "dyn_bool_trend_{{FIELD_NAME}}",
+      "title": "📈 {{FIELD_LABEL}} Trend",
+      "domain": "dynamic",
+      "visualization": "lineChart",
+      "forType": "boolean",
+      "forAggregate": ["countIf"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| makeTimeseries {flagged = countIf({{FIELD_PATH}} == true), total = count()}, bins:30 \n| fieldsAdd rate = (flagged[] / total[]) * 100"
+    },
+
+    "count_distinct": {
+      "id": "dyn_countdist_{{FIELD_NAME}}",
+      "title": "📊 Unique {{FIELD_LABEL}}s",
+      "domain": "dynamic",
+      "visualization": "singleValue",
+      "forType": "string",
+      "forAggregate": ["countDistinct"],
+      "query": "fetch bizevents \n| filter event.kind == \"BIZ_EVENT\" \n| filter json.companyName == $CompanyName \n| filter json.industryType == $JourneyType \n| summarize unique = countDistinct({{FIELD_PATH}})"
+    }
+  }
+}

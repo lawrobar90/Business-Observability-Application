@@ -1,0 +1,151 @@
+{
+  "version": 19,
+  "variables": [
+    {
+      "id": "company",
+      "name": "Company",
+      "description": "Filter by company",
+      "type": "query",
+      "query": "fetch bizevents, from: now()-24h\n| filter isNotNull(json.companyName)\n| summarize count = count(), by: {json.companyName}\n| sort count desc\n| fields value = json.companyName",
+      "defaultValue": "Retail",
+      "multiple": false
+    },
+    {
+      "id": "industry",
+      "name": "Industry",
+      "description": "Filter by industry type",
+      "type": "query",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter isNotNull(json.industryType)\n| summarize count = count(), by: {json.industryType}\n| sort count desc\n| fields value = json.industryType",
+      "defaultValue": "E-commerce",
+      "multiple": false
+    },
+    {
+      "id": "journey_type",
+      "name": "Journey Type",
+      "description": "Filter by journey type",
+      "type": "query",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter isNotNull(json.journeyType)\n| summarize count = count(), by: {json.journeyType}\n| sort count desc\n| fields value = json.journeyType",
+      "defaultValue": "Loyalty Signup",
+      "multiple": false
+    }
+  ],
+  "tiles": {
+    "tile_0": {
+      "id": "tile_0",
+      "type": "data",
+      "title": "$company - $journey_type Journey Overview",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize total = count(), by: {event.type}\n| sort total desc",
+      "visualization": "pieChart",
+      "visualizationConfig": {
+        "chartType": "PIE"
+      }
+    },
+    "tile_1": {
+      "id": "tile_1",
+      "type": "data",
+      "title": "Transactions Over Time",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize total = count(), by: {bin(timestamp, 1h), event.type}\n| sort timestamp asc",
+      "visualization": "lineChart",
+      "visualizationConfig": {
+        "chartType": "LINE"
+      }
+    },
+    "tile_2": {
+      "id": "tile_2",
+      "type": "data",
+      "title": "Step Performance",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total = count(),\n    avg_step_index = avg(toDouble(json.stepIndex)),\n    by: {event.type, json.stepCategory}\n| sort avg_step_index asc",
+      "visualization": "table"
+    },
+    "tile_3": {
+      "id": "tile_3",
+      "type": "data",
+      "title": "Revenue & Transaction Metrics",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total_transactions = count(),\n    avg_order = avg(additionalfields.orderTotal),\n    avg_transaction = avg(additionalfields.transactionValue),\n    avg_lifetime_value = avg(additionalfields.customerLifetimeValue),\n    by: {event.type}\n| sort total_transactions desc",
+      "visualization": "table"
+    },
+    "tile_4": {
+      "id": "tile_4",
+      "type": "data",
+      "title": "Error Rate by Step",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total = count(),\n    errors = countIf(json.hasError == true),\n    by: {event.type}\n| fieldsAdd error_rate = (toDouble(errors) / toDouble(total)) * 100\n| sort error_rate desc",
+      "visualization": "barChart"
+    },
+    "tile_5": {
+      "id": "tile_5",
+      "type": "data",
+      "title": "Customer Segments",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total = count(),\n    by: {additionalfields.customerSegment}\n| sort total desc",
+      "visualization": "pieChart",
+      "visualizationConfig": {
+        "chartType": "PIE"
+      }
+    },
+    "tile_6": {
+      "id": "tile_6",
+      "type": "data",
+      "title": "Risk & Churn Analysis",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total = count(),\n    by: {additionalfields.churnRisk, additionalfields.abandonmentRisk}\n| sort total desc",
+      "visualization": "table"
+    },
+    "tile_7": {
+      "id": "tile_7",
+      "type": "data",
+      "title": "Device & Channel Mix",
+      "query": "fetch bizevents, from: now()-24h\n| filter json.companyName == \"$company\"\n| filter json.industryType == \"$industry\"\n| filter json.journeyType == \"$journey_type\"\n| summarize \n    total = count(),\n    by: {additionalfields.deviceType, additionalfields.browser}\n| sort total desc",
+      "visualization": "barChart"
+    }
+  },
+  "layouts": {
+    "default": {
+      "tile_0": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 6
+      },
+      "tile_1": {
+        "x": 10,
+        "y": 0,
+        "w": 10,
+        "h": 6
+      },
+      "tile_2": {
+        "x": 0,
+        "y": 6,
+        "w": 10,
+        "h": 6
+      },
+      "tile_3": {
+        "x": 10,
+        "y": 6,
+        "w": 10,
+        "h": 6
+      },
+      "tile_4": {
+        "x": 0,
+        "y": 12,
+        "w": 10,
+        "h": 6
+      },
+      "tile_5": {
+        "x": 10,
+        "y": 12,
+        "w": 10,
+        "h": 6
+      },
+      "tile_6": {
+        "x": 0,
+        "y": 18,
+        "w": 10,
+        "h": 6
+      },
+      "tile_7": {
+        "x": 10,
+        "y": 18,
+        "w": 10,
+        "h": 6
+      }
+    }
+  }
+}

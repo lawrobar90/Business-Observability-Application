@@ -1,9 +1,254 @@
 import express from 'express';
 import http from 'http';
 import crypto, { randomBytes } from 'crypto';
-import { ensureServiceRunning, getServicePort, getServiceNameFromStep } from '../services/service-manager.js';
+import fs from 'fs';
+import path from 'path';
+import { ensureServiceRunning, getServicePort, getServiceNameFromStep, stopServicesForCompany, stopAllServices } from '../services/service-manager.js';
+import loadRunnerManager from '../scripts/continuous-loadrunner.js';
 
 const router = express.Router();
+
+// ============ CONTINUOUS JOURNEY GENERATION ============
+// Track active continuous journeys by company
+const activeContinuousJourneys = new Map();
+const CONTINUOUS_GEN_STATE_FILE = path.join(process.cwd(), 'logs', 'continuous-generation-state.json');
+
+// Save continuous generation state to disk
+function saveContinuousGenState() {
+  try {
+    const state = {};
+    for (const [key, value] of activeContinuousJourneys.entries()) {
+      state[key] = value.config; // Save the config, not the timeout
+    }
+    fs.writeFileSync(CONTINUOUS_GEN_STATE_FILE, JSON.stringify(state, null, 2));
+  } catch (err) {
+    console.error('[continuous-gen] Failed to save state:', err.message);
+  }
+}
+
+// Load and restore continuous generation state on server start
+function restoreContinuousGenState() {
+  try {
+    if (fs.existsSync(CONTINUOUS_GEN_STATE_FILE)) {
+      const state = JSON.parse(fs.readFileSync(CONTINUOUS_GEN_STATE_FILE, 'utf8'));
+      console.log(`[continuous-gen] 🔄 Restoring ${Object.keys(state).length} continuous generation(s)...`);
+      
+      for (const [companyName, config] of Object.entries(state)) {
+        console.log(`[continuous-gen] Restarting continuous generation for ${companyName}`);
+        startContinuousGeneration(config.journeyConfig, config.stepData, config.currentPayload, config.chained, config.thinkTimeMs);
+      }
+    }
+  } catch (err) {
+    console.error('[continuous-gen] Failed to restore state:', err.message);
+  }
+}
+
+// Start continuous data generation for a journey (10-20 requests per minute)
+function startContinuousGeneration(journeyConfig, stepData, currentPayload, chained, thinkTimeMs) {
+  const { companyName } = currentPayload;
+  const journeyKey = `${companyName}`;
+  
+  // Stop existing continuous generation for this company
+  if (activeContinuousJourneys.has(journeyKey)) {
+    console.log(`[continuous-gen] Stopping existing generation for ${companyName}`);
+    const entry = activeContinuousJourneys.get(journeyKey);
+    clearTimeout(entry.timeoutId);
+  }
+  
+  // Generate requests every 3-6 seconds (10-20 per minute)
+  const minInterval = 3000; // 3 seconds = 20 per minute
+  const maxInterval = 6000; // 6 seconds = 10 per minute
+  
+  console.log(`[continuous-gen] 🔄 Starting continuous generation for ${companyName} (10-20 requests/min)`);
+  
+  const generateRequest = async () => {
+    try {
+      const customerId = `customer_${Math.floor(Math.random() * 10000)}`;
+      const correlationId = crypto.randomUUID();
+      const journeyId = `journey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const payload = {
+        ...currentPayload,
+        journeyId,
+        customerId,
+        correlationId,
+        startTime: new Date().toISOString()
+      };
+      
+      // Execute journey in background
+      if (chained) {
+        const first = stepData[0];
+        if (!first) return;
+        
+        const firstPort = await ensureServiceRunning(first.stepName, { 
+          ...currentPayload, 
+          stepName: first.stepName, 
+          serviceName: first.serviceName 
+        });
+        
+        const chainedPayload = {
+          journeyId: payload.journeyId,
+          customerId: payload.customerId,
+          correlationId: payload.correlationId,
+          startTime: payload.startTime,
+          companyName: payload.companyName,
+          domain: payload.domain,
+          industryType: payload.industryType,
+          stepName: first.stepName,
+          serviceName: first.serviceName,
+          description: first.description,
+          category: first.category,
+          nextServices: stepData.slice(1).map(s => ({
+            stepName: s.stepName,
+            serviceName: s.serviceName,
+            description: s.description,
+            category: s.category,
+            hasError: s.hasError,
+            errorMessage: s.errorMessage
+          })),
+          additionalFields: payload.additionalFields,
+          customerProfile: payload.customerProfile,
+          traceMetadata: payload.traceMetadata
+        };
+        
+        await makeServiceRequest(firstPort, first.serviceName, chainedPayload);
+      } else {
+        // Parallel execution
+        for (const stepInfo of stepData) {
+          const port = await ensureServiceRunning(stepInfo.stepName, { 
+            ...currentPayload, 
+            stepName: stepInfo.stepName, 
+            serviceName: stepInfo.serviceName 
+          });
+          
+          const stepPayload = {
+            ...payload,
+            stepName: stepInfo.stepName,
+            serviceName: stepInfo.serviceName,
+            description: stepInfo.description,
+            category: stepInfo.category
+          };
+          
+          await makeServiceRequest(port, stepInfo.serviceName, stepPayload);
+          await new Promise(r => setTimeout(r, thinkTimeMs || 250));
+        }
+      }
+      
+      console.log(`[continuous-gen] ✅ Generated journey ${journeyId} for ${companyName}`);
+    } catch (error) {
+      console.error(`[continuous-gen] ❌ Error generating journey for ${companyName}:`, error.message);
+      console.error(`[continuous-gen] ❌ Stack:`, error.stack);
+    }
+  };
+  
+  // Schedule next request with random interval
+  const scheduleNext = () => {
+    const interval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
+    const timeoutId = setTimeout(async () => {
+      await generateRequest();
+      scheduleNext();
+    }, interval);
+    
+    // Store both timeout and config for persistence
+    activeContinuousJourneys.set(journeyKey, {
+      timeoutId,
+      config: {
+        journeyConfig,
+        stepData,
+        currentPayload,
+        chained,
+        thinkTimeMs
+      }
+    });
+    
+    // Save state to disk
+    saveContinuousGenState();
+  };
+  
+  // Start first request immediately
+  generateRequest().then(() => scheduleNext());
+  
+  return journeyKey;
+}
+
+// Stop continuous generation for a company
+function stopContinuousGeneration(companyName) {
+  const journeyKey = `${companyName}`;
+  if (activeContinuousJourneys.has(journeyKey)) {
+    const entry = activeContinuousJourneys.get(journeyKey);
+    clearTimeout(entry.timeoutId);
+    activeContinuousJourneys.delete(journeyKey);
+    saveContinuousGenState(); // Update persistent state
+    console.log(`[continuous-gen] 🛑 Stopped continuous generation for ${companyName}`);
+    return true;
+  }
+  return false;
+}
+
+// Helper to make service requests
+async function makeServiceRequest(port, serviceName, payload) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'localhost',
+      port: port,
+      path: '/',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000
+    };
+    
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode >= 400) {
+          console.error(`[continuous-gen] ❌ Service ${serviceName} on port ${port} returned ${res.statusCode}`);
+          reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve({ status: 'ok', rawData: data });
+        }
+      });
+    });
+    
+    req.on('error', (err) => {
+      console.error(`[continuous-gen] ❌ Request to ${serviceName} on port ${port} failed:`, err.message);
+      reject(err);
+    });
+    
+    req.on('timeout', () => {
+      console.error(`[continuous-gen] ⏱️ Timeout calling ${serviceName} on port ${port}`);
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+    
+    try {
+      req.write(JSON.stringify(payload));
+      req.end();
+    } catch (err) {
+      console.error(`[continuous-gen] ❌ Error writing payload to ${serviceName}:`, err.message);
+      reject(err);
+    }
+  });
+}
+
+// Get status of continuous generation
+function getContinuousGenerationStatus() {
+  const status = {};
+  for (const [key, timeoutId] of activeContinuousJourneys.entries()) {
+    status[key] = {
+      active: true,
+      ratePerMinute: '10-20 requests'
+    };
+  }
+  return status;
+}
+// ============ END CONTINUOUS GENERATION ============
 
 // Default journey steps
 const DEFAULT_JOURNEY_STEPS = [
@@ -394,7 +639,7 @@ function initCircuitBreaker(serviceName) {
       failureCount: 0,
       lastFailureTime: 0,
       state: 'CLOSED', // CLOSED, OPEN, HALF_OPEN
-      threshold: 5, // Failures before opening
+      threshold: 1000, // Temporarily high threshold to see actual errors
       timeout: 10000 // 10 seconds before half-open
     });
   }
@@ -709,12 +954,17 @@ router.post('/simulate-journey', async (req, res) => {
       
       console.log('[journey-sim] Checking payload structure. req.body.journey:', !!req.body.journey);
       console.log('[journey-sim] req.body.journey.steps:', !!req.body.journey?.steps);
+      console.log('[journey-sim] req.body.steps:', !!req.body.steps);
       console.log('[journey-sim] req.body.aiJourney:', !!req.body.aiJourney);
       console.log('[journey-sim] req.body.aiJourney.steps:', !!req.body.aiJourney?.steps);
       
+      // Priority order: journey.steps, top-level steps, aiJourney.steps
       if (req.body.journey?.steps && Array.isArray(req.body.journey.steps)) {
         stepsArray = req.body.journey.steps;
         console.log('[journey-sim] Using journey.steps structure');
+      } else if (req.body.steps && Array.isArray(req.body.steps)) {
+        stepsArray = req.body.steps;
+        console.log('[journey-sim] Using top-level steps structure');
       } else if (req.body.aiJourney?.steps && Array.isArray(req.body.aiJourney.steps)) {
         stepsArray = req.body.aiJourney.steps;
         console.log('[journey-sim] Using aiJourney.steps structure');
@@ -786,6 +1036,7 @@ router.post('/simulate-journey', async (req, res) => {
       companyName: req.body.journey?.companyName || req.body.companyName || 'DefaultCompany',
       domain: req.body.journey?.domain || req.body.domain || 'default.com',
       industryType: req.body.journey?.industryType || req.body.industryType || 'general',
+      journeyType: req.body.journey?.journeyType || req.body.journeyType || req.body.journey?.description || req.body.description || 'customer_journey',
       additionalFields: req.body.journey?.additionalFields || req.body.additionalFields || null,
       customerProfile: req.body.journey?.customerProfile || req.body.customerProfile || null,
       traceMetadata: req.body.journey?.traceMetadata || req.body.traceMetadata || null,
@@ -868,7 +1119,7 @@ router.post('/simulate-journey', async (req, res) => {
     // 🔧 ARCHITECTURAL IMPROVEMENT: Use error configuration from journey data (Step 3 processing)
     // instead of runtime decisions based on UI toggle state
     const errorPlannedSteps = stepData.map(s => {
-      console.log(`[journey-sim] Processing step: ${s.stepName}, hasError from journey data: ${s.originalStep?.hasError}, errorHint: ${s.originalStep?.errorHint || 'none'}`);
+      console.log(`[journey-sim] Processing step: ${s.stepName}, hasError from journey data: ${s.originalStep?.hasError}, errorHint: ${s.originalStep?.errorHint || 'none'}, errorSimulationEnabled: ${errorSimulationEnabled}`);
       
       // Use error configuration embedded in journey data by Step 3 processing
       const hasErrorFromJourneyData = s.originalStep?.hasError === true;
@@ -891,29 +1142,23 @@ router.post('/simulate-journey', async (req, res) => {
         };
         
         return { ...s, ...plan };
+      } else if (errorSimulationEnabled) {
+        // 🔧 Runtime error injection: When errorSimulationEnabled is true (e.g. from LoadRunner),
+        // use computeCustomerError to probabilistically inject errors even without journey data hints
+        let plan = computeCustomerError(currentPayload.companyName, s.stepName);
+        if (plan.hasError) {
+          console.log(`[journey-sim] 🔴 Runtime error injected for step: ${s.stepName} (errorSimulationEnabled=true, type: ${plan.errorType}, status: ${plan.httpStatus})`);
+          return { ...s, ...plan };
+        }
+        return { ...s, hasError: false };
       } else {
         console.log(`[journey-sim] ✅ Success configured for step: ${s.stepName} (from Step 3 journey processing)`);
         return { ...s, hasError: false };
       }
     });
 
-    // Cleanup old services and ports before starting new journey
-    try {
-      // Stop ANY running services (including zombies from previous server runs)
-      console.log(`[journey-sim] 🧹 Stopping ALL journey services (including zombies)...`);
-      const { stopAllServices } = await import('../services/service-manager.js');
-      await stopAllServices();
-      await new Promise(r => setTimeout(r, 1500)); // Wait for services to stop
-      
-      // Clean up any stale port allocations
-      const { default: portManager } = await import('../services/port-manager.js');
-      const cleaned = await portManager.cleanupStaleAllocations();
-      if (cleaned > 0) {
-        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journey start`);
-      }
-    } catch (cleanupErr) {
-      console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
-    }
+    // Multi-tenant: Services keep running, no cleanup on journey start
+    console.log(`[journey-sim] ✅ Services will continue running for ${companyContext.companyName} (multi-tenant mode)`);
 
     for (const stepInfo of errorPlannedSteps) {
       const { stepName, serviceName, description, category } = stepInfo;
@@ -941,6 +1186,11 @@ router.post('/simulate-journey', async (req, res) => {
       const firstPort = await ensureServiceRunning(first.stepName, { ...companyContext, stepName: first.stepName, serviceName: first.serviceName }); // Handle both old and new format
       const actualServiceName = first.serviceName || getServiceNameFromStep(first.stepName);
       
+      // Guard against port exhaustion — if no port was allocated, fail gracefully
+      if (!firstPort) {
+        throw new Error(`Service ${actualServiceName} could not start: no available ports (port exhaustion). Try stopping unused services first.`);
+      }
+      
       console.log(`[journey-sim] [chained] Calling first service ${actualServiceName} on port ${firstPort}`);
       
       // Create step-specific payload for chained execution - ONLY include current step data
@@ -954,6 +1204,7 @@ router.post('/simulate-journey', async (req, res) => {
         companyName: currentPayload.companyName,
         domain: currentPayload.domain,
         industryType: currentPayload.industryType,
+        journeyType: currentPayload.journeyType,
         
         // Current step specific data ONLY
         stepName: first.stepName,
@@ -968,7 +1219,10 @@ router.post('/simulate-journey', async (req, res) => {
         substeps: firstStepInfo.substeps,
         estimatedDurationMs: firstStepInfo.estimatedDuration ? firstStepInfo.estimatedDuration * 60 * 1000 : null,
         
-        // Chain configuration - only include routing info for next step (not all steps)
+        // CRITICAL: Full steps array for service-to-service chaining
+        steps: stepData,
+        
+        // Chain configuration
         thinkTimeMs,
         isChained: true,
         nextStepName: stepData.length > 1 ? stepData[1].stepName : null,
@@ -986,7 +1240,17 @@ router.post('/simulate-journey', async (req, res) => {
         severity: firstStepInfo.severity,
         
         // Include full customer/business context in each trace
-        additionalFields: currentPayload.additionalFields || {},
+        // 🔑 Merge hasError + error details INTO additionalFields so OneAgent bizevent capture includes them
+        additionalFields: {
+          ...(currentPayload.additionalFields || {}),
+          hasError: firstStepInfo.hasError === true,
+          ...(firstStepInfo.hasError === true ? {
+            errorType: firstStepInfo.errorType || 'unknown',
+            errorMessage: firstStepInfo.errorMessage || '',
+            httpStatus: firstStepInfo.httpStatus || 500,
+            errorSeverity: firstStepInfo.severity || (firstStepInfo.httpStatus >= 500 ? 'critical' : 'warning')
+          } : {})
+        },
         customerProfile: currentPayload.customerProfile || {},
         traceMetadata: currentPayload.traceMetadata || {},
         sources: currentPayload.sources || [],
@@ -1022,6 +1286,22 @@ router.post('/simulate-journey', async (req, res) => {
         // Ensure service is up with correct company context prior to call
         const servicePort = await ensureServiceRunning(stepName, { ...companyContext, stepName, serviceName });
         
+        // Guard against port exhaustion — if no port was allocated, fail the step gracefully
+        if (!servicePort) {
+          console.error(`[journey-sim] ❌ Step ${i + 1}: No port available for ${serviceName} (port exhaustion)`);
+          journeyResults.push({
+            stepNumber: i + 1,
+            stepName,
+            serviceName,
+            status: 'failed',
+            httpStatus: 503,
+            error: `Service ${serviceName} could not start: no available ports`,
+            errorType: 'port_exhaustion'
+          });
+          await new Promise(resolve => setTimeout(resolve, thinkTimeMs));
+          continue;
+        }
+        
         try {
           // Create step-specific payload with ONLY current step data
           const stepPayload = {
@@ -1032,6 +1312,7 @@ router.post('/simulate-journey', async (req, res) => {
             startTime: currentPayload.startTime,
             companyName: currentPayload.companyName,
             domain: currentPayload.domain,
+            journeyType: currentPayload.journeyType,
             industryType: currentPayload.industryType,
             
             // Current step specific data ONLY
@@ -1059,7 +1340,17 @@ router.post('/simulate-journey', async (req, res) => {
             severity: stepInfo.severity,
             
             // Include full customer/business context in each trace
-            additionalFields: currentPayload.additionalFields || {},
+            // 🔑 Merge hasError + error details INTO additionalFields so OneAgent bizevent capture includes them
+            additionalFields: {
+              ...(currentPayload.additionalFields || {}),
+              hasError: stepInfo.hasError === true,
+              ...(stepInfo.hasError === true ? {
+                errorType: stepInfo.errorType || 'unknown',
+                errorMessage: stepInfo.errorMessage || '',
+                httpStatus: stepInfo.httpStatus || 500,
+                errorSeverity: stepInfo.severity || (stepInfo.httpStatus >= 500 ? 'critical' : 'warning')
+              } : {})
+            },
             customerProfile: currentPayload.customerProfile || {},
             traceMetadata: currentPayload.traceMetadata || {},
             sources: currentPayload.sources || [],
@@ -1109,9 +1400,37 @@ router.post('/simulate-journey', async (req, res) => {
       provider: currentPayload.provider
     };
     
+    // Start continuous LoadRunner test ONLY if not already called from a LoadRunner
+    // Check for LoadRunner headers to prevent infinite spawning loop
+    const isFromLoadRunner = req.headers['x-loadrunner-test'] === 'true' || 
+                             req.headers['x-lr-scenario'] || 
+                             req.body.loadRunnerTriggered === true;
+    
+    let continuousGeneration = { active: false, reason: 'called_from_loadrunner' };
+    
+    if (!isFromLoadRunner) {
+      const journeyConfig = req.body.journey || req.body.aiJourney || req.body;
+      try {
+        await loadRunnerManager.startLoadTest(journeyConfig, 'light-load');
+        console.log(`[journey-sim] 🎯 LoadRunner continuous test started for ${currentPayload.companyName}`);
+        continuousGeneration = {
+          active: true,
+          company: currentPayload.companyName,
+          method: 'LoadRunner',
+          scenario: 'light-load',
+          ratePerMinute: '10-20 requests'
+        };
+      } catch (err) {
+        console.error(`[journey-sim] ⚠️  Failed to start LoadRunner test:`, err.message);
+      }
+    } else {
+      console.log(`[journey-sim] ℹ️  Skipping LoadRunner auto-start (called from LoadRunner)`);
+    }
+    
     res.json({
       success: true,
-      journey: journeyComplete
+      journey: journeyComplete,
+      continuousGeneration
     });
 
   } catch (error) {
@@ -1245,18 +1564,11 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
 
     // Cleanup old services and ports before starting new journeys
     try {
-      // Stop ANY running services (including zombies from previous server runs)
-      console.log(`[journey-sim] 🧹 Stopping ALL journey services (including zombies)...`);
-      const { stopAllServices } = await import('../services/service-manager.js');
-      await stopAllServices();
-      await new Promise(r => setTimeout(r, 1500)); // Wait for services to stop
-      
-      // Clean up any stale port allocations
-      const { default: portManager } = await import('../services/port-manager.js');
-      const cleaned = await portManager.cleanupStaleAllocations();
-      if (cleaned > 0) {
-        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journeys start`);
-      }
+      // Cleanup old services for THIS COMPANY only (multi-tenant: keep other companies' services running)
+      console.log(`[journey-sim] 🧹 Stopping services for company: ${companyContext.companyName}...`);
+      const stopped = await stopServicesForCompany(companyContext.companyName);
+      console.log(`[journey-sim] ✅ Stopped ${stopped} services for ${companyContext.companyName}`);
+      await new Promise(r => setTimeout(r, 1000)); // Wait for cleanup
     } catch (cleanupErr) {
       console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
     }
@@ -1439,8 +1751,11 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
               customerIndex: customerIndex + 1,
               totalCustomers: customers,
               
-              // Business context - use processed payload data
-              additionalFields: currentPayload.additionalFields || {},
+              // Business context - merge hasError into additionalFields for OneAgent bizevent capture
+              additionalFields: {
+                ...(currentPayload.additionalFields || {}),
+                hasError: errorSimulationEnabled ? computeCustomerError(companyName, step.stepName).hasError : false
+              },
               customerProfile: currentPayload.customerProfile || {},
               traceMetadata: currentPayload.traceMetadata || {},
               sources: currentPayload.sources || [],
@@ -1567,8 +1882,11 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
               estimatedDurationMs: step.estimatedDuration ? step.estimatedDuration * 60 * 1000 : null,
               subSteps: step.substeps || [], // Legacy field for backward compatibility
               
-              // Include full customer/business context in each trace - use processed payload data
-              additionalFields: currentPayload.additionalFields || {},
+              // Include full customer/business context - merge hasError into additionalFields for OneAgent bizevent
+              additionalFields: {
+                ...(currentPayload.additionalFields || {}),
+                hasError: errorSimulationEnabled ? computeCustomerError(companyName, step.stepName).hasError : false
+              },
               customerProfile: currentPayload.customerProfile || {},
               traceMetadata: currentPayload.traceMetadata || {},
               sources: currentPayload.sources || [],
@@ -1980,22 +2298,8 @@ router.post('/simulate-batch-chained', async (req, res) => {
       return { ...s, ...plan };
     });
 
-    // Cleanup old services and ports before starting new journey
-    try {
-      // Stop any running services from previous journeys (especially other companies)
-      console.log(`[journey-sim] 🧹 Stopping all services from previous journeys...`);
-      stopCustomerJourneyServices();
-      await new Promise(r => setTimeout(r, 1000)); // Wait for services to stop
-      
-      // Clean up any stale port allocations
-      const { portManager } = await import('../services/port-manager.js');
-      const cleaned = await portManager.cleanupStaleAllocations();
-      if (cleaned > 0) {
-        console.log(`[journey-sim] 🧹 Cleaned ${cleaned} stale port allocations before journey start`);
-      }
-    } catch (cleanupErr) {
-      console.warn(`[journey-sim] Cleanup warning (non-fatal):`, cleanupErr.message);
-    }
+    // NOTE: Services are kept running between journeys for load testing
+    // They only cleanup when "New Customer Journey" button is clicked (in other endpoints)
 
     // Ensure services running with correct context
     for (const s of errorPlannedSteps) {
@@ -2242,6 +2546,93 @@ router.post('/simulate-single-step-journeys', async (req, res) => {
     console.error('[journey-sim] simulate-single-step error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// ============ CONTINUOUS GENERATION MANAGEMENT ============
+// Get status of continuous generation for all companies
+router.get('/continuous-generation/status', (req, res) => {
+  try {
+    const lrStatus = loadRunnerManager.getStatus();
+    res.json({
+      ok: true,
+      method: 'LoadRunner',
+      activeJourneys: Object.keys(lrStatus).length,
+      journeys: lrStatus
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Stop continuous generation for a company
+router.post('/continuous-generation/stop/:companyName', async (req, res) => {
+  try {
+    const { companyName } = req.params;
+    const stopped = await loadRunnerManager.stopLoadTest(companyName);
+    res.json({
+      ok: true,
+      stopped,
+      company: companyName,
+      message: stopped ? 'LoadRunner test stopped' : 'No active test found'
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Stop all continuous generation
+router.post('/continuous-generation/stop-all', async (req, res) => {
+  try {
+    const stoppedCount = await loadRunnerManager.stopAllTests();
+    res.json({
+      ok: true,
+      stopped: stoppedCount,
+      message: `Stopped ${stoppedCount} LoadRunner test(s)`
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Initialize: Restore LoadRunner tests when module loads
+loadRunnerManager.restoreActiveTests();
+
+// Reset circuit breakers (admin endpoint)
+router.post('/admin/reset-circuit-breakers', (req, res) => {
+  const { serviceName } = req.body;
+  
+  if (serviceName) {
+    // Reset specific service
+    if (circuitBreakerState.has(serviceName)) {
+      circuitBreakerState.delete(serviceName);
+      console.log(`[journey-sim] Circuit breaker reset for ${serviceName}`);
+      res.json({ success: true, message: `Circuit breaker reset for ${serviceName}` });
+    } else {
+      res.json({ success: false, message: `No circuit breaker found for ${serviceName}` });
+    }
+  } else {
+    // Reset all
+    const count = circuitBreakerState.size;
+    circuitBreakerState.clear();
+    console.log(`[journey-sim] All circuit breakers reset (${count} services)`);
+    res.json({ success: true, message: `Reset ${count} circuit breaker(s)` });
+  }
+});
+
+// Get circuit breaker status
+router.get('/admin/circuit-breakers', (req, res) => {
+  const breakers = [];
+  for (const [serviceName, breaker] of circuitBreakerState.entries()) {
+    breakers.push({
+      serviceName,
+      state: breaker.state,
+      failureCount: breaker.failureCount,
+      lastFailureTime: breaker.lastFailureTime ? new Date(breaker.lastFailureTime).toISOString() : null,
+      threshold: breaker.threshold,
+      timeout: breaker.timeout
+    });
+  }
+  res.json({ breakers });
 });
 
 export default router;

@@ -15,6 +15,11 @@
     "test_type": "volume",
     "load_level": "medium"
   },
+  "feature_flag_trigger": {
+    "after_customers": 100,
+    "error_rate": 0.5,
+    "revert_after_customers": 75
+  },
   "error_simulation": {
     "enabled": true,
     "error_rate": 2

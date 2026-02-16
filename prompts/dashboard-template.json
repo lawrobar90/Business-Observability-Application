@@ -1,0 +1,56 @@
+{
+  "version": 19,
+  "variables": [
+    {
+      "name": "company",
+      "type": "text",
+      "defaultValue": "ExampleCorp"
+    },
+    {
+      "name": "industry",
+      "type": "text",
+      "defaultValue": "Technology"
+    },
+    {
+      "name": "journey_type",
+      "type": "text",
+      "defaultValue": "user_onboarding"
+    }
+  ],
+  "tiles": {
+    "tile_1": {
+      "name": "Journey Success Rate",
+      "visualization": "pieChart",
+      "query": "fetch bizevents | filter company == $company | summarize total = count(), successful = countIf(success == true) | fieldsAdd success_rate = (successful / total) * 100"
+    },
+    "tile_2": {
+      "name": "Response Time Trend",
+      "visualization": "lineChart",
+      "query": "timeseries avg_duration = avg(duration_ms), by: {step_name}"
+    },
+    "tile_3": {
+      "name": "Step Performance",
+      "visualization": "table",
+      "query": "fetch bizevents | summarize requests = count(), avg_time = avg(duration_ms), by: {step_name} | sort avg_time desc"
+    },
+    "tile_4": {
+      "name": "Error Rate",
+      "visualization": "barChart",
+      "query": "fetch bizevents | filter error_occurred == true | summarize errors = count(), by: {step_name} | sort errors desc"
+    },
+    "tile_5": {
+      "name": "Total Journeys",
+      "visualization": "singleValue",
+      "query": "fetch bizevents | filter event.type == 'bizevents.' + $company + '.journey.completed' | summarize count()"
+    }
+  },
+  "layouts": {
+    "default": [
+      {"tileId": "tile_1", "x": 0, "y": 0, "w": 10, "h": 6},
+      {"tileId": "tile_2", "x": 10, "y": 0, "w": 10, "h": 6},
+      {"tileId": "tile_3", "x": 0, "y": 6, "w": 20, "h": 6},
+      {"tileId": "tile_4", "x": 0, "y": 12, "w": 10, "h": 6},
+      {"tileId": "tile_5", "x": 10, "y": 12, "w": 10, "h": 6}
+    ]
+  }
+}

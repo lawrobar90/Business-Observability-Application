@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import { AuthorizationCode } from 'simple-oauth2';
 import crypto from 'crypto';
 import open from 'open';
+import fetch from 'node-fetch';
 
 const router = express.Router();
 
@@ -826,20 +827,51 @@ function generateServiceQueries(journeyData) {
 }
 
 /**
- * Generate dashboard configuration
+ * Generate dashboard configuration with dynamic variables
  */
 async function generateDashboard(journeyData, session) {
+  const companyTag = journeyData.companyName?.toLowerCase().replace(/\s+/g, '-') || 'default';
+  const industryTag = journeyData.industryType?.toLowerCase().replace(/\s+/g, '-') || 'general';
+  
   const dashboard = {
     dashboardMetadata: {
-      name: `${journeyData.companyName} - Complete Observability Dashboard`,
+      name: `${journeyData.companyName || 'Customer'} Journey - Complete Observability`,
       shared: true,
       owner: "mcp-auto-generated",
-      tags: ["mcp", "auto-generated", journeyData.industryType, journeyData.companyName.toLowerCase().replace(/\s+/g, '-')]
+      tags: ["mcp", "auto-generated", industryTag, companyTag],
+      dashboardFilter: {
+        timeframe: "-2h",
+        managementZone: null
+      }
     },
+    // Dashboard Variables for dynamic filtering
+    variables: [
+      {
+        id: "company",
+        name: "Company",
+        type: "text",
+        defaultValue: companyTag,
+        description: "Company name tag for filtering"
+      },
+      {
+        id: "industry", 
+        name: "Industry",
+        type: "text",
+        defaultValue: industryTag,
+        description: "Industry type for filtering"
+      },
+      {
+        id: "journey_type",
+        name: "Journey Type",
+        type: "text", 
+        defaultValue: journeyData.journeyType?.toLowerCase().replace(/\s+/g, '-') || 'customer-journey',
+        description: "Journey type identifier"
+      }
+    ],
     tiles: []
   };
   
-  // Tile 1: Journey Funnel
+  // Tile 1: Journey Completion Funnel (using variables)
   dashboard.tiles.push({
     name: "Journey Completion Funnel",
     tileType: "DATA_EXPLORER",
@@ -848,16 +880,22 @@ async function generateDashboard(journeyData, session) {
     queries: [{
       id: "A",
       metric: "bizevents",
-      spaceAggregation: "AUTO",
+      spaceAggregation: "COUNT",
       timeAggregation: "DEFAULT",
-      splitBy: ["journey.step"],
+      splitBy: ["journey.step", "journey.status"],
       filterBy: {
-        filter: `event.type == "bizevents.${journeyData.companyName.toLowerCase().replace(/\s+/g, '-')}.journey"`
+        filter: `event.type == "bizevents.$company.journey" AND journey.industry == "$industry"`
       }
-    }]
+    }],
+    visualConfig: {
+      type: "FUNNEL",
+      global: {},
+      rules: [],
+      axes: { xAxis: { displayName: "Journey Steps" }, yAxis: { displayName: "Completions" } }
+    }
   });
   
-  // Tile 2: Service Health
+  // Tile 2: Service Health Overview (dynamic company tag)
   dashboard.tiles.push({
     name: "Service Health Overview",
     tileType: "DATA_EXPLORER",
@@ -865,17 +903,24 @@ async function generateDashboard(journeyData, session) {
     bounds: { top: 0, left: 608, width: 608, height: 304 },
     queries: [{
       id: "B",
-      metric: "dt.entity.service",
-      spaceAggregation: "AUTO",
+      metric: "builtin:service.response.time",
+      spaceAggregation: "AVG",
       timeAggregation: "DEFAULT",
-      splitBy: ["entity.name"],
+      splitBy: ["dt.entity.service"],
       filterBy: {
-        filter: `tags contains "${journeyData.companyName.toLowerCase()}"`
+        filter: `tags contains "$company" AND tags contains "app:bizobs-journey"`
       }
-    }]
+    }],
+    visualConfig: {
+      type: "GRAPH_CHART",
+      global: {},
+      rules: [
+        { matcher: "B:", properties: { seriesType: "LINE" } }
+      ]
+    }
   });
   
-  // Tile 3: Revenue Tracking
+  // Tile 3: Revenue Tracking (variable-based)
   dashboard.tiles.push({
     name: "Revenue by Journey Step",
     tileType: "DATA_EXPLORER",
@@ -887,13 +932,71 @@ async function generateDashboard(journeyData, session) {
       spaceAggregation: "SUM",
       timeAggregation: "DEFAULT",
       splitBy: ["journey.step"],
-      field: "transaction.value"
-    }]
+      field: "transaction.value",
+      filterBy: {
+        filter: `event.type == "bizevents.$company.journey" AND journey.industry == "$industry"`
+      }
+    }],
+    visualConfig: {
+      type: "SINGLE_VALUE",
+      global: {},
+      rules: []
+    }
+  });
+  
+  // Tile 4: Service Failure Rate (company-specific)
+  dashboard.tiles.push({
+    name: "Service Failure Rate",
+    tileType: "DATA_EXPLORER",
+    configured: true,
+    bounds: { top: 304, left: 608, width: 608, height: 304 },
+    queries: [{
+      id: "D",
+      metric: "builtin:service.errors.server.rate",
+      spaceAggregation: "AVG",
+      timeAggregation: "DEFAULT",
+      splitBy: ["dt.entity.service"],
+      filterBy: {
+        filter: `tags contains "$company"`
+      }
+    }],
+    visualConfig: {
+      type: "TOP_LIST",
+      global: {},
+      rules: []
+    }
+  });
+  
+  // Tile 5: Customer Journey Timeline
+  dashboard.tiles.push({
+    name: "Journey Execution Timeline",
+    tileType: "DATA_EXPLORER", 
+    configured: true,
+    bounds: { top: 608, left: 0, width: 1216, height: 304 },
+    queries: [{
+      id: "E",
+      metric: "bizevents",
+      spaceAggregation: "COUNT",
+      timeAggregation: "DEFAULT",
+      splitBy: ["journey.step"],
+      filterBy: {
+        filter: `event.type == "bizevents.$company.journey" AND journey.type == "$journey_type"`
+      }
+    }],
+    visualConfig: {
+      type: "GRAPH_CHART",
+      global: {},
+      rules: [
+        { matcher: "E:", properties: { seriesType: "AREA" } }
+      ]
+    }
   });
   
   return {
     dashboard,
-    deployUrl: `${session.environment}/api/v2/documents`
+    deployUrl: `${session?.environment || 'https://your-tenant.dynatrace.com'}/api/config/v1/dashboards`,
+    variables: dashboard.variables,
+    message: `Dashboard generated with variables: company=${companyTag}, industry=${industryTag}. Variables can be changed at runtime.`
   };
 }
 
@@ -973,14 +1076,75 @@ function extractBusinessMetrics(step) {
  * Create dashboard
  */
 async function createDashboard(context, session, intent) {
-  return {
-    message: `I can create a custom dashboard for **${context?.companyName || 'your journey'}**.\n\nThe dashboard will include:\n• Journey completion funnel\n• Business metrics by step\n• Revenue tracking\n• Customer segment analysis\n• Performance metrics\n\nReady to deploy?`,
-    suggestions: [
-      'Yes, deploy the dashboard',
-      'Customize dashboard tiles',
-      'Preview dashboard layout'
-    ]
-  };
+  if (!session || !session.authenticated) {
+    return {
+      message: `I can create a custom dashboard for **${context?.companyName || 'your journey'}**.\n\n⚠️ Authentication required. The dashboard will include:\n• Journey completion funnel\n• Business metrics by step\n• Revenue tracking\n• Customer segment analysis\n• Performance metrics\n\nPlease authenticate your Dynatrace session first.`,
+      suggestions: [
+        'Authenticate session',
+        'Preview dashboard layout'
+      ]
+    };
+  }
+  
+  try {
+    // Generate the dashboard with dynamic variables
+    const dashboardData = await generateDashboard(context, session);
+    
+    // Deploy to Dynatrace using authenticated session
+    const deployUrl = `${session.environment}/api/config/v1/dashboards`;
+    
+    const response = await fetch(deployUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(dashboardData.dashboard)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[MCP] Dashboard deployment failed:', response.status, errorText);
+      
+      // Handle token expiration
+      if (response.status === 401) {
+        return {
+          message: `❌ Authentication expired. Please re-authenticate to deploy the dashboard.\n\nDashboard configuration is ready with dynamic variables:\n${dashboardData.message}`,
+          suggestions: ['Re-authenticate session', 'Show dashboard preview']
+        };
+      }
+      
+      throw new Error(`Deployment failed: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    const dashboardId = result.id || result.dashboardId;
+    const dashboardUrl = `${session.environment}/#dashboard;id=${dashboardId}`;
+    
+    return {
+      message: `✅ **Dashboard deployed successfully!**\n\n**${context?.companyName || 'Customer'} Journey Dashboard**\n\n🎯 **Dynamic Variables Configured:**\n• Company: ${context?.companyName?.toLowerCase().replace(/\s+/g, '-')}\n• Industry: ${context?.industryType?.toLowerCase().replace(/\s+/g, '-')}\n• Journey Type: ${context?.journeyType?.toLowerCase().replace(/\s+/g, '-')}\n\n📊 **Included Tiles:**\n• Journey completion funnel\n• Service health overview\n• Revenue tracking by step\n• Service failure rates\n• Journey execution timeline\n\n🔗 [Open Dashboard](${dashboardUrl})\n\n💡 You can change the variables at runtime to view data for different companies/sectors.`,
+      dashboardId,
+      dashboardUrl,
+      variables: dashboardData.variables,
+      suggestions: [
+        'Open dashboard in browser',
+        'Create another dashboard',
+        'Configure BizEvents'
+      ]
+    };
+    
+  } catch (error) {
+    console.error('[MCP] Dashboard creation error:', error);
+    return {
+      message: `❌ Failed to deploy dashboard: ${error.message}\n\nThe dashboard configuration with dynamic variables is ready, but deployment failed. Please check your authentication and try again.`,
+      suggestions: [
+        'Re-authenticate session',
+        'Check Dynatrace permissions',
+        'Preview dashboard config'
+      ]
+    };
+  }
 }
 
 /**
@@ -1052,4 +1216,89 @@ router.get('/session-status/:sessionId', (req, res) => {
   });
 });
 
+/**
+ * POST /api/mcp/deploy-dashboard
+ * Deploy a dashboard directly with journey data
+ * Handles OAuth authentication and dashboard deployment
+ */
+router.post('/deploy-dashboard', async (req, res) => {
+  try {
+    const { journeyData, dtEnvironment, dtToken } = req.body;
+    
+    if (!journeyData) {
+      return res.status(400).json({ error: 'Journey data required' });
+    }
+    
+    // Create temporary session if token provided
+    let session;
+    if (dtToken && dtEnvironment) {
+      session = {
+        token: dtToken,
+        environment: dtEnvironment,
+        authenticated: true,
+        expiresAt: Date.now() + (3600 * 1000) // 1 hour
+      };
+    } else {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Please provide dtEnvironment and dtToken, or authenticate via OAuth'
+      });
+    }
+    
+    // Generate dashboard with dynamic variables
+    const dashboardData = await generateDashboard(journeyData, session);
+    
+    console.log('[MCP] Deploying dashboard to:', session.environment);
+    console.log('[MCP] Dashboard variables:', dashboardData.variables);
+    
+    // Deploy to Dynatrace
+    const deployUrl = `${session.environment}/api/config/v1/dashboards`;
+    
+    const response = await fetch(deployUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Api-Token ${session.token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(dashboardData.dashboard)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[MCP] Dashboard deployment failed:', response.status, errorText);
+      
+      return res.status(response.status).json({
+        error: 'Deployment failed',
+        status: response.status,
+        details: errorText,
+        dashboardConfig: dashboardData // Return config for debugging
+      });
+    }
+    
+    const result = await response.json();
+    const dashboardId = result.id || result.dashboardId;
+    const dashboardUrl = `${session.environment}/#dashboard;id=${dashboardId}`;
+    
+    res.json({
+      success: true,
+      message: `✅ Dashboard deployed successfully with dynamic variables`,
+      dashboardId,
+      dashboardUrl,
+      variables: dashboardData.variables,
+      company: journeyData.companyName,
+      industry: journeyData.industryType,
+      journeyType: journeyData.journeyType
+    });
+    
+  } catch (error) {
+    console.error('[MCP] Deploy dashboard error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 export default router;
+

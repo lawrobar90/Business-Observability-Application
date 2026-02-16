@@ -1,0 +1,23 @@
+{
+  "companyName": "Manufacturing",
+  "industryType": "Industrial Manufacturing",
+  "steps": [
+    {
+      "stepName": "InitialEnquiry",
+      "serviceName": "InitialEnquiryService",
+      "servicePort": 8081
+    },
+    {
+      "stepName": "RequirementsValidation",
+      "serviceName": "RequirementsValidationService",
+      "servicePort": 8082
+    },
+    {
+      "stepName": "QuotationGeneration",
+      "serviceName": "QuotationGenerationService",
+      "servicePort": 8083
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-16T10:57:17.447Z"
+}

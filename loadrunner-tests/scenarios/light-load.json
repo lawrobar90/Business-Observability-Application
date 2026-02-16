@@ -15,6 +15,11 @@
     "test_type": "baseline",
     "load_level": "light"
   },
+  "feature_flag_trigger": {
+    "after_customers": 100,
+    "error_rate": 0.3,
+    "revert_after_customers": 50
+  },
   "error_simulation": {
     "enabled": false,
     "error_rate": 0
