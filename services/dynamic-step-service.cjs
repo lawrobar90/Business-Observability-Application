@@ -12,6 +12,7 @@ const {
   markSpanAsFailed, 
   reportError,
   sendErrorEvent,
+  sendFeatureFlagCustomEvent,
   addCustomAttributes 
 } = require('./dynatrace-error-helper.cjs');
 const http = require('http');
@@ -25,19 +26,22 @@ let lastRegenerationCount = 0;
 
 // Default error rate configuration (can be overridden via payload or global API)
 const DEFAULT_ERROR_CONFIG = {
-  errors_per_transaction: 0.1,  // 10% of transactions have errors
-  errors_per_visit: 0.001,      // 0.1% of visits have errors (lower for journey-level)
-  errors_per_minute: 0.5,       // 0.5 errors per minute baseline
+  errors_per_transaction: 0,    // No errors by default — Gremlin sets per-service overrides
+  errors_per_visit: 0,          // No errors by default
+  errors_per_minute: 0,         // No errors by default
   regenerate_every_n_transactions: 100  // Regenerate flags every 100 transactions
 };
 
-// Fetch global error config from main server (for Dynatrace workflow control)
-async function fetchGlobalErrorConfig() {
+// Fetch error config from main server — passes service name for per-service targeting
+// If this service has a targeted override (from Gremlin chaos), only IT gets the elevated rate
+async function fetchGlobalErrorConfig(myServiceName) {
   return new Promise((resolve) => {
+    // Build query string with service name so server returns per-service override if any
+    const queryParams = myServiceName ? `?service=${encodeURIComponent(myServiceName)}` : '';
     const options = {
       hostname: '127.0.0.1',
       port: process.env.MAIN_SERVER_PORT || 8080,
-      path: '/api/feature_flag',
+      path: `/api/feature_flag${queryParams}`,
       method: 'GET',
       timeout: 500
     };
@@ -116,8 +120,8 @@ function autoGenerateFeatureFlagsServer(steps, journeyData, errorConfig = DEFAUL
   const allStepText = stepNames.join(' ');
   const possibleFlags = [];
   
-  // Use errors_per_transaction as base error rate (default 0.1 = 10%)
-  const baseErrorRate = errorConfig.errors_per_transaction || 0.1;
+  // Use errors_per_transaction as base error rate (default 0 = no errors)
+  const baseErrorRate = errorConfig.errors_per_transaction || 0;
   
   // Payment/Financial patterns
   if (allStepText.includes('payment') || allStepText.includes('checkout') || allStepText.includes('transaction')) {
@@ -571,8 +575,10 @@ function createStepService(serviceName, stepName) {
       // 🚦 Feature Flag Error Injection with Auto-Regeneration
       let errorInjected = null;
       
-      // Fetch global error config (allows Dynatrace workflows to control errors)
-      const globalConfig = await fetchGlobalErrorConfig();
+      // Fetch error config for THIS service (per-service targeting from Gremlin)
+      // Use the full service name with company suffix from env, since that's what Gremlin targets
+      const dtServiceName = process.env.FULL_SERVICE_NAME || process.env.SERVICE_NAME || process.env.DT_SERVICE_NAME || properServiceName;
+      const globalConfig = await fetchGlobalErrorConfig(dtServiceName);
       
       // Extract error configuration from payload (allows override) or use global
       const errorConfig = {
@@ -709,6 +715,20 @@ function createStepService(serviceName, stepName) {
             featureFlag: errorInjected.feature_flag,
             errorType: errorInjected.error_type,
             remediationAction: errorInjected.remediation_action
+          });
+          
+          // 🎯 Send Dynatrace custom event via OneAgent SDK + Events API v2
+          sendFeatureFlagCustomEvent({
+            serviceName: properServiceName,
+            stepName: currentStepName,
+            featureFlag: errorInjected.feature_flag,
+            errorType: errorInjected.error_type,
+            httpStatus,
+            correlationId,
+            errorRate: errorConfig.errors_per_transaction,
+            domain: processedPayload.domain || '',
+            industryType: processedPayload.industryType || '',
+            companyName: processedPayload.companyName || ''
           });
           
           // Set error headers for trace propagation

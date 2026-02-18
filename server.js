@@ -17,9 +17,10 @@ import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus, cleanupOrphanedServiceProcesses } from './services/service-manager.js';
 import portManager from './services/port-manager.js';
+import { startAutoLoadWatcher, stopAutoLoadWatcher, stopAllAutoLoads, getAutoLoadStatus } from './services/auto-load.js';
 
 import journeyRouter from './routes/journey.js';
 import simulateRouter from './routes/simulate.js';
@@ -89,7 +90,7 @@ process.env.DT_CUSTOM_PROP = 'role=main-server;type=api-gateway';
 // Feature Flags for Self-Healing
 // ============================================
 const featureFlags = {
-  errorInjectionEnabled: true,
+  errorInjectionEnabled: false,   // DISABLED — errors are now controlled per-service via serviceFeatureFlags/Gremlin chaos
   slowResponsesEnabled: true,
   circuitBreakerEnabled: false,
   rateLimitingEnabled: false,
@@ -99,34 +100,170 @@ const featureFlags = {
 // Make feature flags available globally for journey simulation
 global.featureFlags = featureFlags;
 
+// ============================================
+// Dynatrace Credential Storage (persisted to file)
+// ============================================
+const DT_CREDS_FILE = path.join(__dirname, '.dt-credentials.json');
+const dtCredentials = {
+  environmentUrl: null,
+  apiToken: null,
+  configuredAt: null,
+  configuredBy: 'none' // 'ui', 'env', 'api'
+};
+
+// Load persisted credentials from file (if exists)
+try {
+  if (existsSync(DT_CREDS_FILE)) {
+    const saved = JSON.parse(readFileSync(DT_CREDS_FILE, 'utf-8'));
+    dtCredentials.environmentUrl = saved.environmentUrl || null;
+    dtCredentials.apiToken = saved.apiToken || null;
+    dtCredentials.configuredAt = saved.configuredAt || null;
+    dtCredentials.configuredBy = saved.configuredBy || 'ui';
+    console.log(`[DT Credentials] Loaded from file: ${dtCredentials.environmentUrl}`);
+  }
+} catch (e) {
+  console.warn('[DT Credentials] Could not load saved credentials:', e.message);
+}
+
+// Override with environment variables if set
+if (process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL) {
+  dtCredentials.environmentUrl = process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
+  dtCredentials.configuredBy = 'env';
+}
+if (process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN) {
+  dtCredentials.apiToken = process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
+  dtCredentials.configuredBy = 'env';
+}
+
+// Helper to persist credentials to file
+async function saveDtCredentialsToFile() {
+  try {
+    await fs.writeFile(DT_CREDS_FILE, JSON.stringify({
+      environmentUrl: dtCredentials.environmentUrl,
+      apiToken: dtCredentials.apiToken,
+      configuredAt: dtCredentials.configuredAt,
+      configuredBy: dtCredentials.configuredBy
+    }, null, 2));
+    console.log('[DT Credentials] Saved to file');
+  } catch (e) {
+    console.error('[DT Credentials] Failed to save to file:', e.message);
+  }
+}
+
+// Helper: resolve internal service name to Dynatrace entity name and build entitySelector
+function buildEntitySelector(serviceNames) {
+  if (!serviceNames || serviceNames.length === 0) return null;
+  
+  const metadata = getChildServiceMeta();
+  
+  // Map internal names to Dynatrace process group names
+  const dtNames = serviceNames.map(name => {
+    const meta = metadata[name];
+    // Use baseServiceName from metadata, or strip the company suffix as fallback
+    return meta?.baseServiceName || name.replace(/-[^-]*$/, '');
+  });
+  
+  // Deduplicate (multiple internal services may map to same DT entity)
+  const uniqueNames = [...new Set(dtNames)];
+  
+  // Use startsWith because Dynatrace names entities like:
+  //   "CheckoutAndPaymentService (CheckoutAndPaymentService-node)"
+  // so equals("CheckoutAndPaymentService") won't match
+  if (uniqueNames.length === 1) {
+    return `type("PROCESS_GROUP_INSTANCE"),entityName.startsWith("${uniqueNames[0]}")`;
+  }
+  
+  // For single call with multiple names, return just the first one
+  // Use buildEntitySelectorsForServices() instead for proper multi-entity support
+  return `type("PROCESS_GROUP_INSTANCE"),entityName.startsWith("${uniqueNames[0]}")`;
+}
+
+// Helper: build an ARRAY of entitySelectors — one per running service
+// Used when an event should be attached to ALL running services
+function buildEntitySelectorsForServices(serviceNames) {
+  if (!serviceNames || serviceNames.length === 0) return [];
+  
+  const metadata = getChildServiceMeta();
+  
+  // Map to Dynatrace names and deduplicate
+  const dtNames = serviceNames.map(name => {
+    const meta = metadata[name];
+    return meta?.baseServiceName || name.replace(/-[^-]*$/, '');
+  });
+  const uniqueNames = [...new Set(dtNames)];
+  
+  return uniqueNames.map(name => `type("PROCESS_GROUP_INSTANCE"),entityName.startsWith("${name}")`);
+}
+
 // Helper function to send Dynatrace Events
+// If properties.entitySelector is an array, sends one event per selector (for multi-service targeting)
 async function sendDynatraceEvent(eventType, properties, dtEnvironmentOverride = null, dtTokenOverride = null) {
-  const DT_ENVIRONMENT = dtEnvironmentOverride || process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
-  const DT_TOKEN = dtTokenOverride || process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
+  const DT_ENVIRONMENT = dtEnvironmentOverride || dtCredentials.environmentUrl || process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
+  const DT_TOKEN = dtTokenOverride || dtCredentials.apiToken || process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
   
   if (!DT_ENVIRONMENT || !DT_TOKEN) {
     console.log('[Event API] No Dynatrace credentials configured, skipping event');
     return { success: false, reason: 'no_credentials' };
   }
   
+  // If entitySelector is an array, send one event per entity (for multi-service targeting)
+  if (Array.isArray(properties.entitySelector)) {
+    const selectors = properties.entitySelector;
+    console.log(`[Event API] Multi-entity event: sending to ${selectors.length} entities`);
+    const results = [];
+    for (const selector of selectors) {
+      const singleProps = { ...properties, entitySelector: selector };
+      const result = await sendDynatraceEvent(eventType, singleProps, dtEnvironmentOverride, dtTokenOverride);
+      results.push(result);
+    }
+    const successCount = results.filter(r => r.success).length;
+    return { success: successCount > 0, totalSent: selectors.length, successCount, results };
+  }
+  
   try {
     // Use CUSTOM_DEPLOYMENT for feature flag changes to show in deployment timeline
     const deploymentEventType = eventType === 'CUSTOM_CONFIGURATION' ? 'CUSTOM_DEPLOYMENT' : eventType;
     
+    const eventTitle = properties.title || eventType;
+    const eventProps = properties.properties || {};
+    
+    // Build a human-readable description from the event properties
+    const descriptionParts = [eventTitle];
+    if (eventProps['feature.flag']) descriptionParts.push(`Flag: ${eventProps['feature.flag']}`);
+    if (eventProps['previous.value'] && eventProps['new.value']) descriptionParts.push(`Changed: ${eventProps['previous.value']} → ${eventProps['new.value']}`);
+    if (eventProps['feature.flag.targetService']) descriptionParts.push(`Service: ${eventProps['feature.flag.targetService']}`);
+    if (eventProps['feature.flag.changes']) descriptionParts.push(`Changes: ${eventProps['feature.flag.changes']}`);
+    if (eventProps['change.reason']) descriptionParts.push(`Reason: ${eventProps['change.reason']}`);
+    if (eventProps['triggered.by']) descriptionParts.push(`Triggered by: ${eventProps['triggered.by']}`);
+    if (eventProps['problem.id'] && eventProps['problem.id'] !== 'N/A') descriptionParts.push(`Problem: ${eventProps['problem.id']}`);
+    const autoDescription = descriptionParts.join(' | ');
+    
     const eventPayload = {
       eventType: deploymentEventType,
-      title: properties.title || eventType,
+      title: eventTitle,
       timeout: 15,
       properties: {
-        'deployment.name': `Feature Flag: ${properties.properties?.['feature.flag'] || 'unknown'}`,
-        'deployment.version': new Date().toISOString(),
-        'deployment.source': properties.properties?.['triggered.by'] || 'manual',
-        ...(properties.properties || {})
+        'dt.event.description': eventProps['dt.event.description'] || autoDescription,
+        'deployment.name': eventProps['deployment.name'] || `Feature Flag: ${eventProps['feature.flag'] || 'unknown'}`,
+        'deployment.version': eventProps['deployment.version'] || new Date().toISOString(),
+        'deployment.project': eventProps['deployment.project'] || 'BizObs Chaos Engineering',
+        'deployment.source': eventProps['triggered.by'] || 'manual',
+        'dt.event.is_rootcause_relevant': 'true',
+        'dt.event.deployment.name': eventProps['deployment.name'] || `Feature Flag: ${eventProps['feature.flag'] || 'unknown'}`,
+        'dt.event.deployment.version': eventProps['deployment.version'] || new Date().toISOString(),
+        'dt.event.deployment.project': eventProps['deployment.project'] || 'BizObs Chaos Engineering',
+        ...eventProps
       },
       ...properties
     };
     
-    console.log('[Event API] Sending event to Dynatrace:', eventPayload);
+    // Add entitySelector if provided — targets the event to a specific DT entity
+    if (properties.entitySelector) {
+      eventPayload.entitySelector = properties.entitySelector;
+      console.log(`[Event API] Targeting entity: ${properties.entitySelector}`);
+    }
+    
+    console.log('[Event API] Sending event to Dynatrace:', JSON.stringify(eventPayload, null, 2));
     
     const response = await fetch(`${DT_ENVIRONMENT}/api/v2/events/ingest`, {
       method: 'POST',
@@ -414,18 +551,54 @@ app.use('/api/librarian', librarianRouter.default || librarianRouter);
 // 🚦 FEATURE FLAG API - Generic, scalable, future-proof
 // Default values for all feature flags
 const DEFAULT_FEATURE_FLAGS = {
-  errors_per_transaction: 0.1,
-  errors_per_visit: 0.001,
-  errors_per_minute: 0.5,
+  errors_per_transaction: 0,
+  errors_per_visit: 0,
+  errors_per_minute: 0,
   regenerate_every_n_transactions: 100
 };
 
 // Current feature flag values (starts as copy of defaults)
 let globalFeatureFlags = { ...DEFAULT_FEATURE_FLAGS };
 
-// GET all feature flags (with optional filtering by journey/company)
+// Per-service overrides — only services listed here get elevated/modified error rates
+// Structure: { "PaymentService": { errors_per_transaction: 0.8, ... }, ... }
+const CHAOS_STATE_FILE = path.join(__dirname, '.chaos-state.json');
+const serviceFeatureFlags = {};
+
+// Load persisted chaos state on startup
+try {
+  if (existsSync(CHAOS_STATE_FILE)) {
+    const saved = JSON.parse(readFileSync(CHAOS_STATE_FILE, 'utf-8'));
+    if (saved.serviceFeatureFlags) {
+      Object.assign(serviceFeatureFlags, saved.serviceFeatureFlags);
+      console.log(`🔄 [Chaos Persistence] Restored ${Object.keys(saved.serviceFeatureFlags).length} service overrides from disk`);
+    }
+    if (saved.globalFeatureFlags) {
+      Object.assign(globalFeatureFlags, saved.globalFeatureFlags);
+      console.log(`🔄 [Chaos Persistence] Restored global feature flags from disk`);
+    }
+  }
+} catch (e) {
+  console.warn('⚠️ [Chaos Persistence] Failed to load saved chaos state:', e.message);
+}
+
+function saveChaosState() {
+  try {
+    const state = {
+      serviceFeatureFlags,
+      globalFeatureFlags,
+      savedAt: new Date().toISOString()
+    };
+    writeFileSync(CHAOS_STATE_FILE, JSON.stringify(state, null, 2));
+    console.log(`💾 [Chaos Persistence] Saved chaos state (${Object.keys(serviceFeatureFlags).length} service overrides)`);
+  } catch (e) {
+    console.warn('⚠️ [Chaos Persistence] Failed to save chaos state:', e.message);
+  }
+}
+
+// GET all feature flags (with optional filtering by journey/company/service)
 app.get('/api/feature_flag', async (req, res) => {
-  const { journey, company, companyName } = req.query;
+  const { journey, company, companyName, service } = req.query;
   
   // Get currently running journeys and companies from active tests and services
   const { getChildServiceMeta } = await import('./services/service-manager.js');
@@ -483,14 +656,33 @@ app.get('/api/feature_flag', async (req, res) => {
   
   const filterInfo = journey ? `journey: ${journey}` : 
                      (company || companyName) ? `company: ${company || companyName}` : 
+                     service ? `service: ${service}` :
                      'global';
   
   console.log(`📊 [Feature Flags API] GET all flags (${filterInfo}):`, globalFeatureFlags);
   
+  // If a specific service is requesting, return per-service override if it exists
+  // otherwise return global defaults (NOT the global elevated rate)
+  let effectiveFlags = { ...globalFeatureFlags };
+  if (service) {
+    const svcOverride = serviceFeatureFlags[service];
+    if (svcOverride) {
+      // This service has a targeted override — merge it on top of defaults
+      effectiveFlags = { ...DEFAULT_FEATURE_FLAGS, ...svcOverride };
+      console.log(`🎯 [Feature Flags API] Service "${service}" has targeted override:`, svcOverride);
+    } else {
+      // No override for this service — use safe defaults (no elevated error rate)
+      effectiveFlags = { ...DEFAULT_FEATURE_FLAGS };
+      console.log(`✅ [Feature Flags API] Service "${service}" has no override, using defaults`);
+    }
+  }
+  
   res.json({
     success: true,
-    flags: globalFeatureFlags,
+    flags: effectiveFlags,
     defaults: DEFAULT_FEATURE_FLAGS,
+    serviceOverrides: service ? (serviceFeatureFlags[service] || null) : serviceFeatureFlags,
+    targetedServices: Object.keys(serviceFeatureFlags),
     currently_running: {
       companies: Array.from(runningCompanies),
       journeys: Array.from(runningJourneys),
@@ -529,14 +721,67 @@ app.post('/api/feature_flag', async (req, res) => {
   } 
   // Otherwise, check for explicit fields
   else {
-    const { companies, journeys, companyName, journeyType, action, flags } = body;
+    const { companies, journeys, companyName, journeyType, action, flags, targetService } = body;
     targetCompanies = companies || (companyName ? [companyName] : []);
     targetJourneys = journeys || (journeyType ? [journeyType] : []);
     actionToPerform = action;
     
-    // Handle direct flag updates
+    // Handle direct flag updates — per-service or global
     if (flags && typeof flags === 'object') {
       const changes = [];
+      
+      if (targetService) {
+        // ═══ PER-SERVICE OVERRIDE ═══
+        // Only the targeted service gets these flags; all others stay at defaults
+        if (!serviceFeatureFlags[targetService]) {
+          serviceFeatureFlags[targetService] = { ...DEFAULT_FEATURE_FLAGS };
+        }
+        Object.entries(flags).forEach(([key, value]) => {
+          const oldValue = serviceFeatureFlags[targetService][key] ?? DEFAULT_FEATURE_FLAGS[key];
+          serviceFeatureFlags[targetService][key] = value;
+          changes.push({
+            flag: key,
+            previous_value: oldValue,
+            new_value: value,
+            scope: 'service',
+            service: targetService
+          });
+          console.log(`🎯 [Feature Flags API] POST - ${targetService}.${key}: ${oldValue} → ${value}`);
+        });
+        
+        // Send Dynatrace custom event for per-service flag change — targeted to the DT entity
+        const chaosChangeSummary = changes.map(c => `${c.flag} changed from ${c.previous_value} to ${c.new_value}`).join('; ');
+        sendDynatraceEvent('CUSTOM_CONFIGURATION', {
+          title: `Chaos Injection: ${targetService}`,
+          entitySelector: buildEntitySelector([targetService]),
+          properties: {
+            'dt.event.description': `[ROOT CAUSE] Deliberate chaos/error injection on service ${targetService}. ${chaosChangeSummary}. This configuration change directly causes increased failure rates and error responses on this service. Triggered by ${body.triggeredBy || 'gremlin-agent'} via BizObs Chaos Engineering.`,
+            'deployment.name': `Chaos Injection: ${targetService}`,
+            'deployment.project': 'BizObs Chaos Engineering',
+            'deployment.version': `chaos-${Date.now()}`,
+            'feature.flag.scope': 'per-service',
+            'feature.flag.targetService': targetService,
+            'feature.flag.changes': JSON.stringify(changes),
+            'triggered.by': body.triggeredBy || 'gremlin-agent',
+            'application': 'BizObs',
+            'change.type': 'chaos-injection',
+            'change.impact': 'Increased error rates and service failures'
+          }
+        });
+        
+        saveChaosState();
+        return res.json({
+          success: true,
+          message: `Feature flags set for service: ${targetService}`,
+          changes: changes,
+          targetService: targetService,
+          serviceFlags: serviceFeatureFlags[targetService],
+          targetedServices: Object.keys(serviceFeatureFlags),
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // ═══ GLOBAL UPDATE (no targetService) ═══
       Object.entries(flags).forEach(([key, value]) => {
         if (key in globalFeatureFlags) {
           const oldValue = globalFeatureFlags[key];
@@ -544,13 +789,15 @@ app.post('/api/feature_flag', async (req, res) => {
           changes.push({
             flag: key,
             previous_value: oldValue,
-            new_value: value
+            new_value: value,
+            scope: 'global'
           });
           
           console.log(`🎛️  [Feature Flags API] POST - ${key}: ${oldValue} → ${value}`);
         }
       });
       
+      saveChaosState();
       return res.json({
         success: true,
         message: 'Feature flags updated',
@@ -580,6 +827,7 @@ app.post('/api/feature_flag', async (req, res) => {
       journeys: targetJourneys.length > 0 ? targetJourneys : 'all'
     });
     
+    saveChaosState();
     return res.json({
       success: true,
       message: `Feature flags disabled for ${targetCompanies.length} ${targetCompanies.length === 1 ? 'company' : 'companies'}`,
@@ -600,16 +848,17 @@ app.post('/api/feature_flag', async (req, res) => {
     const changes = [{
       flag: 'errors_per_transaction',
       previous_value: previousFlags.errors_per_transaction,
-      new_value: 0.1
+      new_value: 0
     }];
     
-    globalFeatureFlags.errors_per_transaction = 0.1;
+    globalFeatureFlags.errors_per_transaction = 0;
     
     console.log(`▶️  [Feature Flags API] POST - Errors ENABLED for:`, {
       companies: targetCompanies.length > 0 ? targetCompanies : 'all',
       journeys: targetJourneys.length > 0 ? targetJourneys : 'all'
     });
     
+    saveChaosState();
     return res.json({
       success: true,
       message: `Feature flags enabled for ${targetCompanies.length} ${targetCompanies.length === 1 ? 'company' : 'companies'}`,
@@ -700,6 +949,7 @@ app.put('/api/feature_flag/:flag_name', (req, res) => {
     console.log(`🎛️  [Feature Flags API] ${flag_name}: ${oldValue} → ${value}`);
   }
   
+  saveChaosState();
   res.json({
     success: true,
     flag: flag_name,
@@ -728,12 +978,66 @@ app.delete('/api/feature_flag/:flag_name', (req, res) => {
   
   console.log(`🔄 [Feature Flags API] ${flag_name} RESET: ${oldValue} → ${defaultValue} (default)`);
   
+  saveChaosState();
   res.json({
     success: true,
     flag: flag_name,
     value: globalFeatureFlags[flag_name],
     previous_value: oldValue,
     message: `Feature flag '${flag_name}' reset to default`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// DELETE per-service override — removes targeted chaos from a specific service
+app.delete('/api/feature_flag/service/:serviceName', (req, res) => {
+  const { serviceName } = req.params;
+  const hadOverride = !!serviceFeatureFlags[serviceName];
+  const previousFlags = serviceFeatureFlags[serviceName] ? { ...serviceFeatureFlags[serviceName] } : null;
+  
+  delete serviceFeatureFlags[serviceName];
+  
+  console.log(`🧹 [Feature Flags API] Service override removed: ${serviceName} (had override: ${hadOverride})`);
+  
+  // Send Dynatrace event for the revert — targeted to the DT entity
+  sendDynatraceEvent('CUSTOM_CONFIGURATION', {
+    title: `Chaos Reverted: ${serviceName}`,
+    entitySelector: buildEntitySelector([serviceName]),
+    properties: {
+      'dt.event.description': `[REMEDIATION] Chaos injection reverted for ${serviceName}. Previous error-inducing flags: ${previousFlags ? JSON.stringify(previousFlags) : 'none'}. Service returned to default (healthy) configuration. This deployment event should resolve previously injected failures.`,
+      'deployment.name': `Chaos Revert: ${serviceName}`,
+      'deployment.project': 'BizObs Chaos Engineering',
+      'deployment.version': `revert-${Date.now()}`,
+      'feature.flag.scope': 'per-service-revert',
+      'feature.flag.targetService': serviceName,
+      'feature.flag.previous': previousFlags ? JSON.stringify(previousFlags) : 'none',
+      'triggered.by': 'gremlin-agent',
+      'application': 'BizObs',
+      'change.type': 'chaos-revert',
+      'change.impact': 'Restored normal operation - errors should decrease'
+    }
+  });
+  
+  saveChaosState();
+  res.json({
+    success: true,
+    serviceName: serviceName,
+    removed: hadOverride,
+    previousFlags: previousFlags,
+    remainingOverrides: Object.keys(serviceFeatureFlags),
+    message: hadOverride ? `Override removed for ${serviceName}` : `No override existed for ${serviceName}`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// GET all per-service overrides
+app.get('/api/feature_flag/services', (req, res) => {
+  res.json({
+    success: true,
+    serviceOverrides: serviceFeatureFlags,
+    targetedServices: Object.keys(serviceFeatureFlags),
+    count: Object.keys(serviceFeatureFlags).length,
+    defaults: DEFAULT_FEATURE_FLAGS,
     timestamp: new Date().toISOString()
   });
 });
@@ -759,7 +1063,7 @@ app.post('/api/error-config', (req, res) => {
     globalFeatureFlags.errors_per_transaction = 0;
     console.log('⏸️  [Feature Flags API] errors_per_transaction: DISABLED via legacy action');
   } else if (action === 'enable' || action === 'start') {
-    globalFeatureFlags.errors_per_transaction = 0.1;
+    globalFeatureFlags.errors_per_transaction = 0;
     console.log('▶️  [Feature Flags API] errors_per_transaction: ENABLED via legacy action');
   } else {
     if (typeof errors_per_transaction === 'number') {
@@ -770,6 +1074,7 @@ app.post('/api/error-config', (req, res) => {
     }
   }
   
+  saveChaosState();
   res.json({
     success: true,
     message: 'Configuration updated via legacy API',
@@ -881,8 +1186,53 @@ app.post('/api/test/error-trace', async (req, res) => {
 // --- Admin endpoint to reset all dynamic service ports (for UI Reset button) ---
 app.post('/api/admin/reset-ports', async (req, res) => {
   try {
+    console.log('🛑 [Admin] KILL ALL: Stopping all load generators and services...');
+    
+    // Step 0: Stop all auto-load generators
+    stopAllAutoLoads();
+    
+    // Step 1: Stop all LoadRunner service tests (these respawn services if left running)
+    try {
+      const lrStopRes = await fetch(`http://localhost:${process.env.PORT || 8080}/api/loadrunner-service/stop-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const lrResult = await lrStopRes.json();
+      console.log('🛑 [Admin] LoadRunner service tests stopped:', lrResult.message || 'done');
+    } catch (e) {
+      console.log('🛑 [Admin] No LoadRunner service tests to stop:', e.message);
+    }
+    
+    // Step 2: Stop old-style loadTests (server.js managed)
+    for (const [companyName, test] of Object.entries(loadTests)) {
+      try {
+        if (test.process) test.process.kill();
+        console.log(`🛑 [Admin] Killed old-style load test for ${companyName}`);
+      } catch (e) { /* ignore */ }
+      delete loadTests[companyName];
+    }
+    
+    // Step 3: Stop Continuous Journey Generator if running
+    if (global.continuousJourneyProcess) {
+      try {
+        global.continuousJourneyProcess.kill();
+        global.continuousJourneyProcess = null;
+        console.log('🛑 [Admin] Continuous Journey Generator stopped');
+      } catch (e) { /* ignore */ }
+    }
+    
+    // Step 4: Stop all child services and free ports
     await stopAllServices();
-    res.json({ ok: true, message: 'All dynamic services stopped and ports freed.' });
+    
+    // Step 5: Force kill any remaining orphaned processes
+    try {
+      const { execSync } = await import('child_process');
+      execSync('pkill -9 -f "dynamic-step-service" 2>/dev/null', { stdio: 'ignore' });
+      execSync('pkill -9 -f "loadrunner-simulator" 2>/dev/null', { stdio: 'ignore' });
+    } catch (e) { /* ignore if no processes found */ }
+    
+    console.log('✅ [Admin] KILL ALL complete: all load generators and services stopped');
+    res.json({ ok: true, message: 'All load generators, services, and ports stopped and freed.' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -1037,6 +1387,9 @@ app.post('/api/admin/stop-all-and-clear', async (req, res) => {
   try {
     console.log('🛑 [Admin] Stopping all services and load runners...');
     
+    // Stop all auto-load generators
+    stopAllAutoLoads();
+    
     // Stop all LoadRunner tests
     const loadRunnerManager = (await import('./scripts/continuous-loadrunner.js')).default;
     const stoppedTests = await loadRunnerManager.stopAllTests();
@@ -1126,6 +1479,81 @@ app.post('/api/admin/services/stop-by-company', async (req, res) => {
       companyName,
       stoppedServices
     });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stop all services by industry type
+app.post('/api/admin/services/stop-by-industry', async (req, res) => {
+  try {
+    const { industryType } = req.body;
+    if (!industryType) {
+      return res.status(400).json({ ok: false, error: 'industryType required' });
+    }
+    
+    const { getChildServices, getChildServiceMeta, stopService } = await import('./services/service-manager.js');
+    const services = getChildServices();
+    const metadata = getChildServiceMeta();
+    
+    const stoppedServices = [];
+    for (const [serviceName, proc] of Object.entries(services)) {
+      const meta = metadata[serviceName] || {};
+      if (meta.industryType === industryType) {
+        await stopService(serviceName);
+        stoppedServices.push(serviceName);
+      }
+    }
+    
+    res.json({ 
+      ok: true, 
+      message: `Stopped ${stoppedServices.length} services for industry ${industryType}`,
+      industryType,
+      stoppedServices
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stop all services and load generators (nuclear option)
+app.post('/api/admin/services/stop-everything', async (req, res) => {
+  try {
+    console.log('🛑 [Admin] STOP EVERYTHING: Stopping all load generators and services...');
+    
+    // Stop LoadRunner service tests
+    // Stop all auto-load generators
+    stopAllAutoLoads();
+    
+    try {
+      const lrStopRes = await fetch(`http://localhost:${process.env.PORT || 8080}/api/loadrunner-service/stop-all`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }
+      });
+      await lrStopRes.json();
+    } catch (e) { /* ignore */ }
+    
+    // Stop old-style loadTests
+    for (const [cn, test] of Object.entries(loadTests)) {
+      try { if (test.process) test.process.kill(); } catch (e) { /* ignore */ }
+      delete loadTests[cn];
+    }
+    
+    // Stop continuous journey generator
+    if (global.continuousJourneyProcess) {
+      try { global.continuousJourneyProcess.kill(); global.continuousJourneyProcess = null; } catch (e) { /* ignore */ }
+    }
+    
+    // Stop all child services
+    await stopAllServices();
+    
+    // Force kill orphans
+    try {
+      const { execSync } = await import('child_process');
+      execSync('pkill -9 -f "dynamic-step-service" 2>/dev/null', { stdio: 'ignore' });
+    } catch (e) { /* ignore */ }
+    
+    console.log('✅ [Admin] STOP EVERYTHING complete');
+    res.json({ ok: true, message: 'All load generators, services, and ports stopped.' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -1318,6 +1746,15 @@ app.get('/api/admin/loadtest/status', (req, res) => {
   }
 });
 
+// --- Auto-Load Status endpoint ---
+app.get('/api/admin/auto-load/status', (req, res) => {
+  try {
+    res.json({ ok: true, ...getAutoLoadStatus() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Global trace validation store for debugging
 const traceValidationStore = {
   recentCalls: [],
@@ -1378,6 +1815,9 @@ app.post('/api/admin/services/restart-all', async (req, res) => {
   try {
     console.log('🔄 Restarting all core services...');
     
+    // Stop auto-load generators
+    stopAllAutoLoads();
+    
     // Stop all current services
     stopAllServices();
     
@@ -1419,6 +1859,294 @@ app.get('/api/test', (req, res) => {
 });
 
 // Health check with service status
+// ============================================
+// Dynatrace Credentials Management (UI-based)
+// ============================================
+
+// Save Dynatrace credentials from UI
+app.post('/api/admin/dt-credentials', async (req, res) => {
+  try {
+    const { environmentUrl, apiToken } = req.body;
+    
+    if (!environmentUrl) {
+      return res.status(400).json({
+        ok: false,
+        error: 'environmentUrl is required'
+      });
+    }
+    
+    // If no token provided and no existing token, require it
+    if (!apiToken && !dtCredentials.apiToken) {
+      return res.status(400).json({
+        ok: false,
+        error: 'apiToken is required (no existing token on server)'
+      });
+    }
+    
+    // Validate URL format
+    if (!environmentUrl.startsWith('https://') && !environmentUrl.startsWith('http://')) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Environment URL must start with https:// or http://'
+      });
+    }
+    
+    // Clean up URL (remove trailing slash)
+    const cleanUrl = environmentUrl.replace(/\/+$/, '');
+    
+    dtCredentials.environmentUrl = cleanUrl;
+    if (apiToken) {
+      dtCredentials.apiToken = apiToken;
+    }
+    dtCredentials.configuredAt = new Date().toISOString();
+    dtCredentials.configuredBy = 'ui';
+    
+    const tokenForPreview = apiToken || dtCredentials.apiToken;
+    console.log(`[DT Credentials] Configured via UI: ${cleanUrl}`);
+    
+    // Persist to file
+    await saveDtCredentialsToFile();
+    
+    res.json({
+      ok: true,
+      environmentUrl: cleanUrl,
+      tokenPreview: tokenForPreview.substring(0, 6) + '...' + tokenForPreview.slice(-4),
+      configuredAt: dtCredentials.configuredAt
+    });
+  } catch (error) {
+    console.error('[DT Credentials] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Get credential status (never expose the actual token)
+app.get('/api/admin/dt-credentials/status', (req, res) => {
+  const hasEnv = !!dtCredentials.environmentUrl;
+  const hasToken = !!dtCredentials.apiToken;
+  
+  res.json({
+    ok: true,
+    configured: hasEnv && hasToken,
+    environmentUrl: dtCredentials.environmentUrl || null,
+    tokenConfigured: hasToken,
+    tokenPreview: hasToken ? dtCredentials.apiToken.substring(0, 6) + '...' + dtCredentials.apiToken.slice(-4) : null,
+    configuredAt: dtCredentials.configuredAt,
+    configuredBy: dtCredentials.configuredBy,
+    source: dtCredentials.configuredBy === 'env' ? 'Environment Variables' : 
+            dtCredentials.configuredBy === 'ui' ? 'UI Settings' : 'Not Configured'
+  });
+});
+
+// Test Dynatrace connection by sending a test event
+app.post('/api/admin/dt-credentials/test', async (req, res) => {
+  try {
+    const envUrl = dtCredentials.environmentUrl;
+    const token = dtCredentials.apiToken;
+    
+    if (!envUrl || !token) {
+      return res.json({
+        ok: false,
+        error: 'Credentials not configured. Please save your Environment URL and API Token first.'
+      });
+    }
+    
+    // Send a test event
+    const testPayload = {
+      eventType: 'CUSTOM_INFO',
+      title: 'BizObs Generator Connection Test',
+      timeout: 5,
+      properties: {
+        'source': 'BizObs Generator',
+        'test.type': 'connection_verification',
+        'timestamp': new Date().toISOString()
+      }
+    };
+    
+    const response = await fetch(`${envUrl}/api/v2/events/ingest`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Api-Token ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(testPayload)
+    });
+    
+    const body = await response.text();
+    
+    if (response.ok) {
+      res.json({
+        ok: true,
+        message: 'Connection successful! Test event sent to Dynatrace.',
+        status: response.status,
+        response: body
+      });
+    } else {
+      res.json({
+        ok: false,
+        error: `Dynatrace returned ${response.status}: ${body}`,
+        status: response.status
+      });
+    }
+  } catch (error) {
+    console.error('[DT Test] Connection test error:', error);
+    res.json({
+      ok: false,
+      error: `Connection failed: ${error.message}`
+    });
+  }
+});
+
+// Clear credentials
+app.delete('/api/admin/dt-credentials', async (req, res) => {
+  dtCredentials.environmentUrl = null;
+  dtCredentials.apiToken = null;
+  dtCredentials.configuredAt = null;
+  dtCredentials.configuredBy = 'none';
+  // Remove persisted file
+  try { await fs.unlink(DT_CREDS_FILE); } catch (e) { /* ignore if not exists */ }
+  console.log('[DT Credentials] Cleared via UI');
+  res.json({ ok: true, message: 'Credentials cleared' });
+});
+
+// ============================================
+// Dynatrace API Proxy — agents use these to query DT
+// using the UI-configured credentials
+// ============================================
+
+// Helper: make authenticated DT API request using stored credentials
+async function dtProxyFetch(apiPath, params = {}) {
+  const envUrl = dtCredentials.environmentUrl || process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
+  const token = dtCredentials.apiToken || process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
+  
+  if (!envUrl || !token) {
+    return { error: 'Dynatrace credentials not configured. Use the Settings gear icon to set them.', configured: false };
+  }
+  
+  const url = new URL(apiPath, envUrl);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+  }
+  
+  const res = await fetch(url.toString(), {
+    headers: { 'Authorization': `Api-Token ${token}`, 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(30000)
+  });
+  
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`DT API ${res.status}: ${text.substring(0, 300)}`);
+  }
+  
+  return await res.json();
+}
+
+// GET /api/dt-proxy/problems — fetch active problems from Dynatrace
+app.get('/api/dt-proxy/problems', async (req, res) => {
+  try {
+    const timeframe = req.query.from || 'now-2h';
+    const status = req.query.status || undefined;
+    const params = { from: timeframe, pageSize: '50' };
+    if (status) params.problemSelector = `status("${status}")`;
+    
+    const data = await dtProxyFetch('/api/v2/problems', params);
+    if (data.error) return res.json({ ok: false, problems: [], ...data });
+    
+    res.json({ ok: true, problems: data.problems || [], totalCount: data.totalCount || 0 });
+  } catch (err) {
+    console.error('[DT Proxy] Problems fetch failed:', err.message);
+    res.json({ ok: false, problems: [], error: err.message });
+  }
+});
+
+// GET /api/dt-proxy/problems/:id — fetch specific problem details
+app.get('/api/dt-proxy/problems/:problemId', async (req, res) => {
+  try {
+    const data = await dtProxyFetch(`/api/v2/problems/${req.params.problemId}`);
+    if (data.error) return res.json({ ok: false, ...data });
+    
+    res.json({ ok: true, problem: data });
+  } catch (err) {
+    console.error('[DT Proxy] Problem details fetch failed:', err.message);
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/dt-proxy/events — fetch recent events from Dynatrace
+app.get('/api/dt-proxy/events', async (req, res) => {
+  try {
+    const timeframe = req.query.from || 'now-2h';
+    const eventType = req.query.eventType || undefined;
+    const params = { from: timeframe, pageSize: '50' };
+    if (eventType) params.eventSelector = `eventType("${eventType}")`;
+    
+    const data = await dtProxyFetch('/api/v2/events', params);
+    if (data.error) return res.json({ ok: false, events: [], ...data });
+    
+    res.json({ ok: true, events: data.events || [], totalCount: data.totalCount || 0 });
+  } catch (err) {
+    console.error('[DT Proxy] Events fetch failed:', err.message);
+    res.json({ ok: false, events: [], error: err.message });
+  }
+});
+
+// GET /api/dt-proxy/metrics — query Dynatrace metrics
+app.get('/api/dt-proxy/metrics', async (req, res) => {
+  try {
+    const { metricSelector, entitySelector, from } = req.query;
+    if (!metricSelector) return res.status(400).json({ ok: false, error: 'metricSelector required' });
+    
+    const params = { metricSelector, from: from || 'now-30m', resolution: 'Inf' };
+    if (entitySelector) params.entitySelector = entitySelector;
+    
+    const data = await dtProxyFetch('/api/v2/metrics/query', params);
+    if (data.error) return res.json({ ok: false, ...data });
+    
+    res.json({ ok: true, result: data.result || [] });
+  } catch (err) {
+    console.error('[DT Proxy] Metrics fetch failed:', err.message);
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/dt-proxy/entities — query Dynatrace entities/topology
+app.get('/api/dt-proxy/entities', async (req, res) => {
+  try {
+    const { entitySelector, fields } = req.query;
+    if (!entitySelector) return res.status(400).json({ ok: false, error: 'entitySelector required' });
+    
+    const params = { entitySelector, fields: fields || 'properties', pageSize: '50' };
+    
+    const data = await dtProxyFetch('/api/v2/entities', params);
+    if (data.error) return res.json({ ok: false, ...data });
+    
+    res.json({ ok: true, entities: data.entities || [], totalCount: data.totalCount || 0 });
+  } catch (err) {
+    console.error('[DT Proxy] Entities fetch failed:', err.message);
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/dt-proxy/logs — search Dynatrace logs
+app.get('/api/dt-proxy/logs', async (req, res) => {
+  try {
+    const { query, from, limit } = req.query;
+    const params = {
+      query: query || 'status="ERROR"',
+      from: from || 'now-1h',
+      limit: limit || '50',
+      sort: '-timestamp'
+    };
+    
+    const data = await dtProxyFetch('/api/v2/logs/search', params);
+    if (data.error) return res.json({ ok: false, ...data });
+    
+    res.json({ ok: true, results: data.results || [] });
+  } catch (err) {
+    console.error('[DT Proxy] Logs fetch failed:', err.message);
+    res.json({ ok: false, results: [], error: err.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   console.log('[server] Health check endpoint called');
   const runningServices = getChildServices();
@@ -1500,7 +2228,7 @@ app.get('/api/remediation/feature-flags', (req, res) => {
 // Toggle feature flag (for Dynatrace Workflow automation)
 app.post('/api/remediation/feature-flag', async (req, res) => {
   try {
-    const { flag, value, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken } = req.body;
+    const { flag, value, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken, targetService } = req.body;
     
     if (!flag || value === undefined) {
       return res.status(400).json({
@@ -1524,11 +2252,22 @@ app.post('/api/remediation/feature-flag', async (req, res) => {
     console.log(`[Remediation] Reason: ${reason || 'Not specified'}`);
     console.log(`[Remediation] Triggered by: ${triggeredBy}`);
     
-    // Send CUSTOM_DEPLOYMENT event to Dynatrace (shows in deployment timeline)
+    // Send CUSTOM_DEPLOYMENT event to Dynatrace — target specific service if provided, otherwise all
+    let entitySelectorForEvent;
+    if (targetService && targetService !== 'all') {
+      entitySelectorForEvent = buildEntitySelector([targetService]);
+    } else {
+      const allSelectors = buildEntitySelectorsForServices(Object.keys(getChildServiceMeta()));
+      entitySelectorForEvent = allSelectors.length > 0 ? allSelectors : undefined;
+    }
     const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
-      title: `Feature Flag Changed: ${flag}`,
-      entitySelector: 'type("PROCESS_GROUP_INSTANCE"),entityName.equals("BizObs-MainServer")',
+      title: `Remediation: ${flag} ${value ? 'enabled' : 'disabled'}`,
+      entitySelector: entitySelectorForEvent,
       properties: {
+        'dt.event.description': `[REMEDIATION] Feature flag '${flag}' changed from ${previousValue} to ${value} as remediation action. Reason: ${reason || 'Not specified'}. This configuration change was triggered by ${triggeredBy} to address problem ${problemId || 'N/A'}. The flag change directly affects service behavior and error rates.`,
+        'deployment.name': `Remediation: ${flag}`,
+        'deployment.project': 'BizObs Chaos Engineering',
+        'deployment.version': `remediation-${Date.now()}`,
         'feature.flag': flag,
         'previous.value': String(previousValue),
         'new.value': String(value),
@@ -1536,7 +2275,9 @@ app.post('/api/remediation/feature-flag', async (req, res) => {
         'triggered.by': triggeredBy,
         'problem.id': problemId || 'N/A',
         'remediation.type': 'feature_flag_toggle',
-        'application': 'BizObs'
+        'application': 'BizObs',
+        'change.type': 'remediation',
+        'change.impact': value ? 'Error injection enabled' : 'Error injection disabled - service should recover'
       }
     }, dtEnvironment, dtToken);
     
@@ -1564,7 +2305,7 @@ app.post('/api/remediation/feature-flag', async (req, res) => {
 // Bulk toggle multiple flags (for complex remediation scenarios)
 app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
   try {
-    const { flags, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken } = req.body;
+    const { flags, reason, problemId, triggeredBy = 'manual', dtEnvironment, dtToken, targetService } = req.body;
     
     if (!flags || typeof flags !== 'object') {
       return res.status(400).json({
@@ -1583,11 +2324,22 @@ app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
         
         changes.push({ flag, previousValue, newValue: value });
         
-        // Send individual CUSTOM_DEPLOYMENT event for each flag
+        // Send individual CUSTOM_DEPLOYMENT event for each flag — target specific or all services
+        let bulkEntitySelector;
+        if (targetService && targetService !== 'all') {
+          bulkEntitySelector = buildEntitySelector([targetService]);
+        } else {
+          const allSelectors = buildEntitySelectorsForServices(Object.keys(getChildServiceMeta()));
+          bulkEntitySelector = allSelectors.length > 0 ? allSelectors : undefined;
+        }
         const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
-          title: `Feature Flag Changed: ${flag}`,
-          entitySelector: 'type("PROCESS_GROUP_INSTANCE"),entityName.equals("BizObs-MainServer")',
+          title: `Bulk Remediation: ${flag} ${value ? 'enabled' : 'disabled'}`,
+          entitySelector: bulkEntitySelector,
           properties: {
+            'dt.event.description': `[REMEDIATION] Bulk remediation: '${flag}' changed from ${previousValue} to ${value}. Reason: ${reason || 'Bulk update'}. Triggered by: ${triggeredBy}. This bulk configuration change directly affects error rates across targeted services.`,
+            'deployment.name': `Bulk Remediation: ${flag}`,
+            'deployment.project': 'BizObs Chaos Engineering',
+            'deployment.version': `bulk-remediation-${Date.now()}`,
             'feature.flag': flag,
             'previous.value': String(previousValue),
             'new.value': String(value),
@@ -1595,7 +2347,9 @@ app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
             'triggered.by': triggeredBy,
             'problem.id': problemId || 'N/A',
             'remediation.type': 'bulk_feature_flag_toggle',
-            'application': 'BizObs'
+            'application': 'BizObs',
+            'change.type': 'bulk-remediation',
+            'change.impact': value ? 'Error injection enabled across services' : 'Error injection disabled - services should recover'
           }
         }, dtEnvironment, dtToken);
         
@@ -2980,6 +3734,7 @@ app.post('/api/dynatrace/test-connection', async (req, res) => {
 app.post('/api/admin/new-customer-journey', (req, res) => {
   try {
     console.log('[server] New Customer Journey requested - stopping customer journey services while preserving essential infrastructure');
+    stopAllAutoLoads();
     stopCustomerJourneyServices();
     res.json({
       ok: true,
@@ -3110,6 +3865,120 @@ app.post('/api/admin/configs', async (req, res) => {
       error: error.message,
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// List journeys with full step/service detail (for AI Agent Hub)
+// Includes servicesRunning flag based on whether child services are actively running
+app.get('/api/admin/journeys', async (req, res) => {
+  try {
+    await ensureConfigDir();
+    const files = await fs.readdir(configDir);
+    const journeys = [];
+
+    // Get currently running service metadata to check which journeys are active
+    const runningMeta = getChildServiceMeta();
+    const runningByCompany = {};  // companyName -> Set of running service base names
+    Object.entries(runningMeta).forEach(([svcKey, meta]) => {
+      const company = (meta.companyName || '').toLowerCase().trim();
+      if (!company) return;
+      if (!runningByCompany[company]) runningByCompany[company] = new Set();
+      // Track both the internal key and the Dynatrace-style base service name
+      runningByCompany[company].add(svcKey.toLowerCase());
+      if (meta.baseServiceName) runningByCompany[company].add(meta.baseServiceName.toLowerCase());
+      if (meta.stepName) runningByCompany[company].add(meta.stepName.toLowerCase());
+    });
+
+    // Also check active LoadRunner tests
+    Object.values(loadTests).forEach(test => {
+      const company = (test.companyName || '').toLowerCase().trim();
+      if (!company) return;
+      if (!runningByCompany[company]) runningByCompany[company] = new Set();
+      runningByCompany[company].add('__loadtest__');
+    });
+
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const filePath = path.join(configDir, file);
+        const data = await fs.readFile(filePath, 'utf8');
+        const config = JSON.parse(data);
+        const steps = (config.steps || []).map(s => ({
+          stepName: s.stepName || s.name || '',
+          serviceName: s.serviceName || '',
+          category: s.category || '',
+          description: s.description || ''
+        }));
+        const services = [...new Set(steps.map(s => s.serviceName).filter(Boolean))];
+
+        // Check if this journey's services are currently running
+        const configCompany = (config.companyName || '').toLowerCase().trim();
+        const runningSet = runningByCompany[configCompany] || new Set();
+        let runningServiceCount = services.filter(svc => runningSet.has(svc.toLowerCase())).length;
+        
+        // If config has no steps but services ARE running for this company,
+        // detect them from the running metadata and inject steps/services
+        if (steps.length === 0 && runningSet.size > 0) {
+          const dynamicSteps = [];
+          const dynamicServices = [];
+          Object.entries(runningMeta).forEach(([svcKey, meta]) => {
+            if ((meta.companyName || '').toLowerCase().trim() === configCompany) {
+              const stepName = meta.stepName || meta.baseServiceName || svcKey;
+              const serviceName = meta.baseServiceName || svcKey.replace(/-[^-]*$/, '');
+              if (!dynamicServices.includes(serviceName)) {
+                dynamicServices.push(serviceName);
+                dynamicSteps.push({
+                  stepName: stepName,
+                  serviceName: serviceName,
+                  category: '',
+                  description: ''
+                });
+              }
+            }
+          });
+          if (dynamicSteps.length > 0) {
+            steps.push(...dynamicSteps);
+            services.push(...dynamicServices);
+            runningServiceCount = dynamicServices.length;
+          }
+        }
+        
+        const servicesRunning = runningServiceCount > 0 || runningSet.has('__loadtest__');
+
+        journeys.push({
+          id: file.replace(/\.json$/, '').replace(/^config-/, ''),
+          filename: file,
+          companyName: config.companyName || '',
+          industryType: config.industryType || '',
+          journeyType: config.journeyType || config.journeyDetail || '',
+          domain: config.domain || '',
+          stepsCount: steps.length,
+          services,
+          steps,
+          servicesRunning,
+          runningServiceCount
+        });
+      } catch (err) {
+        console.warn(`⚠️ Error reading journey file ${file}:`, err.message);
+      }
+    }
+
+    // Sort: active journeys first, then alphabetically
+    journeys.sort((a, b) => {
+      if (a.servicesRunning !== b.servicesRunning) return b.servicesRunning ? 1 : -1;
+      return a.companyName.localeCompare(b.companyName);
+    });
+
+    const activeCount = journeys.filter(j => j.servicesRunning).length;
+    res.json({
+      ok: true,
+      journeys,
+      count: journeys.length,
+      activeCount
+    });
+  } catch (error) {
+    console.error('❌ Error listing journeys:', error);
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
 
@@ -3601,6 +4470,10 @@ server.listen(PORT, () => {
     console.error('❌ Critical error during service startup:', error.message);
   });
   
+  // --- Start Auto-Load Watcher ---
+  // Monitors running services and auto-generates 30-60 journeys/min per company
+  startAutoLoadWatcher();
+  
   // Start periodic health monitoring every 15 minutes
   const healthMonitor = setInterval(async () => {
     try {
@@ -3745,6 +4618,15 @@ server.listen(PORT, () => {
 process.on('SIGTERM', () => {
   console.log('🛑 Received SIGTERM, shutting down gracefully...');
   
+  // Stop auto-load watcher and all auto-loads
+  stopAutoLoadWatcher();
+  
+  // Save port allocations before shutdown
+  portManager.saveState();
+  
+  // Save chaos/feature flag state before shutdown
+  saveChaosState();
+  
   // Stop continuous journey generator if running
   if (server.continuousJourneyProcess) {
     console.log('[Continuous Journey] Stopping generator...');
@@ -3775,6 +4657,15 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 Received SIGINT, shutting down gracefully...');
+  
+  // Stop auto-load watcher and all auto-loads
+  stopAutoLoadWatcher();
+  
+  // Save port allocations before shutdown
+  portManager.saveState();
+  
+  // Save chaos/feature flag state before shutdown
+  saveChaosState();
   
   // Stop continuous journey generator if running
   if (server.continuousJourneyProcess) {

@@ -87,3 +87,5 @@ Dynatrace-OneAgent-Linux-*.sh
 
 # External knowledge base downloads
 ai-agent-knowledge-base-main*/
+.dt-credentials.json
+.port-allocations.json

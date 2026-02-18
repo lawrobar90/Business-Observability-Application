@@ -1,274 +1,370 @@
-# 🚀 Partner PowerUp BizObs - Business Observability Engine
+# 🚀 Business Observability Engine
 
 <p align="center">
   <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://github.com/lawrobar90/Business-Observability-Application" alt="QR code linking to the Business Observability Application repository on GitHub" />
 </p>
 
-A comprehensive business observability application with integrated Dynatrace dashboard deployment via MCP server.
-
-## ⚡ Quick Start
-
-### 🚀 GitHub Codespaces (Recommended - Auto-Start)
-
-#### 1️⃣ **Configure Secrets (Choose Your Approach)**
-
-**Option A: Input Values Each Time** ⚡ (Recommended for security)
-1. Click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
-2. You'll be prompted to enter:
-   - `DYNATRACE_URL`: Your tenant URL (e.g., `https://abc12345.sprint.apps.dynatracelabs.com`)
-   - `DYNATRACE_TOKEN`: PaaS token (scope: `PaaS integration - Installer download`)
-3. **Uncheck** "Associated with repository" to avoid saving them
-4. Click "Create codespace"
-
-**Option B: Save as Repository Secrets** 🔐 (One-time setup)
-1. **Go to**: Your GitHub repo → **Settings** → **Secrets and variables** → **Codespaces**
-2. Click **"New repository secret"** and add:
-
-| Secret Name | Description | Example |
-|------------|-------------|---------|
-| `DYNATRACE_URL` | Your Dynatrace tenant URL | `https://abc12345.sprint.apps.dynatracelabs.com` |
-| `DYNATRACE_TOKEN` | **PaaS token** (scope: `PaaS integration - Installer download`) | `dt0c01.ABC123...` |
-
-3. Future Codespaces will use these automatically
-
-> 💡 **How to create a PaaS token:**
-> 1. Go to your Dynatrace tenant → **Settings** → **Access tokens** → **Generate new token**
-> 2. Name: `Codespace OneAgent`
-> 3. Scope: ✓ **PaaS integration - Installer download**
-> 4. Copy the token (starts with `dt0c01.`)
-
-#### 2️⃣ **Create Codespace**
-1. If not already done, click **"Code"** → **"Codespaces"** → **"Create codespace on main"**
-2. Wait for environment to build (~2-3 minutes):
-   - ✅ OneAgent installs automatically (if secrets configured)
-   - ✅ Dependencies install via `npm install`
-   - ✅ App and MCP server start automatically
-3. **That's it!** Open forwarded port **8080** in your browser
-
-#### 3️⃣ **Access the Application**
-- The app starts automatically on port **8080**
-- MCP server runs automatically on port **3000**
-- Click the **Ports** tab and open the forwarded URL for port 8080
-- No manual commands needed! 🎉
-
-> **🔍 What happens automatically:**
-> - OneAgent installs during container creation (if `DYNATRACE_TOKEN` provided)
-> - BizObs app starts with MCP server integration enabled
-> - Dynatrace MCP server starts for OAuth-based dashboard deployment
-> - All services ready to use immediately
-
-#### ⚙️ **Optional: Add Your Own Dynatrace Settings**
-Once the app is running:
-1. Click **"Dynatrace Settings"** in the UI
-2. Your MCP server URL is auto-detected (`http://localhost:3000`)
-3. Add your environment URL (e.g., `https://bko67471.sprint.apps.dynatracelabs.com`)
-4. Click **"Test Connection"** to authenticate via OAuth popup
-5. Deploy dashboards with one click! 🚀
-
-> **📝 Note**: Without secrets configured, the app runs in demo mode. You can still add Dynatrace settings manually in the UI.
+A full-stack business observability platform that dynamically creates microservices, simulates multi-step customer journeys across industries, and integrates deeply with Dynatrace — featuring AI-powered chaos injection, automated remediation, and operational memory.
 
 ---
-
-### 🖥️ Local Installation (For Development)
-
-#### Prerequisites
-1. **Install Dynatrace OneAgent** on your local machine:
-   - See [Installation Guide](https://docs.dynatrace.com/docs/ingest-from/dynatrace-oneagent/installation-and-operation)
-2. **Clone this repository**
-
-#### Quick Start Commands
-```bash
-# Option 1: Complete startup with all services
-./start-server.sh
-
-# Option 2: Simple Node.js startup
-npm install
-npm start
-
-# Option 3: Start with Dynatrace environment configured
-export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
-node server.js
-```
-
-#### Configure Dynatrace Tenant
-
-**Option 1: Automated Configuration** 🤖 (Recommended)
-```bash
-# Set environment variables
-export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
-export DT_API_TOKEN='dt0c01.XXX...'  # Token with settings.write scope
-
-# Run automated deployment
-cd dynatrace-monaco
-node deploy.js
-```
-
-**Option 2: Monaco (Monitoring as Code)** 📦
-```bash
-# Install Monaco CLI
-brew install dynatrace/dynatrace/monaco
-
-# Deploy configuration
-cd dynatrace-monaco
-monaco deploy manifest.yaml
-```
-
-**Option 3: Manual Configuration** 🔧
-Follow the [DynatraceConfig.md](DynatraceConfig.md) guide for step-by-step UI instructions.
-
-**What Gets Configured:**
-- ✅ OneAgent Features (Node.js Business Events) - **Now Automated!**
-- ✅ Business Event Capture Rules
-- ✅ Service Naming Rules  
-- ✅ OpenPipeline Pipelines & Processors
-- ✅ Dynamic Routing
-- ✅ **100% Automated - No manual UI steps!**
-
-See [dynatrace-monaco/README.md](dynatrace-monaco/README.md) for detailed automation documentation.
-
----
-
-### 🔐 Authentication Methods
-
-#### OAuth via MCP Server (Recommended)
-- **Automatic in Codespaces**: MCP server handles all OAuth flows
-- **Best for**: Sprint environments, SaaS tenants
-- **No API tokens needed**: Sign in once via browser popup
-- **Uses**: Dynatrace MCP Server v1.3.1+ in HTTP mode
-
-#### Dashboard Deployment
-- All dashboard deployments go through the **Dynatrace MCP Server**
-- OAuth authentication handled automatically via popup
-- Works with all Dynatrace environments (Sprint, SaaS, Managed)
-
----
-
-### 🔍 Codespaces Troubleshooting
-
-#### View Application Logs
-```bash
-# View live logs
-tail -f /tmp/bizobs.log
-
-# Check if app is running
-ps aux | grep node
-
-# Check port status
-netstat -tuln | grep -E '8080|3000'
-```
-
-#### Manual Restart (If Needed)
-```bash
-# Kill existing processes
-pkill -f "node server.js"
-pkill -f "dynatrace-mcp-server"
-
-# Start manually with your environment
-export DT_ENVIRONMENT='https://your-tenant.dynatrace.com'
-node server.js
-```
-
-#### Verify OneAgent Installation
-```bash
-# Check if OneAgent is installed
-ls -la /opt/dynatrace/oneagent
-
-# View OneAgent logs
-sudo tail -f /var/log/dynatrace/oneagent/oneagent.log
-```
-
----
-
-## 🌐 Access URLs
-
-- **Codespaces**: Check **Ports** tab, open port **8080**
-- **Local**: http://localhost:8080/
 
 ## 🎯 Key Features
 
-- **Customer Journey Simulation**: Multi-step business process simulation
-- **Multi-persona Load Generation**: Realistic customer behavior patterns  
-- **Dynatrace Dashboard Deployment**: One-click dashboard creation via MCP server
-- **OAuth Integration**: Secure authentication via Dynatrace MCP Server
-- **Real-time Monitoring**: Live metrics and health endpoints
-- **Error Simulation**: Configurable failure scenarios for demos
+| Feature | Description |
+|---------|-------------|
+| **Dynamic Microservices** | Spawns real Node.js child processes per journey step — each with its own Express server, Dynatrace OneAgent identity, and health endpoint |
+| **7 Industry Companies** | Banking, Insurance, Manufacturing, Retail, Smyths, Telecommunications, Travel & Hospitality — each with unique journey definitions |
+| **Auto-Load System** | Generates 30–60 journeys/minute per active company with zero manual interaction |
+| **AI Agent Hub** | 4 AI agents — Gremlin (chaos), Fix-It (remediation), Librarian (memory), Dashboard (deployment) |
+| **Per-Service Chaos Injection** | Target individual services with configurable error rates without affecting the rest of the fleet |
+| **Chaos State Persistence** | All feature flag overrides survive server restarts via `.chaos-state.json` |
+| **Port Persistence** | Services get the same port across restarts via `.port-allocations.json` |
+| **Dynatrace Integration** | OneAgent metadata propagation, event ingestion (CUSTOM_DEPLOYMENT), OAuth SSO, dashboard deployment, DT API proxy |
+| **Monaco Config-as-Code** | Automated Dynatrace configuration deployment (capture rules, service naming, OpenPipeline, OneAgent features) |
+| **Saved Config Library** | 24 pre-built industry journeys + user-saved configs with export/import |
+
+---
+
+## ⚡ Quick Start
+
+### Prerequisites
+- **Node.js v22+** (tested on v22.22.0)
+- **Dynatrace OneAgent** installed ([Installation Guide](https://docs.dynatrace.com/docs/ingest-from/dynatrace-oneagent/installation-and-operation))
+
+### Install & Run
+
+```bash
+git clone https://github.com/lawrobar90/Business-Observability-Application.git
+cd Business-Observability-Application
+npm install
+npm start
+```
+
+The server starts on **port 8080**. Open `http://localhost:8080` in your browser.
+
+### Alternative Start Methods
+
+```bash
+./start-server.sh        # Full startup with nginx + services
+./restart.sh             # Restart application
+./stop.sh                # Stop all services
+./status.sh              # Status report
+```
+
+### Environment Configuration
+
+Copy `.env.template` to `.env` and set:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `PORT` | Main server port | `8080` |
+| `DT_ENVIRONMENT` | Dynatrace tenant URL | `https://abc12345.sprint.apps.dynatracelabs.com` |
+| `DT_PLATFORM_TOKEN` | Platform token for event ingestion | `dt0c01.XXX...` |
+| `OLLAMA_ENDPOINT` | LLM backend for AI agents | `http://localhost:11434` |
+| `SERVICE_PORT_MIN` | Dynamic service port range start | `8081` |
+| `SERVICE_PORT_MAX` | Dynamic service port range end | `8200` |
+
+Or configure Dynatrace credentials from the UI via the ⚙️ **Settings** modal (persisted to `.dt-credentials.json`).
+
+---
 
 ## 🏗️ Architecture
 
-- **Main Server**: Port 8080 with full web interface
-- **MCP Server**: Port 3000 for Dynatrace dashboard deployment (auto-starts with DT_ENVIRONMENT)
-- **Child Services**: Dynamic service creation on ports 8099-8101
-- **OAuth Authentication**: Handled by Dynatrace MCP Server (no API tokens needed)
-- **Health Monitoring**: Comprehensive service health tracking
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser UI (public/index.html) — Tailwind CSS Dark Theme       │
+│  5-Tab Wizard: Welcome → Details → Prompts → Data → Agent Hub   │
+├─────────────────────────────────────────────────────────────────┤
+│  nginx (port 443, SSL) → reverse proxy                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Main Server (port 8080) — Express.js + Socket.IO               │
+│  ├── 18 API route modules (75+ endpoints)                       │
+│  ├── AI Agent APIs (Gremlin, Fix-It, Librarian, Dashboard)      │
+│  ├── Feature Flag Manager (per-service isolation)               │
+│  ├── Auto-Load Watcher (30-60 journeys/min per company)         │
+│  └── Dynatrace Event Ingestion + DT API Proxy                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Dynamic Child Services (ports 8081–8200)                       │
+│  Each service = separate Node.js process with:                  │
+│  ├── Own Express server + /health endpoint                      │
+│  ├── Dynatrace OneAgent identity (DT_APPLICATION_ID, DT_TAGS)   │
+│  ├── Per-service feature flag config                            │
+│  └── Service-to-service call chaining for journey steps         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🤖 AI Agent Hub
+
+The Agent Hub (Step 4 in the UI) provides four specialized AI agents powered by an LLM backend (Ollama).
+
+### 👹 Gremlin — Chaos Agent
+Controlled chaos injection with LLM-powered recipe selection.
+
+- **7 chaos recipes**: `enable_errors`, `increase_error_rate`, `slow_responses`, `disable_circuit_breaker`, `disable_cache`, `target_company`, `custom_flag`
+- **Per-service targeting**: Errors only affect the targeted service — other services remain healthy
+- **Configurable intensity**: Scale 1–10 maps to 10%–100% error rates
+- **Auto-revert**: Configurable duration timers automatically restore healthy state
+- **Safety lock**: Max concurrent faults limit
+- **Dynatrace events**: Every chaos injection sends a `CUSTOM_DEPLOYMENT` event with `[ROOT CAUSE]` metadata
+
+### 🔧 Fix-It — Remediation Agent
+Autonomous problem detection, diagnosis, and remediation.
+
+- **Full pipeline**: Detect → Diagnose → Propose Fix → Execute → Verify → Learn
+- **Dynatrace-aware**: Queries DT problems, logs, metrics, and topology for diagnosis
+- **7 fix types**: `disable_errors`, `reset_feature_flags`, `reduce_error_rate`, `enable_circuit_breaker`, `enable_cache`, `disable_slow_responses`, `send_dt_event`
+- **LLM agent loop**: Function calling for intelligent decision-making
+- **Learning**: Records outcomes to Librarian for future reference
+
+### 📚 Librarian — Operational Memory
+Persistent knowledge store for the AI agent ecosystem.
+
+- **Vector store**: Similarity search across past incidents
+- **History store**: Chronological event timeline
+- **Records**: Chaos events, reverts, DT problems, diagnoses, fixes, outcomes
+- **LLM-powered learning**: Generates insights from incident history
+
+### 📊 Dashboard — AI Dashboard Deployer
+One-click Dynatrace dashboard deployment.
+
+- **Pre-built dashboards**: Generate from journey configurations
+- **AI-generated**: LLM creates custom dashboard JSON
+- **Deployment**: Via Dynatrace Document API (OAuth or API token auth)
+
+---
+
+## 🔄 Auto-Load System
+
+Once services are running, the auto-load system automatically generates realistic traffic:
+
+- **30–60 journeys/minute** per active company
+- **Zero interaction required** — starts automatically when services come online
+- **Service watcher**: Polls for new/removed companies every 10 seconds
+- **Randomized profiles**: 10 customer profiles across 4 priority levels
+- **Tracks metrics**: Iterations, successes, and errors per company
+- **Stops automatically** when services are shut down
+
+---
+
+## 🎲 Chaos Injection & Feature Flags
+
+### Per-Service Isolation
+Each child service fetches its own feature flags from the main server (`GET /api/feature_flag?service=<name>`). Only services with explicit overrides receive elevated error rates.
+
+### Key Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/feature_flag` | Get global + per-service flags |
+| `POST` | `/api/feature_flag` | Set global or targeted (`targetService`) overrides |
+| `DELETE` | `/api/feature_flag/service/:name` | Remove a per-service override |
+| `POST` | `/api/remediation/feature-flag` | Set remediation flags + send DT event |
+
+### Persistence
+- Feature flag overrides → `.chaos-state.json` (restored on startup)
+- Service port assignments → `.port-allocations.json` (restored on startup)
+- Dynatrace credentials → `.dt-credentials.json` (restored on startup)
+
+---
+
+## 🔗 Dynatrace Integration
+
+### Event Ingestion
+Every chaos injection and remediation action sends a `CUSTOM_DEPLOYMENT` event to Dynatrace with rich metadata:
+- `deployment.project`, `deployment.name`, `deployment.version`
+- `dt.event.is_rootcause_relevant: true`
+- `dt.event.description` with `[ROOT CAUSE]` or `[REMEDIATION]` prefixes
+
+### DT API Proxy
+Agents query Dynatrace through local proxy endpoints:
+
+| Endpoint | DT API |
+|----------|--------|
+| `/api/dt-proxy/problems` | Problems v2 |
+| `/api/dt-proxy/events` | Events v2 |
+| `/api/dt-proxy/metrics` | Metrics v2 |
+| `/api/dt-proxy/entities` | Entities v2 |
+| `/api/dt-proxy/logs` | Logs v2 |
+
+### OneAgent Metadata
+Each child service gets Dynatrace environment variables:
+- `DT_APPLICATION_ID`, `DT_CUSTOM_PROP`, `DT_TAGS`, `DT_CLUSTER_ID`
+- Release metadata for version tracking
+
+### Authentication
+- **OAuth SSO**: Dynatrace Sprint SSO via `simple-oauth2` (authorization code grant)
+- **API Token**: Direct token auth for event ingestion
+- **UI Config**: ⚙️ Settings modal for credential management
+
+### Monaco Config-as-Code
+
+```bash
+# Automated deployment via Settings API
+npm run configure:dynatrace
+
+# Or via Monaco CLI
+npm run configure:monaco
+```
+
+Deploys: OneAgent features, capture rules, service naming, OpenPipeline pipelines & routing.
+
+---
+
+## 📋 UI Overview
+
+### 5-Tab Wizard
+
+| Tab | Description |
+|-----|-------------|
+| 🏠 **Welcome** | Application overview and getting-started guide |
+| **Step 1: Customer Details** | Company name, domain, industry type input |
+| **Step 2: Generate Prompts** | AI/Copilot prompt generation for journey creation |
+| **Step 3: Generate Data** | Journey simulation controls, data generation, LoadRunner integration |
+| 🤖 **Step 4: AI Agent Hub** | Gremlin / Fix-It / Librarian / Dashboard agent controls |
+
+### Additional UI Elements
+- **Saved Prompts Sidebar** (left panel): Save/load/duplicate/delete/export/import journey configs. 24 pre-built + user-saved configs.
+- **Service Status Dropdown** (top-right): Live service status with refresh.
+- **Dynatrace Settings Modal**: Configure DT environment URL + API token from the UI.
+
+---
+
+## 🛠️ Technical Stack
+
+| Component | Technology |
+|-----------|-----------|
+| **Runtime** | Node.js v22+ (ESM modules) |
+| **Framework** | Express.js 4 + Socket.IO 4 |
+| **AI Agents** | TypeScript → compiled to `dist/` |
+| **LLM Backend** | Ollama (llama3.2) |
+| **Observability** | Dynatrace OneAgent + OpenTelemetry |
+| **Frontend** | Single-page HTML + Tailwind CSS (dark theme) |
+| **Auth** | OAuth 2.0 via `simple-oauth2` |
+| **Proxy** | nginx with SSL (port 443) |
+
+---
+
+## 📁 Project Structure
+
+```
+├── server.js                    # Main application server (~4,700 lines, 75+ endpoints)
+├── package.json                 # business-observability-engine v0.1.0
+├── .env.template                # Environment variable template
+│
+├── agents/                      # TypeScript AI agent source
+│   ├── gremlin/                 # Chaos injection agent
+│   ├── fixit/                   # Auto-remediation agent
+│   └── librarian/               # Operational memory agent
+├── dist/                        # Compiled TypeScript output
+│
+├── tools/                       # TypeScript tool libraries
+│   ├── chaos/                   # 7 chaos recipes
+│   ├── dynatrace/               # DT API wrappers + LLM tool definitions
+│   └── fixes/                   # 7 fix type implementations
+├── utils/                       # LLM client, config, logger, OpenTelemetry
+│
+├── routes/                      # 18 Express route modules
+│   ├── journey-simulation.js    # Full journey simulation engine (2,639 lines)
+│   ├── oauth.js                 # Dynatrace OAuth SSO
+│   ├── mcp-integration.js       # MCP session management (1,305 lines)
+│   ├── ai-dashboard.js          # AI dashboard generation
+│   ├── loadrunner-*.js          # LoadRunner integration
+│   └── ...                      # Journey, simulate, metrics, steps, flow, config, proxy
+│
+├── services/                    # Core service infrastructure
+│   ├── service-manager.js       # Dynamic service creation (1,040 lines)
+│   ├── dynamic-step-service.cjs # Child service template (1,183 lines)
+│   ├── auto-load.js             # Auto-load watcher (327 lines)
+│   ├── port-manager.js          # Port allocation + persistence (364 lines)
+│   ├── service-runner.cjs       # Individual service spawner
+│   └── ...                      # Child-caller, event service, metrics service
+│
+├── middleware/                   # Express middleware
+│   └── dynatrace-metadata.js    # DT metadata injection/propagation
+│
+├── public/                      # Frontend
+│   └── index.html               # Single-page UI (~10,800 lines)
+│
+├── saved-configs/               # 32 persisted journey configs (24 default + 8 user)
+├── dynatrace-monaco/            # Monaco v2 config-as-code project
+├── dynatrace-workflows/         # Self-healing workflow JSON
+├── dashboards/                  # Sample/generated dashboard JSON
+├── loadrunner-tests/            # LoadRunner scenarios by industry
+├── memory/                      # Vector + history stores for Librarian
+├── prompts/                     # AI prompt templates (system context, DQL, dashboards)
+├── scripts/                     # Operational scripts (deploy, simulate, nginx, autostart)
+├── nginx/                       # Nginx reverse proxy config
+├── k8s/                         # Kubernetes deployment manifests
+├── logs/                        # Application + continuous-generation logs
+│
+├── .chaos-state.json            # Persisted chaos/feature flag state
+├── .dt-credentials.json         # Persisted Dynatrace credentials
+└── .port-allocations.json       # Persisted port-to-service mappings
+```
+
+---
+
+## 📊 API Route Summary
+
+| Mount | Purpose |
+|-------|---------|
+| `/api/journey-simulation` | Full journey simulation engine |
+| `/api/journey` | Journey CRUD |
+| `/api/simulate` | Basic simulation |
+| `/api/metrics` | Metrics endpoints |
+| `/api/steps` | Step management |
+| `/api/flow` | Flow visualization |
+| `/api/config` | Copilot prompt generation |
+| `/api/gremlin` | Gremlin chaos agent API |
+| `/api/fixit` | Fix-It remediation agent API |
+| `/api/librarian` | Librarian memory agent API |
+| `/api/ai-dashboard` | AI dashboard generation |
+| `/api/loadrunner` | LoadRunner integration |
+| `/api/loadrunner-service` | LoadRunner service management |
+| `/api/oauth` | Dynatrace OAuth SSO |
+| `/api/service-proxy` | Service proxy |
+| `/api/feature_flag` | Feature flag management |
+| `/api/remediation/*` | Remediation flag management |
+| `/api/dt-proxy/*` | Dynatrace API proxy |
+| `/api/dynatrace/*` | Dashboard deployment, connection test |
+| `/api/admin/*` | Service management, config persistence, credentials |
+
+---
 
 ## 🔧 Management Commands
 
-**Codespaces** (auto-start enabled):
 ```bash
-# View logs
-tail -f /tmp/bizobs.log
-
-# Restart if needed
-pkill -f "node server.js" && node server.js &
-```
-
-**Local Development**:
-```bash
-./start-server.sh    # Complete startup with ingress deployment
+./start-server.sh    # Full startup with nginx + all services
 ./status.sh          # Detailed status report
 ./stop.sh            # Stop all services
 ./restart.sh         # Restart application
 ```
 
-## 📊 Demo Scenarios
-
-### Insurance Journey Example
-PolicyDiscovery → QuoteGeneration → PolicySelection → PaymentProcessing → PolicyActivation → OngoingEngagement
-
-### Customer Personas
-- **Karen (Retail)**: Price-conscious shopper
-- **Raj (Insurance)**: Risk-aware professional  
-- **Alex (Tech)**: Innovation-focused buyer
-- **Sophia (Enterprise)**: Process-oriented decision maker
-
-## 🛠️ Technical Stack
-
-- **Runtime**: Node.js v20+ with Express.js
-- **Observability**: Dynatrace OneAgent with full APM instrumentation
-- **Dashboard Deployment**: Dynatrace MCP Server v1.3.1+ (JSON-RPC via HTTP)
-- **Authentication**: OAuth 2.0 via MCP server (no API tokens needed)
-- **Process Management**: Native Node.js with auto-start in Codespaces
-
-## 📁 Project Structure
-
+```bash
+npm start                       # Start server
+npm run build:agents            # Compile TypeScript agents
+npm run configure:dynatrace     # Deploy DT config via Settings API
+npm run configure:monaco        # Deploy DT config via Monaco CLI
 ```
-├── server.js                      # Main application server
-├── .devcontainer/
-│   ├── devcontainer.json          # Codespaces configuration
-│   ├── install-oneagent.sh        # OneAgent auto-installer
-│   └── start-app.sh               # Auto-start script
-├── routes/                        # API route handlers
-├── services/                      # Business logic services
-├── middleware/                    # Dynatrace observability middleware
-├── scripts/
-│   └── dynatrace-dashboard-deployer.js  # MCP proxy for dashboards
-└── public/index.html              # Main UI with Dynatrace settings
-```
-
-## 🎭 Ready for Codespaces & Demos
-
-This application is specifically designed for:
-- **GitHub Codespaces**: One-click deployment with auto-start
-- **Dynatrace Integration**: OneAgent auto-installation and full APM
-- **Dashboard Deployment**: OAuth-based deployment via MCP server
-- **Customer Journey Demos**: Realistic business scenarios with full observability
-
-### Additional Documentation
-- **MCP Integration**: [dynatrace-mcp-integration.md](dynatrace-mcp-integration.md)
-- **Quick Start Guide**: [MCP-QUICK-START.md](MCP-QUICK-START.md)
-- **Dynatrace Config**: [DynatraceConfig.md](DynatraceConfig.md)
 
 ---
 
-**Built for Dynatrace Partner Power-Up Program**  
-Demonstrating advanced business observability with integrated dashboard deployment.
+## 📊 Demo Walkthrough
+
+1. **Start the server** → services auto-create as journeys are defined
+2. **Step 1**: Enter company details (or pick from 24 pre-built industry journeys)
+3. **Step 2**: Generate AI/Copilot prompts for journey definition
+4. **Step 3**: Run journey simulation — services spin up dynamically, auto-load begins
+5. **Step 4**: Open the AI Agent Hub:
+   - Use **Gremlin** to inject chaos into a specific service
+   - Watch **Dynatrace** detect the problem
+   - Let **Fix-It** autonomously diagnose and remediate
+   - Review the full incident timeline in **Librarian**
+   - Deploy a **Dashboard** to visualize the journey
+
+---
+
+**Built for Dynatrace Partner Power-Up Program**
+Demonstrating advanced business observability with AI-powered chaos engineering and automated remediation.

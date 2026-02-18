@@ -361,13 +361,14 @@ export async function startChildService(internalServiceName, scriptPath, portPar
     
     // Track startup time and metadata
     child.startTime = new Date().toISOString();
+    const startTimeMs = Date.now();
     childServices[internalServiceName] = child;
     // Record metadata for future context checks
     childServiceMeta[internalServiceName] = { 
       companyName, 
       domain, 
       industryType, 
-      startTime: child.startTime,
+      startTime: startTimeMs,
       port,
       stepName: stepName,  // Include step name for UI display
       baseServiceName: dynatraceServiceName
@@ -511,7 +512,8 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
         const wrapperPath = path.join(serviceDir, 'index.cjs');
         const wrapperSource = `// Auto-generated wrapper for ${dynatraceServiceName}\n` +
 `process.env.SERVICE_NAME = ${JSON.stringify(dynatraceServiceName)};\n` +
-`process.env.FULL_SERVICE_NAME = ${JSON.stringify(dynatraceServiceName)};\n` +
+`process.env.FULL_SERVICE_NAME = ${JSON.stringify(internalServiceName)};\n` +
+`process.env.BASE_SERVICE_NAME = ${JSON.stringify(baseServiceName)};\n` +
 `process.env.STEP_NAME = ${JSON.stringify(stepEnvName)};\n` +
 `process.env.COMPANY_NAME = ${JSON.stringify(companyName)};\n` +
 `process.env.DOMAIN = ${JSON.stringify(domain)};\n` +
@@ -671,6 +673,7 @@ export async function getServicesGroupedByCompany() {
     if (!byCompany[companyName]) {
       byCompany[companyName] = {
         companyName,
+        industryType: meta.industryType || 'unknown',
         services: [],
         totalServices: 0,
         runningServices: 0,

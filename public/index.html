@@ -131,6 +131,18 @@
       display: block;
     }
 
+    /* Agent panel tabs */
+    .agent-panel { display: none; }
+    .agent-panel:not(.hidden) { display: block; }
+    .agent-tab.active {
+      font-weight: 700;
+      box-shadow: 0 0 12px rgba(78, 205, 196, 0.3);
+    }
+    .agent-tab[data-agent="gremlin"].active { background: rgba(127,29,29,0.6); color: #f87171; border-color: #b91c1c; }
+    .agent-tab[data-agent="fixit"].active { background: rgba(20,83,45,0.6); color: #4ade80; border-color: #15803d; }
+    .agent-tab[data-agent="librarian"].active { background: rgba(30,58,138,0.6); color: #60a5fa; border-color: #1d4ed8; }
+    .agent-tab[data-agent="dashboard"].active { background: rgba(88,28,135,0.6); color: #c084fc; border-color: #7e22ce; }
+
     /* Enhanced form styling */
     .form-input-enhanced {
       background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
@@ -325,6 +337,11 @@
           </div>
         </div>
         <div class="flex items-center space-x-3">
+          <button onclick="openDtSettingsModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dtcard border border-dtborder hover:border-dtcyan text-gray-300 hover:text-dtcyan text-sm font-medium transition-all" title="Dynatrace Settings">
+            <span>⚙️</span>
+            <span class="hidden sm:inline">Settings</span>
+            <span id="dt-settings-indicator" class="w-2 h-2 rounded-full bg-gray-500" title="Not configured"></span>
+          </button>
           <div class="px-3 py-1 rounded-full bg-dtgreen/20 border border-dtgreen text-dtgreen text-xs font-medium">
             ✅ READY
           </div>
@@ -394,8 +411,8 @@
               <span class="text-xs font-medium text-center">Generate<br>Data</span>
             </button>
             <button class="tab-button flex flex-col items-center space-y-2 px-4 py-3 rounded-xl transition-all duration-200 bg-dtcard border border-dtgray hover:border-dtcyan" data-tab="step4">
-              <div class="flex items-center justify-center w-8 h-8 rounded-full bg-dtgray text-white font-bold text-sm">4</div>
-              <span class="text-xs font-medium text-center">AI<br>Agents</span>
+              <div class="flex items-center justify-center w-8 h-8 rounded-full bg-dtgray text-white font-bold text-sm">🤖</div>
+              <span class="text-xs font-medium text-center">AI Agent<br>Hub</span>
             </button>
           </nav>
         </div>
@@ -645,17 +662,6 @@
                 </div>
               </div>
               
-              <div class="mb-6">
-                <div class="flex rounded-lg bg-dtgray p-1">
-                  <button onclick="showDataMode('single')" class="data-mode-btn active flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200" data-mode="single">
-                    🎯 Single Simulation
-                  </button>
-                  <button onclick="showDataMode('loadrunner')" class="data-mode-btn flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-200" data-mode="loadrunner">
-                    🏎️ LoadRunner Testing
-                  </button>
-                </div>
-              </div>
-              
               <!-- Single Simulation Mode -->
               <div id="single-mode" class="data-mode-content">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -670,25 +676,6 @@
                     <button id="run-journey-simulation-step4" onclick="runJourneySimulation(); updateSimulationStatus('Running customer journey simulation...');" class="w-full bg-dtgreen hover:bg-dtcyan text-black font-bold rounded-lg p-4 shadow-card transition-all text-lg">
                       🚀 Run Single Journey Simulation
                     </button>
-                    
-                    <button id="start-loadrunner-btn" onclick="startLoadRunner()" class="w-full bg-dtpurple hover:bg-purple-600 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg">
-                      ⚡ Start Continuous Load (LoadRunner)
-                    </button>
-                    
-                    <button id="stop-loadrunner-btn" onclick="stopLoadRunner()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg hidden">
-                      ⏹️ Stop LoadRunner
-                    </button>
-                    
-                    <button id="stop-all-clear-btn" onclick="stopAllAndClear()" class="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-lg p-4 shadow-card transition-all text-lg border-2 border-red-500">
-                      🛑 STOP ALL & CLEAR (Services + Load Runners)
-                    </button>
-                    
-                    <div id="loadrunner-status" class="p-3 bg-dtgray rounded-lg text-sm hidden">
-                      <div class="flex justify-between items-center">
-                        <span>🟢 LoadRunner Active</span>
-                        <span id="loadrunner-stats" class="text-dtgreen">0 requests</span>
-                      </div>
-                    </div>
                     
                     <div id="simulation-status-step4" class="p-3 bg-dtgray rounded-lg text-sm">
                       Ready to run simulation with current journey configuration
@@ -743,82 +730,7 @@
                 </div>
               </div>
               
-              <!-- LoadRunner Testing Mode -->
-              <div id="loadrunner-mode" class="data-mode-content" style="display: none;">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div class="space-y-4">
-                    <h4 class="text-lg font-bold text-white mb-2">🏎️ LoadRunner Configuration</h4>
-                    
-                    <div>
-                      <label class="block text-sm font-semibold text-dtcyan mb-2">Load Profile</label>
-                      <select id="loadrunner-profile" class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtcyan focus:ring-2 focus:ring-dtcyan">
-                        <option value="light">Light Load (10 users, 2 min)</option>
-                        <option value="moderate">Moderate Load (25 users, 5 min)</option>
-                        <option value="heavy">Heavy Load (50 users, 10 min)</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label class="block text-sm font-semibold text-dtcyan mb-2">Duration (minutes)</label>
-                      <input id="loadrunner-duration" class="w-full p-3 rounded-lg bg-dtgray text-white border border-dtcyan" type="number" min="1" max="60" value="10">
-                    </div>
-                    
-                    <!-- Error Configuration -->
-                    <div class="p-4 bg-dtgray rounded-lg border border-dtpurple">
-                      <h5 class="text-dtpurple font-semibold mb-3 flex items-center gap-2">
-                        <span>🚦</span>
-                        <span>Error Configuration (Volume-Based)</span>
-                      </h5>
-                      
-                      <div class="space-y-3">
-                        <div>
-                          <label class="block text-xs text-gray-300 mb-1">Errors per Transaction</label>
-                          <input id="errors-per-transaction" class="w-full p-2 rounded bg-black text-white border border-dtcyan text-sm" type="number" min="0" max="1" step="0.01" value="0.1">
-                          <p class="text-xs text-gray-400 mt-1">0.1 = 10% error rate (set to 0 to disable)</p>
-                        </div>
-                        
-                        <div>
-                          <label class="block text-xs text-gray-300 mb-1">Regenerate Every N Transactions</label>
-                          <input id="regenerate-every" class="w-full p-2 rounded bg-black text-white border border-dtcyan text-sm" type="number" min="10" max="1000" step="10" value="100">
-                          <p class="text-xs text-gray-400 mt-1">New error patterns every 100 transactions</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <button id="start-loadrunner-test" onclick="startLoadRunnerTest()" class="w-full bg-dtpurple hover:bg-dtcyan text-white hover:text-black font-bold rounded-lg p-4 shadow-card transition-all text-lg">
-                      🚀 Start LoadRunner Test
-                    </button>
-                    
-                    <div class="p-3 bg-dtpurple bg-opacity-20 rounded-lg border border-dtpurple">
-                      <h5 class="text-dtpurple font-semibold mb-2">Performance Testing</h5>
-                      <p class="text-xs text-gray-400">Execute high-scale load testing with realistic user behavior patterns and business scenarios.</p>
-                    </div>
-                  </div>
-                  
-                  <div class="space-y-4">
-                    <h4 class="text-lg font-bold text-white mb-2">📊 Test Status & Results</h4>
-                    <div id="loadrunner-status" class="p-3 bg-dtgray rounded-lg text-sm">
-                      Ready to start load test
-                    </div>
-                    
-                    <div id="loadrunner-results" class="hidden">
-                      <div class="p-3 bg-dtcard rounded-lg border border-dtcyan">
-                        <h5 class="text-dtcyan font-semibold mb-2">Test Summary</h5>
-                        <div id="loadrunner-summary" class="text-sm space-y-1"></div>
-                        
-                        <div class="mt-3 flex gap-2">
-                          <button id="view-loadrunner-results" onclick="viewLoadRunnerResults()" class="bg-dtgreen hover:bg-dtcyan text-black font-bold rounded px-3 py-2 text-sm transition-all">
-                            📊 View Detailed Results
-                          </button>
-                          <button id="stop-loadrunner-test" onclick="stopLoadRunnerTest()" class="bg-red-600 hover:bg-red-700 text-white font-bold rounded px-3 py-2 text-sm transition-all">
-                            ⏹️ Stop Test
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
               
               <!-- Navigation -->
               <div class="mt-6 flex justify-between">
@@ -829,76 +741,102 @@
                   AI Agents →
                 </button>
               </div>
-              
-              <!-- ⚠️ DANGER ZONE - Kill All Services -->
-              <div class="mt-8 p-6 rounded-2xl bg-red-900 bg-opacity-20 border-2 border-red-600 shadow-card">
-                <div class="flex items-center gap-3 mb-4">
-                  <span class="text-4xl">⚠️</span>
-                  <div>
-                    <h3 class="text-xl font-bold text-red-500">DANGER ZONE</h3>
-                    <p class="text-sm text-gray-300">System-wide service management</p>
-                  </div>
-                </div>
-                
-                <div class="bg-black bg-opacity-50 p-4 rounded-lg mb-4">
-                  <h4 class="text-white font-semibold mb-2">⚡ Kill All Services</h4>
-                  <p class="text-xs text-gray-400 mb-2">
-                    This will <strong class="text-red-500">IMMEDIATELY</strong> terminate ALL running services from ALL companies:
-                  </p>
-                  <ul class="text-xs text-gray-400 space-y-1 ml-4">
-                    <li>• 🛑 Kills ALL journey services (all companies)</li>
-                    <li>• 🔓 Releases ALL port allocations</li>
-                    <li>• 🗑️ Clears ALL session data</li>
-                    <li>• 💣 Uses pkill -9 for zombie processes</li>
-                  </ul>
-                  <p class="text-xs text-yellow-400 mt-3 font-semibold">
-                    ⚠️ Use ONLY when you need to completely reset the server!
-                  </p>
-                </div>
-                
-                <button 
-                  onclick="startNewCustomerJourney()" 
-                  class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg transition-all text-lg border-2 border-red-500 hover:border-red-400"
-                  title="DANGER: This will kill ALL services from ALL companies!">
-                  💀 KILL ALL SERVICES (ALL COMPANIES)
-                </button>
-                
-                <p class="text-xs text-center text-gray-500 mt-3">
-                  You will be prompted for confirmation before execution
-                </p>
-              </div>
+
             </div>
           </div>
         </div>
 
-        <!-- Step 4 Tab - AI Agents -->
+        <!-- Step 4 Tab - AI Agent Hub -->
         <div class="tab-pane" id="step4-tab">
-          <div class="max-w-6xl mx-auto space-y-6">
+          <div class="max-w-7xl mx-auto space-y-5">
 
-            <!-- Header -->
-            <div class="p-6 rounded-2xl bg-dtcard border border-dtborder shadow-card">
-              <div class="flex items-center justify-between mb-2">
-                <h2 class="text-2xl text-dtcyan font-bold tracking-tight">🤖 Step 4 - AI Agents</h2>
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  HEADER + JOURNEY SELECTOR                     -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="p-5 rounded-2xl bg-dtcard border border-dtborder shadow-card">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-3xl">🤖</span>
+                  <div>
+                    <h2 class="text-2xl text-dtcyan font-bold tracking-tight">AI Agent Hub</h2>
+                    <p class="text-xs text-gray-400">Select a journey to auto-populate services, then unleash the agents.</p>
+                  </div>
+                </div>
                 <span class="text-xs text-gray-500 font-mono" id="agents-status-badge">Ready</span>
               </div>
-              <p class="text-sm text-gray-400">Four AI agents — inject chaos, auto-remediate, review operational history, and generate Dynatrace dashboards.</p>
-              <div class="flex gap-2 mt-3 flex-wrap">
-                <a href="#agent-gremlin" onclick="document.getElementById('agent-gremlin').scrollIntoView({behavior:'smooth'})" class="text-xs bg-red-900 bg-opacity-40 text-red-400 border border-red-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">👹 Gremlin</a>
-                <a href="#agent-fixit" onclick="document.getElementById('agent-fixit').scrollIntoView({behavior:'smooth'})" class="text-xs bg-green-900 bg-opacity-40 text-dtgreen border border-green-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">🔧 Fix-It</a>
-                <a href="#agent-librarian" onclick="document.getElementById('agent-librarian').scrollIntoView({behavior:'smooth'})" class="text-xs bg-blue-900 bg-opacity-40 text-dtblue border border-blue-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">📚 Librarian</a>
-                <a href="#agent-dashboard" onclick="document.getElementById('agent-dashboard').scrollIntoView({behavior:'smooth'})" class="text-xs bg-purple-900 bg-opacity-40 text-dtpurple border border-purple-700 px-3 py-1 rounded-full hover:bg-opacity-70 transition-all cursor-pointer">📊 Dashboard</a>
+
+              <!-- Journey Selector Row -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+                <!-- Journey Dropdown -->
+                <div class="lg:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-300 mb-1">📋 Select Journey</label>
+                  <select id="agent-journey-select" onchange="window._agentSelectJourney(this.value)" class="w-full p-2.5 bg-black border border-dtcyan rounded-lg text-white text-sm focus:border-dtgreen focus:outline-none">
+                    <option value="">Loading journeys...</option>
+                  </select>
+                </div>
+                <!-- Quick Info -->
+                <div class="flex items-end gap-2">
+                  <button onclick="window._agentRefreshJourneys()" class="flex-1 bg-dtgray text-white px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-dtcyan hover:text-black transition-all border border-dtborder">
+                    ↻ Refresh
+                  </button>
+                  <button onclick="window._agentUseCurrentJourney()" class="flex-1 bg-dtcyan bg-opacity-20 text-dtcyan px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-opacity-40 transition-all border border-dtcyan" title="Use journey data from Steps 1-3">
+                    📥 Use Current
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- ═══════════════════════════════════════════════ -->
-            <!--  GREMLIN AGENT                                 -->
+            <!--  JOURNEY CONTEXT PANEL                         -->
             <!-- ═══════════════════════════════════════════════ -->
-            <div id="agent-gremlin" class="p-6 rounded-2xl bg-dtcard border-2 border-red-800 shadow-card">
+            <div id="agent-journey-context" class="hidden p-5 rounded-2xl bg-gradient-to-r from-dtcard to-black border border-dtcyan border-opacity-30 shadow-card">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="text-lg font-bold text-dtcyan" id="agent-ctx-company">—</h3>
+                  <p class="text-xs text-gray-400"><span id="agent-ctx-industry" class="text-gray-300">—</span> · <span id="agent-ctx-journey-type" class="text-dtpurple">—</span></p>
+                </div>
+                <div class="text-right">
+                  <p class="text-xl font-bold text-dtgreen" id="agent-ctx-step-count">0</p>
+                  <p class="text-[10px] text-gray-500 uppercase tracking-widest">Steps</p>
+                </div>
+              </div>
+
+              <!-- Service Cards -->
+              <div class="mt-3">
+                <p class="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wider">🔗 Services in this Journey</p>
+                <div id="agent-service-cards" class="flex flex-wrap gap-2">
+                  <span class="text-xs text-gray-500">No services loaded</span>
+                </div>
+              </div>
+
+              <!-- Steps Flow -->
+              <div class="mt-4">
+                <p class="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wider">📊 Journey Steps</p>
+                <div id="agent-steps-flow" class="flex flex-wrap gap-1 items-center">
+                  <span class="text-xs text-gray-500">No steps loaded</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  AGENT CARDS - HORIZONTAL TABS                 -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="window._agentShowPanel('gremlin')" class="agent-tab active text-xs px-4 py-2 rounded-full border transition-all cursor-pointer bg-red-900 bg-opacity-60 text-red-400 border-red-700 hover:bg-opacity-80" data-agent="gremlin">👹 Gremlin</button>
+              <button onclick="window._agentShowPanel('fixit')" class="agent-tab text-xs px-4 py-2 rounded-full border transition-all cursor-pointer bg-dtgray text-gray-400 border-dtborder hover:border-green-700 hover:text-dtgreen" data-agent="fixit">🔧 Fix-It</button>
+              <button onclick="window._agentShowPanel('librarian')" class="agent-tab text-xs px-4 py-2 rounded-full border transition-all cursor-pointer bg-dtgray text-gray-400 border-dtborder hover:border-blue-700 hover:text-dtblue" data-agent="librarian">📚 Librarian</button>
+              <button onclick="window._agentShowPanel('dashboard')" class="agent-tab text-xs px-4 py-2 rounded-full border transition-all cursor-pointer bg-dtgray text-gray-400 border-dtborder hover:border-purple-700 hover:text-dtpurple" data-agent="dashboard">📊 Dashboard</button>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════ -->
+            <!--  GREMLIN PANEL                                 -->
+            <!-- ═══════════════════════════════════════════════ -->
+            <div id="agent-panel-gremlin" class="agent-panel p-6 rounded-2xl bg-dtcard border-2 border-red-800 shadow-card">
               <div class="flex items-center gap-3 mb-1">
                 <span class="text-3xl">👹</span>
                 <div class="flex-1">
                   <h3 class="text-lg font-bold text-red-400">Gremlin &mdash; Chaos Agent</h3>
-                  <p class="text-xs text-gray-500">Inject feature-flag-based faults into running services</p>
+                  <p class="text-xs text-gray-500">Target services from your selected journey to inject feature-flag faults</p>
                 </div>
                 <span class="text-[10px] bg-red-900 text-red-300 px-2 py-0.5 rounded-full border border-red-700 uppercase tracking-widest">Chaos</span>
               </div>
@@ -907,6 +845,14 @@
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Left: Controls -->
                 <div class="space-y-4">
+                  <!-- Target Service (auto-populated) -->
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">🎯 Target Service</label>
+                    <select id="gremlin-target-service" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none">
+                      <option value="all">All Services (Random)</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label class="block text-sm font-semibold text-gray-300 mb-1">Chaos Recipe</label>
                     <select id="gremlin-recipe" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-red-400 focus:outline-none">
@@ -959,58 +905,112 @@
             </div>
 
             <!-- ═══════════════════════════════════════════════ -->
-            <!--  FIX-IT AGENT                                  -->
+            <!--  FIX-IT PANEL                                  -->
             <!-- ═══════════════════════════════════════════════ -->
-            <div id="agent-fixit" class="p-6 rounded-2xl bg-dtcard border-2 border-green-800 shadow-card">
+            <div id="agent-panel-fixit" class="agent-panel hidden p-6 rounded-2xl bg-dtcard border-2 border-green-800 shadow-card">
               <div class="flex items-center gap-3 mb-1">
                 <span class="text-3xl">🔧</span>
                 <div class="flex-1">
                   <h3 class="text-lg font-bold text-dtgreen">Fix-It &mdash; Remediation Agent</h3>
-                  <p class="text-xs text-gray-500">Diagnose problems and auto-remediate via feature flags</p>
+                  <p class="text-xs text-gray-500">Automated remediation triggered by Dynatrace workflows</p>
                 </div>
-                <span class="text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded-full border border-green-700 uppercase tracking-widest">Remediation</span>
+                <span class="text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded-full border border-green-700 uppercase tracking-widest">Workflow</span>
               </div>
               <div class="border-b border-green-900 mb-4"></div>
 
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <!-- Auto-Fix -->
-                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
-                  <h4 class="text-sm font-bold text-gray-300">⚡ Auto Fix</h4>
-                  <p class="text-xs text-gray-500">Scans active problems and remediates automatically.</p>
-                  <button onclick="window._agentAutoFix()" class="w-full bg-dtgreen text-black px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan transition-all shadow-card">
-                    ⚡ Auto Fix
-                  </button>
-                </div>
-
-                <!-- Diagnose -->
-                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
-                  <h4 class="text-sm font-bold text-gray-300">🔍 Diagnose Problem</h4>
-                  <input id="fixit-problem-id" type="text" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-dtgreen focus:outline-none" placeholder="Problem ID (optional)">
-                  <button onclick="window._agentDiagnose()" class="w-full bg-dtblue text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan hover:text-black transition-all shadow-card">
-                    🔍 Diagnose
-                  </button>
-                </div>
-
-                <!-- Agentic -->
-                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder space-y-3">
-                  <h4 class="text-sm font-bold text-gray-300">🤖 Agentic (Natural Language)</h4>
-                  <input id="fixit-agentic-input" type="text" class="w-full p-2.5 bg-black border border-dtborder rounded-lg text-white text-sm focus:border-dtgreen focus:outline-none" placeholder="e.g. Fix the payment errors">
-                  <button onclick="window._agentAgenticFix()" class="w-full bg-dtpurple text-white px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan hover:text-black transition-all shadow-card">
-                    🤖 Agentic Fix
-                  </button>
+              <!-- How it works -->
+              <div class="bg-black bg-opacity-40 rounded-xl p-5 border border-green-900 mb-4">
+                <h4 class="text-sm font-bold text-green-400 mb-3">How It Works</h4>
+                <div class="flex items-start gap-4 text-xs text-gray-400">
+                  <div class="flex flex-col items-center gap-1 text-center min-w-[80px]">
+                    <span class="text-2xl">🚨</span>
+                    <span class="font-bold text-white">DT Problem</span>
+                    <span class="text-[10px]">Detected by Davis</span>
+                  </div>
+                  <span class="text-green-600 mt-3 text-lg">&rarr;</span>
+                  <div class="flex flex-col items-center gap-1 text-center min-w-[80px]">
+                    <span class="text-2xl">⚙️</span>
+                    <span class="font-bold text-white">Workflow</span>
+                    <span class="text-[10px]">HTTP Action trigger</span>
+                  </div>
+                  <span class="text-green-600 mt-3 text-lg">&rarr;</span>
+                  <div class="flex flex-col items-center gap-1 text-center min-w-[80px]">
+                    <span class="text-2xl">🤖</span>
+                    <span class="font-bold text-white">Fix-It Agent</span>
+                    <span class="text-[10px]">Diagnose + remediate</span>
+                  </div>
+                  <span class="text-green-600 mt-3 text-lg">&rarr;</span>
+                  <div class="flex flex-col items-center gap-1 text-center min-w-[80px]">
+                    <span class="text-2xl">✅</span>
+                    <span class="font-bold text-white">Resolved</span>
+                    <span class="text-[10px]">Flags reset, verified</span>
+                  </div>
                 </div>
               </div>
 
-              <!-- Fix-It Results -->
-              <div id="fixit-result" class="mt-4 hidden">
-                <pre class="bg-black rounded-lg border border-green-900 p-3 text-xs text-green-400 max-h-60 overflow-y-auto whitespace-pre-wrap"></pre>
+              <!-- API Endpoints for Workflows -->
+              <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Workflow API Endpoints</h4>
+              <div class="space-y-3">
+                <!-- Auto Fix -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] bg-green-900 text-green-300 px-2 py-0.5 rounded font-mono">POST</span>
+                    <code class="text-xs text-green-400 font-mono">/api/fixit/auto</code>
+                    <span class="text-[10px] text-gray-600 ml-auto">Recommended for workflows</span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 mb-2">Full auto-remediation pipeline: detects problems from DT, diagnoses via LLM + rules, applies fixes, verifies resolution.</p>
+                  <div class="bg-gray-900 rounded-lg p-2.5 border border-gray-800">
+                    <pre class="text-[10px] text-gray-400 font-mono whitespace-pre">// Workflow HTTP Action body
+{
+  "problemId": "{{ .problem.id }}"  // optional — omit for auto-detect
+}</pre>
+                  </div>
+                </div>
+
+                <!-- Diagnose -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] bg-blue-900 text-blue-300 px-2 py-0.5 rounded font-mono">POST</span>
+                    <code class="text-xs text-blue-400 font-mono">/api/fixit/diagnose</code>
+                  </div>
+                  <p class="text-[11px] text-gray-500 mb-2">Diagnose only (no auto-fix). Returns root cause analysis, affected services, and recommended actions.</p>
+                  <div class="bg-gray-900 rounded-lg p-2.5 border border-gray-800">
+                    <pre class="text-[10px] text-gray-400 font-mono whitespace-pre">{ "problemId": "{{ .problem.id }}" }</pre>
+                  </div>
+                </div>
+
+                <!-- Agentic -->
+                <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] bg-purple-900 text-purple-300 px-2 py-0.5 rounded font-mono">POST</span>
+                    <code class="text-xs text-purple-400 font-mono">/api/fixit/agentic</code>
+                  </div>
+                  <p class="text-[11px] text-gray-500 mb-2">Natural language AI agent — describe the problem and let the LLM autonomously investigate and fix it.</p>
+                  <div class="bg-gray-900 rounded-lg p-2.5 border border-gray-800">
+                    <pre class="text-[10px] text-gray-400 font-mono whitespace-pre">{ "description": "{{ .problem.title }}" }</pre>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Test -->
+              <div class="border-t border-green-900 mt-4 pt-4">
+                <div class="flex items-center gap-3">
+                  <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Quick Test</h4>
+                  <button onclick="window._fixitQuickTest()" id="fixit-test-btn" class="bg-green-900 text-green-300 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-green-800 transition-all border border-green-700">
+                    🧪 Test Auto Fix Endpoint
+                  </button>
+                  <span id="fixit-test-status" class="text-[10px] text-gray-600"></span>
+                </div>
+                <div id="fixit-result" class="mt-3 hidden">
+                  <pre class="bg-black rounded-lg border border-green-900 p-3 text-xs text-green-400 max-h-48 overflow-y-auto whitespace-pre-wrap"></pre>
+                </div>
               </div>
             </div>
 
             <!-- ═══════════════════════════════════════════════ -->
-            <!--  LIBRARIAN AGENT                               -->
+            <!--  LIBRARIAN PANEL                               -->
             <!-- ═══════════════════════════════════════════════ -->
-            <div id="agent-librarian" class="p-6 rounded-2xl bg-dtcard border-2 border-blue-800 shadow-card">
+            <div id="agent-panel-librarian" class="agent-panel hidden p-6 rounded-2xl bg-dtcard border-2 border-blue-800 shadow-card">
               <div class="flex items-center gap-3 mb-1">
                 <span class="text-3xl">📚</span>
                 <div class="flex-1">
@@ -1022,7 +1022,6 @@
               <div class="border-b border-blue-900 mb-4"></div>
 
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-                <!-- Stats -->
                 <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
                   <h4 class="text-sm font-bold text-dtblue mb-2">📊 Stats</h4>
                   <div id="librarian-stats" class="text-xs text-gray-400 min-h-[60px]">
@@ -1030,8 +1029,6 @@
                   </div>
                   <button onclick="window._agentLibStats()" class="mt-2 text-xs text-dtcyan hover:underline">↻ Refresh</button>
                 </div>
-
-                <!-- Search -->
                 <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
                   <h4 class="text-sm font-bold text-dtblue mb-2">🔍 Search</h4>
                   <input id="librarian-search-input" type="text" class="w-full p-2 bg-dtdark border border-dtborder rounded-lg text-white text-xs mb-2 focus:border-dtblue focus:outline-none" placeholder="Search incidents...">
@@ -1039,8 +1036,6 @@
                     Search
                   </button>
                 </div>
-
-                <!-- Timeline Lookup -->
                 <div class="bg-black bg-opacity-40 rounded-xl p-4 border border-dtborder">
                   <h4 class="text-sm font-bold text-dtblue mb-2">📅 Timeline</h4>
                   <input id="librarian-timeline-id" type="text" class="w-full p-2 bg-dtdark border border-dtborder rounded-lg text-white text-xs mb-2 focus:border-dtblue focus:outline-none" placeholder="Incident ID...">
@@ -1050,7 +1045,6 @@
                 </div>
               </div>
 
-              <!-- History Feed -->
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <h4 class="text-sm font-bold text-gray-300">Recent History</h4>
@@ -1061,30 +1055,36 @@
                 </div>
               </div>
 
-              <!-- Librarian Results -->
               <div id="librarian-result" class="mt-4 hidden">
                 <pre class="bg-black rounded-lg border border-blue-900 p-3 text-xs text-green-400 max-h-40 overflow-y-auto whitespace-pre-wrap"></pre>
               </div>
             </div>
 
             <!-- ═══════════════════════════════════════════════ -->
-            <!--  DASHBOARD AGENT                               -->
+            <!--  DASHBOARD PANEL                               -->
             <!-- ═══════════════════════════════════════════════ -->
-            <div id="agent-dashboard" class="p-6 rounded-2xl bg-dtcard border-2 border-purple-800 shadow-card">
+            <div id="agent-panel-dashboard" class="agent-panel hidden p-6 rounded-2xl bg-dtcard border-2 border-purple-800 shadow-card">
               <div class="flex items-center gap-3 mb-1">
                 <span class="text-3xl">📊</span>
                 <div class="flex-1">
                   <h3 class="text-lg font-bold text-dtpurple">Dashboard &mdash; AI Generator</h3>
-                  <p class="text-xs text-gray-500">Generate & deploy Dynatrace dashboards from journey data using AI</p>
+                  <p class="text-xs text-gray-500">Generate & deploy Dynatrace dashboards from your selected journey</p>
                 </div>
                 <span id="dashboard-ai-status" class="text-[10px] bg-purple-900 text-purple-300 px-2 py-0.5 rounded-full border border-purple-700 uppercase tracking-widest">Generator</span>
               </div>
               <div class="border-b border-purple-900 mb-4"></div>
 
+              <!-- Journey Selector for Dashboard -->
+              <div class="mb-4 p-3 bg-black bg-opacity-40 rounded-xl border border-purple-900">
+                <label class="block text-xs font-semibold text-gray-400 mb-1.5">📋 Select Journey for Dashboard</label>
+                <select id="dashboard-journey-select" onchange="window._dashSelectJourney(this.value)" class="w-full p-2.5 bg-black border border-dtpurple rounded-lg text-white text-sm focus:border-dtcyan focus:outline-none">
+                  <option value="">Use currently selected journey from Agent Hub</option>
+                </select>
+                <p id="dashboard-journey-info" class="text-[10px] text-gray-600 mt-1.5">Dashboard will use the journey selected in the Agent Hub above</p>
+              </div>
+
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Left: Controls -->
                 <div class="space-y-4">
-                  <!-- AI Toggle -->
                   <div class="flex items-center justify-between p-3 bg-black bg-opacity-40 rounded-xl border border-dtborder">
                     <div>
                       <h4 class="text-sm font-bold text-gray-300">Use AI (Ollama)</h4>
@@ -1096,7 +1096,6 @@
                     </label>
                   </div>
 
-                  <!-- Actions -->
                   <div class="grid grid-cols-2 gap-3">
                     <button onclick="window._agentDashPreview()" class="bg-dtpurple bg-opacity-30 text-dtpurple border border-dtpurple px-4 py-3 rounded-lg text-sm font-bold hover:bg-opacity-60 transition-all">
                       👁️ Preview Fields
@@ -1106,7 +1105,6 @@
                     </button>
                   </div>
 
-                  <!-- Deploy -->
                   <div class="border-t border-dtborder pt-4 space-y-3">
                     <button onclick="window._agentDashDeploy()" class="w-full bg-dtgreen text-black px-4 py-3 rounded-lg text-sm font-bold hover:bg-dtcyan transition-all shadow-card">
                       🚀 Deploy to Dynatrace
@@ -1116,11 +1114,9 @@
                     </button>
                   </div>
 
-                  <!-- Health -->
                   <button onclick="window._agentDashHealth()" class="text-xs text-gray-500 hover:text-dtcyan underline">Check Ollama Health</button>
                 </div>
 
-                <!-- Right: Preview/Info -->
                 <div class="space-y-3">
                   <div class="bg-black bg-opacity-40 rounded-xl border border-dtborder p-4">
                     <h4 class="text-sm font-bold text-dtpurple mb-2">Dashboard Preview</h4>
@@ -1134,19 +1130,18 @@
                 </div>
               </div>
 
-              <!-- Dashboard Results -->
               <div id="dashboard-result" class="mt-4 hidden">
                 <pre class="bg-black rounded-lg border border-purple-900 p-3 text-xs text-green-400 max-h-60 overflow-y-auto whitespace-pre-wrap"></pre>
               </div>
             </div>
 
-            <!-- Navigation -->
+            <!-- Footer Nav -->
             <div class="flex justify-between mt-2">
               <button onclick="switchTab('step3')" class="bg-dtgray text-white px-6 py-3 rounded-lg text-base font-medium hover:bg-dtpurple transition-all">
                 ← Back to Generate Data
               </button>
               <div class="text-center">
-                <p class="text-sm text-gray-400 mb-1">🤖 AI Agents Ready</p>
+                <p class="text-sm text-gray-400 mb-1">🤖 AI Agent Hub</p>
                 <p class="text-xs text-gray-500">Gremlin · Fix-It · Librarian · Dashboard</p>
               </div>
             </div>
@@ -1816,100 +1811,6 @@
       }
     };
 
-    // LoadRunner Service Controls
-    let loadRunnerInterval = null;
-    let loadRunnerStats = { iterations: 0, success: 0, errors: 0 };
-    
-    window.startLoadRunner = async function() {
-      const journeyData = window.currentJourneyData || window.lastJourney;
-      
-      if (!journeyData || !journeyData.journey) {
-        alert('⚠️ No journey data available. Please process a journey first.');
-        return;
-      }
-      
-      const ratePerMinute = parseInt(prompt('Enter requests per minute (default: 2):', '2')) || 2;
-      
-      try {
-        const response = await fetch('/api/loadrunner-service/start', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            journey: journeyData.journey,
-            customerProfile: journeyData.customerProfile,
-            traceMetadata: journeyData.traceMetadata,
-            additionalFields: journeyData.additionalFields,
-            ratePerMinute: ratePerMinute
-          })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('✅ LoadRunner started:', result);
-          
-          // Update UI
-          document.getElementById('start-loadrunner-btn').classList.add('hidden');
-          document.getElementById('stop-loadrunner-btn').classList.remove('hidden');
-          document.getElementById('loadrunner-status').classList.remove('hidden');
-          
-          // Store load test ID
-          window.activeLoadTestId = result.loadTestId;
-          
-          // Start status polling
-          startLoadRunnerStatusPolling();
-          
-          alert(`✅ LoadRunner started for ${result.companyName}\nRate: ${result.ratePerMinute} req/min\nSteps: ${result.stepsCount}`);
-        } else {
-          alert('❌ Failed to start LoadRunner: ' + (result.error || 'Unknown error'));
-        }
-      } catch (error) {
-        console.error('LoadRunner start error:', error);
-        alert('❌ Error starting LoadRunner: ' + error.message);
-      }
-    };
-    
-    window.stopLoadRunner = async function() {
-      if (!window.activeLoadTestId) {
-        alert('No active LoadRunner to stop');
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/loadrunner-service/stop', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({loadTestId: window.activeLoadTestId})
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          console.log('✅ LoadRunner stopped:', result);
-          
-          // Update UI
-          document.getElementById('start-loadrunner-btn').classList.remove('hidden');
-          document.getElementById('stop-loadrunner-btn').classList.add('hidden');
-          document.getElementById('loadrunner-status').classList.add('hidden');
-          
-          // Stop polling
-          if (loadRunnerInterval) {
-            clearInterval(loadRunnerInterval);
-            loadRunnerInterval = null;
-          }
-          
-          alert(`✅ LoadRunner stopped\nIterations: ${result.stats.iterations}\nSuccess: ${result.stats.success}\nErrors: ${result.stats.errors}`);
-          
-          window.activeLoadTestId = null;
-        } else {
-          alert('❌ Failed to stop LoadRunner: ' + (result.error || 'Unknown error'));
-        }
-      } catch (error) {
-        console.error('LoadRunner stop error:', error);
-        alert('❌ Error stopping LoadRunner: ' + error.message);
-      }
-    };
-    
     // Stop ALL services and load runners - complete system reset
     window.stopAllAndClear = async function() {
       if (!confirm('⚠️ This will STOP ALL running services and load runners!\n\nAre you sure you want to proceed?')) {
@@ -1917,9 +1818,11 @@
       }
       
       try {
-        const btn = document.getElementById('stop-all-clear-btn');
-        btn.disabled = true;
-        btn.innerHTML = '⏳ Stopping everything...';
+        const btn = document.getElementById('agent-stop-all-clear-btn');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '⏳ Stopping everything...';
+        }
         
         const response = await fetch('/api/admin/stop-all-and-clear', {
           method: 'POST',
@@ -1931,28 +1834,22 @@
         if (result.ok) {
           console.log('✅ All services stopped:', result);
           
-          // Reset UI states
-          document.getElementById('start-loadrunner-btn').classList.remove('hidden');
-          document.getElementById('stop-loadrunner-btn').classList.add('hidden');
-          document.getElementById('loadrunner-status').classList.add('hidden');
-          
-          // Stop any polling
-          if (loadRunnerInterval) {
-            clearInterval(loadRunnerInterval);
-            loadRunnerInterval = null;
-          }
-          
-          window.activeLoadTestId = null;
-          
           // Refresh service status if on that tab
           if (typeof refreshServiceStatus === 'function') {
             setTimeout(refreshServiceStatus, 1000);
           }
           
+          // Refresh journey list to update active flags
+          if (typeof loadJourneyList === 'function') {
+            setTimeout(loadJourneyList, 1500);
+          }
+          
           alert(`✅ System Reset Complete!\n\n• Load tests stopped: ${result.stoppedTests}\n• All services cleared\n• System ready for fresh start`);
           
-          btn.disabled = false;
-          btn.innerHTML = '🛑 STOP ALL & CLEAR (Services + Load Runners)';
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '🛑 STOP ALL & CLEAR';
+          }
         } else {
           throw new Error(result.error || 'Failed to stop all services');
         }
@@ -1960,34 +1857,13 @@
         console.error('Stop all error:', error);
         alert('❌ Error stopping services: ' + error.message);
         
-        const btn = document.getElementById('stop-all-clear-btn');
-        btn.disabled = false;
-        btn.innerHTML = '🛑 STOP ALL & CLEAR (Services + Load Runners)';
+        const btn = document.getElementById('agent-stop-all-clear-btn');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🛑 STOP ALL & CLEAR';
+        }
       }
     };
-    
-    function startLoadRunnerStatusPolling() {
-      if (loadRunnerInterval) clearInterval(loadRunnerInterval);
-      
-      loadRunnerInterval = setInterval(async () => {
-        try {
-          const response = await fetch('/api/loadrunner-service/status');
-          const data = await response.json();
-          
-          if (data.tests && data.tests.length > 0) {
-            const test = data.tests.find(t => t.id === window.activeLoadTestId);
-            if (test) {
-              const statsEl = document.getElementById('loadrunner-stats');
-              if (statsEl) {
-                statsEl.textContent = `${test.iterations} journeys | ${test.success} ✓ | ${test.errors} ✗ | ${test.successRate}`;
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Status polling error:', error);
-        }
-      }, 5000); // Poll every 5 seconds
-    }
 
     // Enhanced Copilot Editor Modal
     window.openCopilotEditor = function(textareaId = 'copilotResponse') {
@@ -4691,7 +4567,8 @@
           lastJourney = {
             companyName: 'SimTestCorp',
             domain: 'simtestcorp.com',
-            industryType: 'retail',
+            industryType: 'Simulation Testing',
+            journeyType: 'Test Simulation',
             steps: [
               { stepName: 'Discovery', description: 'Customer discovery phase' },
               { stepName: 'Evaluation', description: 'Product evaluation' },
@@ -5110,108 +4987,7 @@
       }
     };
 
-    // New Customer Journey function - clears all services and provides clean slate
-    window.startNewCustomerJourney = async function() {
-      console.log('⚠️ DANGER ZONE: Kill All Services initiated');
-      
-      // Double confirmation for safety
-      const firstConfirm = confirm('⚠️ DANGER: KILL ALL SERVICES FROM ALL COMPANIES?\n\n' +
-        'This will IMMEDIATELY:\n' +
-        '• 💀 Kill ALL running services (ALL companies)\n' +
-        '• 🔓 Release ALL port allocations\n' +
-        '• 🗑️ Clear ALL session data\n' +
-        '• 💣 Terminate ALL zombie processes\n\n' +
-        'This affects the ENTIRE SERVER!\n\n' +
-        'Click OK to continue...');
-      
-      if (!firstConfirm) {
-        console.log('User cancelled kill all services');
-        return;
-      }
-      
-      // Second confirmation
-      const secondConfirm = confirm('⚠️ FINAL CONFIRMATION\n\n' +
-        'You are about to KILL ALL SERVICES from ALL COMPANIES.\n\n' +
-        'Are you ABSOLUTELY SURE?\n\n' +
-        'Type "I understand" in your mind and click OK to proceed.');
-      
-      if (!secondConfirm) {
-        console.log('User cancelled at second confirmation');
-        return;
-      }
-      
-      try {
-        // Step 1: Kill all services
-        console.log('💣 EXECUTING: Killing ALL services from ALL companies');
-        const killRes = await fetch('/api/admin/reset-ports', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const killResult = await killRes.json();
-        
-        if (killResult.ok) {
-          console.log('✅ Step 1/3: ALL services stopped and ports freed. Clearing session data...');
-          
-          // Step 2: Clear session data and reset UI
-          console.log('🧹 Step 2: Clearing session data');
-          
-          // Clear global variables
-          window.lastJourney = null;
-          window.currentJourneyData = null;
-          
-          // Clear form inputs safely
-          const companyNameEl = document.getElementById('companyName');
-          if (companyNameEl) companyNameEl.value = '';
-          
-          const domainEl = document.getElementById('domain');
-          if (domainEl) domainEl.value = '';
-          
-          const customStepsEl = document.getElementById('customSteps');
-          if (customStepsEl) customStepsEl.value = '';
-          
-          const journeyTypeEl = document.getElementById('journeyType');
-          if (journeyTypeEl) journeyTypeEl.value = '';
-          
-          const detailsEl = document.getElementById('details');
-          if (detailsEl) detailsEl.value = '';
-          
-          // Clear text areas
-          const copilotResponseEl = document.getElementById('copilotResponse');
-          if (copilotResponseEl) copilotResponseEl.value = '';
-          
-          const journeyOutput = document.getElementById('journey-output');
-          if (journeyOutput) journeyOutput.textContent = '';
-          
-          // Clear simulation results
-          const resultsBox = document.getElementById('simulation-results-step4');
-          if (resultsBox) resultsBox.textContent = 'Simulation results will appear here';
-          
-          console.log('✅ System reset complete! ALL services killed, ports reset, and data cleared.');
-          
-          // Refresh the service status display
-          setTimeout(() => {
-            if (window.updateServiceStatus) {
-              updateServiceStatus();
-            }
-          }, 1000);
-          
-          // Show success message
-          alert('💀 ALL SERVICES KILLED!\n\n' +
-            '✅ ALL services stopped (all companies)\n' +
-            '✅ ALL ports released\n' +
-            '✅ Session data cleared\n\n' +
-            'Server is now in clean state.');
-          
-        } else {
-          console.error('❌ Failed to kill services:', killResult.error || 'Unknown error');
-          alert('❌ Failed to reset services: ' + (killResult.error || 'Unknown error'));
-        }
-        
-      } catch (e) {
-        console.error('Kill all services error:', e);
-        alert('❌ Error during system reset: ' + e.message);
-      }
-    };
+
 
     // Function to update service status display
     window.updateServiceStatus = async function() {
@@ -5571,7 +5347,7 @@
     };
     
     /**
-     * Refresh Services Tab
+     * Refresh Services Tab — with action toolbar (dropdowns for stop by service/company/industry/all)
      */
     window.refreshServicesTab = async function() {
       const contentEl = document.getElementById('dashboard-content-services');
@@ -5600,120 +5376,54 @@
           return;
         }
         
-        // Render services grouped by company
-        const html = data.companies.map(company => `
-          <div class="bg-dtgray rounded-xl border-2 border-dtborder overflow-hidden">
-            <!-- Company Header -->
-            <div class="bg-gradient-to-r from-dtpurple to-dtblue p-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                    <span>🏢</span>
-                    ${company.companyName}
-                  </h3>
-                  <div class="text-sm text-gray-300 mt-1">
-                    ${company.runningServices}/${company.totalServices} services running
-                    ${company.totalRequests > 0 ? ` • ${company.totalRequests} total requests` : ''}
-                    ${company.totalErrors > 0 ? ` • <span class="text-red-400">${company.totalErrors} errors</span>` : ''}
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <div class="text-right mr-2">
-                    <div class="text-2xl font-bold text-dtgreen">${company.runningServices}</div>
-                    <div class="text-xs text-gray-300">Active</div>
-                  </div>
-                  <button onclick="stopCompanyServices('${company.companyName}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
-                    🛑 Stop All
-                  </button>
-                </div>
-              </div>
+        // Store full data for cascading filter logic
+        window._svcDashboardData = data;
+        
+        // Build cascading filter toolbar
+        const companyNames = data.companies.map(c => c.companyName).sort();
+        
+        const toolbarHtml = `
+          <div class="bg-dtgray rounded-xl border-2 border-dtborder p-4 mb-6">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">🔍</span>
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Filter Services</h3>
+              <span class="text-xs text-gray-500 ml-auto">${data.totalRunningServices} services across ${data.totalCompanies} companies</span>
             </div>
-            
-            <!-- Services Table -->
-            <div class="p-4">
-              <div class="grid grid-cols-1 gap-3">
-                ${company.services.map(service => {
-                  const statusColor = service.status === 'running' ? 'dtgreen' : 'gray-500';
-                  const healthColor = service.healthStatus === 'healthy' ? 'dtgreen' : 
-                                     service.healthStatus === 'unhealthy' ? 'yellow-500' : 
-                                     service.healthStatus === 'stopped' ? 'gray-500' : 'red-500';
-                  const healthIcon = service.healthStatus === 'healthy' ? '✅' : 
-                                    service.healthStatus === 'unhealthy' ? '⚠️' : 
-                                    service.healthStatus === 'stopped' ? '⏹️' : '❌';
-                  
-                  return `
-                    <div class="bg-dtcard rounded-lg p-4 border border-dtborder hover:border-dtcyan transition-all">
-                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <!-- Service Info -->
-                        <div>
-                          <div class="text-dtcyan font-bold mb-1">${service.displayName}</div>
-                          <div class="text-xs text-gray-400 font-mono truncate">${service.serviceName}</div>
-                          <div class="flex items-center gap-2 mt-2">
-                            <span class="bg-${statusColor} text-black px-2 py-1 rounded-full text-xs font-bold">
-                              ${service.status.toUpperCase()}
-                            </span>
-                            <span class="text-${healthColor} text-xs font-bold flex items-center gap-1">
-                              ${healthIcon} ${service.healthStatus}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <!-- Metrics -->
-                        <div class="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <div class="text-gray-400">Port</div>
-                            <div class="text-white font-mono">📡 ${service.port}</div>
-                          </div>
-                          <div>
-                            <div class="text-gray-400">PID</div>
-                            <div class="text-white font-mono">🔧 ${service.pid}</div>
-                          </div>
-                          <div>
-                            <div class="text-gray-400">Uptime</div>
-                            <div class="text-dtcyan font-bold">⏱️ ${service.uptimeFormatted}</div>
-                          </div>
-                          <div>
-                            <div class="text-gray-400">Requests</div>
-                            <div class="text-white font-bold">📊 ${service.requests}</div>
-                          </div>
-                        </div>
-                        
-                        <!-- Performance -->
-                        <div class="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <div class="text-gray-400">Avg Response</div>
-                            <div class="text-dtgreen font-bold">${service.avgResponseTime}ms</div>
-                          </div>
-                          <div>
-                            <div class="text-gray-400">Error Rate</div>
-                            <div class="text-${service.errors > 0 ? 'red-500' : 'dtgreen'} font-bold">
-                              ${service.errorRate}%
-                            </div>
-                          </div>
-                          <div>
-                            <div class="text-gray-400">Errors</div>
-                            <div class="text-${service.errors > 0 ? 'red-500' : 'white'} font-bold">
-                              ${service.errors > 0 ? '❌' : '✅'} ${service.errors}
-                            </div>
-                          </div>
-                          <div>
-                            <button onclick="stopService('${service.serviceName}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold transition-all w-full">
-                              🛑 Stop
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              
+              <!-- Filter 1: Company -->
+              <div class="bg-dtcard rounded-lg border border-dtborder p-3">
+                <label class="text-xs text-dtcyan font-semibold block mb-1.5">🏢 Company</label>
+                <select id="svc-filter-company" onchange="svcFilterCompanyChanged()" class="w-full bg-dtgray border border-dtborder rounded-lg p-2 text-white text-sm focus:border-dtcyan outline-none">
+                  <option value="">All Companies</option>
+                  ${companyNames.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+              </div>
+              
+              <!-- Filter 2: Industry (populated based on company) -->
+              <div class="bg-dtcard rounded-lg border border-dtborder p-3">
+                <label class="text-xs text-dtyellow font-semibold block mb-1.5">🏭 Industry</label>
+                <select id="svc-filter-industry" onchange="svcFilterIndustryChanged()" class="w-full bg-dtgray border border-dtborder rounded-lg p-2 text-white text-sm focus:border-dtcyan outline-none">
+                  <option value="">All Industries</option>
+                </select>
+              </div>
+              
+              <!-- Filter 3: Individual Service (populated based on industry) -->
+              <div class="bg-dtcard rounded-lg border border-dtborder p-3">
+                <label class="text-xs text-dtgreen font-semibold block mb-1.5">🔧 Service</label>
+                <select id="svc-filter-service" onchange="svcFilterServiceChanged()" class="w-full bg-dtgray border border-dtborder rounded-lg p-2 text-white text-sm focus:border-dtcyan outline-none">
+                  <option value="">All Services</option>
+                </select>
               </div>
             </div>
           </div>
-        `).join('');
+        `;
         
         if (contentEl) {
-          contentEl.innerHTML = html;
+          contentEl.innerHTML = toolbarHtml + '<div id="svc-filtered-content"></div>';
           contentEl.classList.remove('hidden');
+          // Initialize cascading filters and render
+          svcFilterCompanyChanged();
         }
         if (loadingEl) loadingEl.classList.add('hidden');
         
@@ -5797,6 +5507,288 @@
       } catch (error) {
         alert(`❌ Error: ${error.message}`);
       }
+    };
+    
+    /**
+     * Service Controls — Toolbar action handlers
+     */
+    window.svcStopIndividual = async function() {
+      const sel = document.getElementById('svc-stop-individual');
+      const serviceName = sel?.value;
+      if (!serviceName) { alert('Please select a service first.'); return; }
+      await stopService(serviceName);
+    };
+    
+    window.svcStopByCompany = async function() {
+      const sel = document.getElementById('svc-stop-company');
+      const companyName = sel?.value;
+      if (!companyName) { alert('Please select a company first.'); return; }
+      await stopCompanyServices(companyName);
+    };
+    
+    window.svcStopByIndustry = async function() {
+      const sel = document.getElementById('svc-stop-industry');
+      const industryType = sel?.value;
+      if (!industryType) { alert('Please select an industry first.'); return; }
+      if (!confirm(`Stop ALL services for the "${industryType}" industry?`)) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/stop-by-industry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ industryType })
+        });
+        
+        if (!response.ok) throw new Error('Failed to stop services');
+        
+        const data = await response.json();
+        alert(`✅ Stopped ${data.stoppedServices.length} services for industry "${industryType}"`);
+        await refreshServiceDashboard();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    window.svcStopEverything = async function() {
+      if (!confirm('⚠️ STOP EVERYTHING?\n\nThis will kill ALL services, load tests, and generators across every company on the server.')) return;
+      if (!confirm('Are you sure? This cannot be undone.')) return;
+      
+      try {
+        const response = await fetch('/api/admin/services/stop-everything', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) throw new Error('Failed to stop everything');
+        
+        const data = await response.json();
+        alert('💀 Everything stopped!\n\nAll services, load tests, and generators have been terminated.');
+        await refreshServiceDashboard();
+        if (window.updateServiceStatus) updateServiceStatus();
+      } catch (error) {
+        alert(`❌ Error: ${error.message}`);
+      }
+    };
+    
+    /**
+     * Cascading filter: Company changed → update Industry dropdown → update Service dropdown → render
+     */
+    window.svcFilterCompanyChanged = function() {
+      const data = window._svcDashboardData;
+      if (!data) return;
+      
+      const companyVal = document.getElementById('svc-filter-company')?.value || '';
+      const industrySelect = document.getElementById('svc-filter-industry');
+      const serviceSelect = document.getElementById('svc-filter-service');
+      
+      // Filter companies
+      const filtered = companyVal 
+        ? data.companies.filter(c => c.companyName === companyVal)
+        : data.companies;
+      
+      // Populate industry dropdown based on filtered companies
+      const industries = [...new Set(filtered.map(c => c.industryType || 'unknown'))].sort();
+      if (industrySelect) {
+        industrySelect.innerHTML = '<option value="">All Industries</option>' +
+          industries.map(i => `<option value="${i}">${i.charAt(0).toUpperCase() + i.slice(1)}</option>`).join('');
+      }
+      
+      // Reset service dropdown
+      if (serviceSelect) {
+        serviceSelect.innerHTML = '<option value="">All Services</option>';
+      }
+      
+      // Cascade to industry change (which cascades to service + render)
+      svcFilterIndustryChanged();
+    };
+    
+    /**
+     * Cascading filter: Industry changed → update Service dropdown → render
+     */
+    window.svcFilterIndustryChanged = function() {
+      const data = window._svcDashboardData;
+      if (!data) return;
+      
+      const companyVal = document.getElementById('svc-filter-company')?.value || '';
+      const industryVal = document.getElementById('svc-filter-industry')?.value || '';
+      const serviceSelect = document.getElementById('svc-filter-service');
+      
+      // Filter companies by selected company & industry
+      let filtered = data.companies;
+      if (companyVal) filtered = filtered.filter(c => c.companyName === companyVal);
+      if (industryVal) filtered = filtered.filter(c => (c.industryType || 'unknown') === industryVal);
+      
+      // Collect all services from filtered companies
+      const allServices = [];
+      filtered.forEach(c => {
+        c.services.forEach(s => {
+          allServices.push({ name: s.serviceName, display: `${s.displayName} (${c.companyName})` });
+        });
+      });
+      
+      // Populate service dropdown
+      if (serviceSelect) {
+        serviceSelect.innerHTML = '<option value="">All Services</option>' +
+          allServices.map(s => `<option value="${s.name}">${s.display}</option>`).join('');
+      }
+      
+      // Render filtered results
+      svcRenderFilteredServices();
+    };
+    
+    /**
+     * Cascading filter: Service changed → render
+     */
+    window.svcFilterServiceChanged = function() {
+      svcRenderFilteredServices();
+    };
+    
+    /**
+     * Render service cards based on current filter state
+     */
+    window.svcRenderFilteredServices = function() {
+      const data = window._svcDashboardData;
+      if (!data) return;
+      
+      const companyVal = document.getElementById('svc-filter-company')?.value || '';
+      const industryVal = document.getElementById('svc-filter-industry')?.value || '';
+      const serviceVal = document.getElementById('svc-filter-service')?.value || '';
+      const container = document.getElementById('svc-filtered-content');
+      if (!container) return;
+      
+      // Apply filters
+      let companies = data.companies;
+      if (companyVal) companies = companies.filter(c => c.companyName === companyVal);
+      if (industryVal) companies = companies.filter(c => (c.industryType || 'unknown') === industryVal);
+      
+      // If a specific service is selected, filter services within companies
+      if (serviceVal) {
+        companies = companies.map(c => ({
+          ...c,
+          services: c.services.filter(s => s.serviceName === serviceVal)
+        })).filter(c => c.services.length > 0);
+      }
+      
+      if (companies.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8">
+            <div class="text-4xl mb-3">🔍</div>
+            <div class="text-gray-400">No services match the selected filters</div>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = companies.map(company => `
+        <div class="bg-dtgray rounded-xl border-2 border-dtborder overflow-hidden mb-4">
+          <!-- Company Header -->
+          <div class="bg-gradient-to-r from-dtpurple to-dtblue p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                  <span>🏢</span>
+                  ${company.companyName}
+                  <span class="text-xs bg-black bg-opacity-30 px-2 py-0.5 rounded-full text-gray-300 font-normal">${company.industryType || 'unknown'}</span>
+                </h3>
+                <div class="text-sm text-gray-300 mt-1">
+                  ${company.services.length} service${company.services.length !== 1 ? 's' : ''} shown
+                  ${company.totalRequests > 0 ? ` · ${company.totalRequests} requests` : ''}
+                  ${company.totalErrors > 0 ? ` · <span class="text-red-400">${company.totalErrors} errors</span>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right mr-2">
+                  <div class="text-2xl font-bold text-dtgreen">${company.runningServices}</div>
+                  <div class="text-xs text-gray-300">Active</div>
+                </div>
+                <button onclick="stopCompanyServices('${company.companyName}')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                  🛑 Stop All
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Services -->
+          <div class="p-4">
+            <div class="grid grid-cols-1 gap-3">
+              ${company.services.map(service => {
+                const statusColor = service.status === 'running' ? 'dtgreen' : 'gray-500';
+                const healthColor = service.healthStatus === 'healthy' ? 'dtgreen' : 
+                                   service.healthStatus === 'unhealthy' ? 'yellow-500' : 
+                                   service.healthStatus === 'stopped' ? 'gray-500' : 'red-500';
+                const healthIcon = service.healthStatus === 'healthy' ? '✅' : 
+                                  service.healthStatus === 'unhealthy' ? '⚠️' : 
+                                  service.healthStatus === 'stopped' ? '⏹️' : '❌';
+                
+                return `
+                  <div class="bg-dtcard rounded-lg p-4 border border-dtborder hover:border-dtcyan transition-all">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <!-- Service Info -->
+                      <div>
+                        <div class="text-dtcyan font-bold mb-1">${service.displayName}</div>
+                        <div class="text-xs text-gray-400 font-mono truncate">${service.serviceName}</div>
+                        <div class="flex items-center gap-2 mt-2">
+                          <span class="bg-${statusColor} text-black px-2 py-1 rounded-full text-xs font-bold">
+                            ${service.status.toUpperCase()}
+                          </span>
+                          <span class="text-${healthColor} text-xs font-bold flex items-center gap-1">
+                            ${healthIcon} ${service.healthStatus}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <!-- Metrics -->
+                      <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div class="text-gray-400">Port</div>
+                          <div class="text-white font-mono">📡 ${service.port}</div>
+                        </div>
+                        <div>
+                          <div class="text-gray-400">PID</div>
+                          <div class="text-white font-mono">🔧 ${service.pid}</div>
+                        </div>
+                        <div>
+                          <div class="text-gray-400">Uptime</div>
+                          <div class="text-dtcyan font-bold">⏱️ ${service.uptimeFormatted}</div>
+                        </div>
+                        <div>
+                          <div class="text-gray-400">Requests</div>
+                          <div class="text-white font-bold">📊 ${service.requests}</div>
+                        </div>
+                      </div>
+                      
+                      <!-- Performance + Stop -->
+                      <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div class="text-gray-400">Avg Response</div>
+                          <div class="text-dtgreen font-bold">${service.avgResponseTime}ms</div>
+                        </div>
+                        <div>
+                          <div class="text-gray-400">Error Rate</div>
+                          <div class="text-${service.errors > 0 ? 'red-500' : 'dtgreen'} font-bold">
+                            ${service.errorRate}%
+                          </div>
+                        </div>
+                        <div>
+                          <div class="text-gray-400">Errors</div>
+                          <div class="text-${service.errors > 0 ? 'red-500' : 'white'} font-bold">
+                            ${service.errors > 0 ? '❌' : '✅'} ${service.errors}
+                          </div>
+                        </div>
+                        <div>
+                          <button onclick="stopService('${service.serviceName}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold transition-all w-full">
+                            🛑 Stop
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
     };
     
     /**
@@ -6187,124 +6179,7 @@
     };
 
 
-    // Service Management Functions
-    window.resetService = async function(serviceName, port) {
-      if (!confirm(`Reset service "${serviceName}" on port ${port}?\n\nThis will restart the service.`)) {
-        return;
-      }
-      
-      try {
-        console.log(`🔄 Resetting service ${serviceName} on port ${port}`);
-        const response = await fetch('/api/admin/services/reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ serviceName, port })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          alert(`✅ Service "${serviceName}" reset successfully!`);
-          // Refresh status after reset
-          setTimeout(() => updateServiceStatus(), 2000);
-        } else {
-          alert(`❌ Failed to reset service "${serviceName}": ${result.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Reset service error:', error);
-        alert(`❌ Error resetting service "${serviceName}": ${error.message}`);
-      }
-    };
-
-    window.killService = async function(serviceName, port) {
-      if (!confirm(`Kill service "${serviceName}" on port ${port}?\n\nThis will terminate the service permanently.`)) {
-        return;
-      }
-      
-      try {
-        console.log(`❌ Killing service ${serviceName} on port ${port}`);
-        const response = await fetch('/api/admin/services/kill', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ serviceName, port })
-        });
-        
-        let result;
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          result = await response.json();
-        } else {
-          const text = await response.text();
-          console.error('Non-JSON response from kill service:', text);
-          result = { success: false, error: 'Server returned non-JSON response' };
-        }
-        
-        if (result.success) {
-          alert(`✅ Service "${serviceName}" killed successfully!`);
-          // Refresh status after kill
-          setTimeout(() => updateServiceStatus(), 1000);
-        } else {
-          alert(`❌ Failed to kill service "${serviceName}": ${result.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Kill service error:', error);
-        alert(`❌ Error killing service "${serviceName}": ${error.message}`);
-      }
-    };
-
-    window.resetAllServices = async function() {
-      if (!confirm('Reset ALL services?\n\nThis will restart all running services.')) {
-        return;
-      }
-      
-      try {
-        console.log('🔄 Resetting all services');
-        const response = await fetch('/api/admin/services/reset-all', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          alert(`✅ All services reset successfully! ${result.resetCount || 0} services restarted.`);
-          // Refresh status after reset
-          setTimeout(() => updateServiceStatus(), 3000);
-        } else {
-          alert(`❌ Failed to reset all services: ${result.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Reset all services error:', error);
-        alert(`❌ Error resetting all services: ${error.message}`);
-      }
-    };
-
-    window.killAllServices = async function() {
-      if (!confirm('Kill ALL services?\n\nThis will terminate all running services permanently.')) {
-        return;
-      }
-      
-      try {
-        console.log('❌ Killing all services');
-        const response = await fetch('/api/admin/services/kill-all', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          alert(`✅ All services killed successfully! ${result.killedCount || 0} services terminated.`);
-          // Refresh status after kill
-          setTimeout(() => updateServiceStatus(), 2000);
-        } else {
-          alert(`❌ Failed to kill all services: ${result.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Kill all services error:', error);
-        alert(`❌ Error killing all services: ${error.message}`);
-      }
-    };
+    // Service Management Functions (all use working backend endpoints)
 
     // LoadRunner Integration Functions
     let currentTestId = null;
@@ -6316,28 +6191,28 @@
     }
 
     window.startLoadRunnerTest = async function() {
-      const startBtn = document.getElementById('start-loadrunner-test');
-      const statusEl = document.getElementById('loadrunner-status');
-      const resultsEl = document.getElementById('loadrunner-results');
-      const profileSelect = document.getElementById('loadrunner-profile');
-      const durationInput = document.getElementById('loadrunner-duration');
+      const startBtn = document.getElementById('agent-start-loadrunner-test');
+      const statusEl = document.getElementById('agent-loadrunner-test-status');
+      const resultsEl = document.getElementById('agent-loadrunner-results');
+      const profileSelect = document.getElementById('agent-loadrunner-profile');
+      const durationInput = document.getElementById('agent-loadrunner-duration');
 
       try {
         if (!lastJourney || !lastJourney.steps || !lastJourney.steps.length) {
-          statusEl.textContent = '⚠️ No journey available! Please generate a journey first.';
-          statusEl.className = 'mt-3 text-sm text-red-400 font-medium';
+          statusEl.textContent = '⚠️ No journey available! Please select a journey in AI Agent Hub.';
+          statusEl.className = 'text-xs text-red-400 font-medium min-h-[80px]';
           return;
         }
 
         startBtn.disabled = true;
         startBtn.textContent = '🔄 Starting Test...';
         statusEl.textContent = '🚀 Initializing LoadRunner test...';
-        statusEl.className = 'mt-3 text-sm text-dtyellow font-medium';
+        statusEl.className = 'text-xs text-dtyellow font-medium min-h-[80px]';
         resultsEl.classList.add('hidden');
 
-        // Get error configuration from UI
-        const errorsPerTransaction = parseFloat(document.getElementById('errors-per-transaction')?.value || 0.1);
-        const regenerateEvery = parseInt(document.getElementById('regenerate-every')?.value || 100);
+        // Get error configuration from AI Load panel
+        const errorsPerTransaction = parseFloat(document.getElementById('agent-errors-per-transaction')?.value || 0.1);
+        const regenerateEvery = parseInt(document.getElementById('agent-regenerate-every')?.value || 100);
         
         const errorConfig = {
           errors_per_transaction: errorsPerTransaction,
@@ -6387,7 +6262,7 @@
             🎯 Mode: ${errorModeStatus}<br>
             🆔 Test ID: ${result.testId.substring(0, 8)}...
           `;
-          statusEl.className = 'mt-3 text-sm text-dtgreen font-medium';
+          statusEl.className = 'text-xs text-dtgreen font-medium min-h-[80px]';
           
           startBtn.textContent = '🏃 Test Running...';
           
@@ -6411,7 +6286,7 @@
         }
         
         statusEl.textContent = `❌ Error: ${errorMessage}`;
-        statusEl.className = 'mt-3 text-sm text-red-400 font-medium';
+        statusEl.className = 'text-xs text-red-400 font-medium min-h-[80px]';
         startBtn.disabled = false;
         startBtn.textContent = '🚀 Start LoadRunner Test';
       }
@@ -6428,8 +6303,11 @@
         const result = await response.json();
         
         if (result.success) {
-          document.getElementById('loadrunner-status').textContent = '⏹️ Test stopped by user';
-          document.getElementById('loadrunner-status').className = 'mt-3 text-sm text-dtyellow font-medium';
+          var statusEl = document.getElementById('agent-loadrunner-test-status');
+          if (statusEl) {
+            statusEl.textContent = '⏹️ Test stopped by user';
+            statusEl.className = 'text-xs text-dtyellow font-medium min-h-[80px]';
+          }
           stopTestPolling();
           resetLoadRunnerUI();
         }
@@ -6490,7 +6368,8 @@
     }
 
     function updateTestStatus(status) {
-      const statusEl = document.getElementById('loadrunner-status');
+      const statusEl = document.getElementById('agent-loadrunner-test-status');
+      if (!statusEl) return;
       const elapsedTime = status.startTime ? 
         Math.floor((new Date() - new Date(status.startTime)) / 1000) : 0;
       
@@ -6502,13 +6381,14 @@
         🎯 Company: ${status.journeyConfig.companyName}<br>
         📋 Steps: ${status.journeyConfig.stepCount}
       `;
-      statusEl.className = 'mt-3 text-sm text-dtblue font-medium';
+      statusEl.className = 'text-xs text-dtblue font-medium min-h-[80px]';
     }
 
     function showTestResults(status) {
-      const statusEl = document.getElementById('loadrunner-status');
-      const resultsEl = document.getElementById('loadrunner-results');
-      const summaryEl = document.getElementById('loadrunner-summary');
+      const statusEl = document.getElementById('agent-loadrunner-test-status');
+      const resultsEl = document.getElementById('agent-loadrunner-results');
+      const summaryEl = document.getElementById('agent-loadrunner-summary');
+      if (!statusEl) return;
 
       if (status.status === 'completed') {
         statusEl.innerHTML = `
@@ -6517,35 +6397,39 @@
           👥 Virtual Users: ${status.testConfig.virtualUsers}<br>
           📊 Method: ${status.method}
         `;
-        statusEl.className = 'mt-3 text-sm text-dtgreen font-medium';
+        statusEl.className = 'text-xs text-dtgreen font-medium min-h-[80px]';
 
-        summaryEl.innerHTML = `
-          <div class="text-sm space-y-1">
-            <div>Company: <span class="text-dtcyan">${status.journeyConfig.companyName}</span></div>
-            <div>Journey Steps: <span class="text-dtcyan">${status.journeyConfig.stepCount}</span></div>
-            <div>Virtual Users: <span class="text-dtcyan">${status.testConfig.virtualUsers}</span></div>
-            <div>Test Duration: <span class="text-dtcyan">${status.testConfig.duration / 60} minutes</span></div>
-            <div>Status: <span class="text-dtgreen">✅ Completed</span></div>
-          </div>
-        `;
+        if (summaryEl) {
+          summaryEl.innerHTML = `
+            <div class="text-xs space-y-1">
+              <div>Company: <span class="text-dtcyan">${status.journeyConfig.companyName}</span></div>
+              <div>Journey Steps: <span class="text-dtcyan">${status.journeyConfig.stepCount}</span></div>
+              <div>Virtual Users: <span class="text-dtcyan">${status.testConfig.virtualUsers}</span></div>
+              <div>Test Duration: <span class="text-dtcyan">${status.testConfig.duration / 60} minutes</span></div>
+              <div>Status: <span class="text-dtgreen">✅ Completed</span></div>
+            </div>
+          `;
+        }
 
-        resultsEl.classList.remove('hidden');
+        if (resultsEl) resultsEl.classList.remove('hidden');
       } else {
         statusEl.innerHTML = `
           ❌ Test ${status.status}<br>
           ⏱️ Duration: ${status.testConfig.duration / 60} minutes<br>
           👥 Virtual Users: ${status.testConfig.virtualUsers}
         `;
-        statusEl.className = 'mt-3 text-sm text-red-400 font-medium';
+        statusEl.className = 'text-xs text-red-400 font-medium min-h-[80px]';
       }
 
       resetLoadRunnerUI();
     }
 
     function resetLoadRunnerUI() {
-      const startBtn = document.getElementById('start-loadrunner-test');
-      startBtn.disabled = false;
-      startBtn.textContent = '🚀 Start LoadRunner Test';
+      const startBtn = document.getElementById('agent-start-loadrunner-test');
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.textContent = '🚀 Start LoadRunner Test';
+      }
     }
 
     // Handle generation method change
@@ -6845,41 +6729,21 @@ Return JSON with this structure:
     }
   },
   "additionalFields": {
-    "deviceType": "[Mobile|Desktop|Tablet - based on their target audience]",
-    "entryChannel": "[Primary traffic source for ${companyName}]",
-    "customerIntent": "[Most common user goal on ${domain}]",
-    "loyaltyStatus": "[Realistic for their customer base]",
-    "sessionId": "session_${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}_\${timestamp}",
-    "transactionValue": "[Realistic transaction size for ${companyName}]",
-    "currency": "[Local currency for ${companyName}'s primary market]",
-    "businessEventType": "[e.g. purchase_completed, trial_started, subscription_upgraded]",
-    "revenueImpact": "[Direct revenue from this journey type]",
-    "conversionFunnelStage": "[Discovery|Interest|Consideration|Purchase|Retention]",
-    "customerLifetimeValue": "[Realistic CLV for their industry]",
-    "acquisitionChannel": "[Most effective channel for ${companyName}]",
-    "businessCriticalityScore": "[1-10 based on revenue impact]",
-    "performanceThresholds": {
-      "maxAcceptableLatency": "[e.g. 2.5s for checkout, 800ms for search]",
-      "minConversionRate": "[Industry benchmark for ${companyName}'s sector]",
-      "targetErrorRate": "[e.g. <0.1% for payment flows]"
-    },
-    "businessMetrics": {
-      "expectedConversionRate": "[Realistic for their funnel step]",
-      "averageOrderValue": "[Typical transaction size]",
-      "customerRetentionImpact": "[How this journey affects retention]",
-      "revenueAttribution": "[Revenue directly tied to this experience]"
-    },
-    "observabilityRequirements": {
-      "businessEventTracking": "[Key events to monitor in this journey]",
-      "performanceKPIs": "[Response time, error rate, conversion impact]",
-      "alertingPriority": "[Critical|High|Medium based on business impact]",
-      "dashboardMetrics": "[Metrics needed for business visibility]"
-    },
-    "realUserMonitoring": {
-      "coreWebVitals": "[LCP, FID, CLS expectations for their UX]",
-      "businessImpactOfSlowness": "[Revenue lost per 100ms delay]",
-      "errorBusinessConsequences": "[Cost of failures in this journey]"
-    }
+    "<<DYNAMICALLY GENERATE 20-40 fields based on your C-suite analysis, the industry, and this specific journey. Each field name should be camelCase. Use your knowledge of ${companyName}'s business model to create fields that would appear in real observability dashboards.
+
+FIELD TYPE MIX — use all of these where applicable:
+- REVENUE: numeric currency values (e.g. transactionValue: 67.49)
+- METRIC: numeric decimals/integers for rates, scores, percentages (e.g. conversionRate: 0.72, netPromoterScore: 65)
+- STRING: descriptive text, categories, statuses (e.g. loyaltyStatus: 'vip', pricingTier: 'Gold')
+- PRODUCT ARRAYS: arrays of product names, SKUs, prices, and categories that represent the items in this journey (e.g. productName: ['Widget Pro', 'Widget Lite'], productSKU: ['SKU-WP-001', 'SKU-WL-002'], productPrice: [29.99, 19.99], productCategory: ['Electronics', 'Accessories'])
+
+ARRAY RULES:
+- Product-related fields MUST be arrays with 2-5 items representing realistic products for ${companyName}
+- Parallel arrays must have the same length (e.g. if productName has 3 items, productSKU and productPrice must also have 3)
+- Use industry-appropriate product names, SKU formats, and price points
+- Other fields that naturally have multiple values may also be arrays (e.g. paymentMethods: ['card', 'paypal'], deliveryOptions: ['standard', 'express'])
+
+Include fields for: revenue/financial data, customer behaviour, conversion metrics, risk/compliance, operational efficiency, product details (as arrays), engagement scores, and any industry-specific KPIs relevant to this journey.>>"
   }
 }
 
@@ -6890,12 +6754,13 @@ Requirements:
 - ServiceName = StepName + 'Service' in PascalCase format (for microservice architecture)
 - Use realistic durations that match industry performance expectations
 - Only step 1 needs timestamp field
-- Replace ALL bracketed placeholders with actual values based on ${companyName}'s business model
+- Replace ALL placeholders with actual values based on ${companyName}'s business model
 - **CRITICAL: Set industryType to specific industry (e.g. "Cloud Software", "Streaming Media", "E-commerce")**
 - **CRITICAL: Set journeyType and journeyDetail to concise 2-3 word journey name (e.g. "Trial Signup", "Purchase Journey", "Support Request")**
+- **CRITICAL: additionalFields must be 20-40 key-value pairs — no nested objects. Dynamically generate field names based on this company and journey. Product-related fields (names, SKUs, prices, categories) MUST be parallel arrays with 2-5 items. Other fields are flat scalars. Each field must have a real value, not a placeholder.**
+- **Field type rules: Revenue fields = numeric (e.g. 67.49), Metric fields = numeric (e.g. 0.72), String fields = text (e.g. "premium"), Product fields = identifiers (e.g. "SKU-001")**
 - Focus on user actions that create business value and generate observable events
 - Include realistic business metrics: conversion rates, transaction values, performance thresholds
-- ProductSKUs should match their actual product format if identifiable from public data
 - All business values should be realistic for their industry and market position
 - All percentage values should be numeric (e.g. 0.72 not "72%")
 - Durations must be numeric integers, not strings
@@ -7839,7 +7704,8 @@ Return the response in JSON code format that can be copied from this UI
             lastJourney = {
               companyName: 'TestCorp',
               domain: 'testcorp.com',
-              industryType: 'retail',
+              industryType: 'Technology',
+              journeyType: 'Distributed Flow Test',
               steps: [
                 { stepName: 'Discovery', description: 'Customer discovery' },
                 { stepName: 'Selection', description: 'Product selection' },
@@ -7978,7 +7844,8 @@ Return the response in JSON code format that can be copied from this UI
             lastJourney = {
               companyName: 'SimTestCorp',
               domain: 'simtestcorp.com',
-              industryType: 'retail',
+              industryType: 'Simulation Testing',
+              journeyType: 'Continuous Load Test',
               steps: [
                 { stepName: 'Discovery', description: 'Customer discovery phase' },
                 { stepName: 'Evaluation', description: 'Product evaluation' },
@@ -9831,6 +9698,229 @@ Return the response in JSON code format that can be copied from this UI
         return await res.json();
       }
 
+      // ============ JOURNEY SELECTOR & PANEL SWITCHING ============
+
+      var _selectedJourneyData = null;  // holds the full journey config
+      var _cachedJourneys = [];         // cached list from server
+
+      // Load journey list from server (only shows journeys with running services)
+      async function loadJourneyList() {
+        try {
+          var sel = document.getElementById('agent-journey-select');
+          sel.innerHTML = '<option value="">⏳ Loading journeys...</option>';
+          var data = await agentFetch('/api/admin/journeys');
+          if (data.ok && data.journeys) {
+            _cachedJourneys = data.journeys;
+
+            var activeJourneys = data.journeys.filter(function(j) { return j.servicesRunning; });
+            var activeCount = activeJourneys.length;
+            var totalCount = data.count;
+
+            sel.innerHTML = '<option value="">🎯 Select a journey (' + totalCount + ' journeys, ' + activeCount + ' active)</option>';
+
+            // Group ALL journeys by company name — show active first, then inactive
+            var grouped = {};
+            data.journeys.forEach(function(j) {
+              var group = j.companyName || 'Other';
+              if (!grouped[group]) grouped[group] = [];
+              grouped[group].push(j);
+            });
+
+            Object.keys(grouped).sort().forEach(function(company) {
+              var optgroup = document.createElement('optgroup');
+              optgroup.label = '🏢 ' + company;
+              // Sort: active journeys first
+              grouped[company].sort(function(a, b) { return (b.servicesRunning ? 1 : 0) - (a.servicesRunning ? 1 : 0); });
+              grouped[company].forEach(function(j) {
+                var opt = document.createElement('option');
+                opt.value = j.filename;
+                if (j.servicesRunning) {
+                  opt.textContent = '🟢 ' + (j.journeyType || 'Journey') + ' (' + j.runningServiceCount + '/' + j.services.length + ' services)';
+                } else {
+                  opt.textContent = '⚪ ' + (j.journeyType || 'Journey') + ' (not running)';
+                }
+                optgroup.appendChild(opt);
+              });
+              sel.appendChild(optgroup);
+            });
+          }
+        } catch (err) {
+          console.error('[Agent Hub] Failed to load journeys:', err);
+        }
+      }
+
+      // Select a journey and populate context panel
+      window._agentSelectJourney = async function(filename) {
+        if (!filename) {
+          document.getElementById('agent-journey-context').classList.add('hidden');
+          _selectedJourneyData = null;
+          return;
+        }
+
+        // Find journey in cache
+        var journey = _cachedJourneys.find(function(j) { return j.filename === filename; });
+        if (!journey) return;
+
+        // Load full config from server
+        try {
+          var configId = journey.id;
+          var data = await agentFetch('/api/admin/configs/' + encodeURIComponent(configId));
+          if (data.ok && data.config) {
+            _selectedJourneyData = data.config;
+          } else {
+            _selectedJourneyData = journey;  // fallback to cached summary
+          }
+        } catch (err) {
+          _selectedJourneyData = journey;
+        }
+
+        // Set it as window.lastJourney so all agents can use it
+        window.lastJourney = {
+          companyName: journey.companyName,
+          industryType: journey.industryType,
+          journeyType: journey.journeyType,
+          domain: journey.domain,
+          steps: journey.steps,
+          additionalFields: (_selectedJourneyData && _selectedJourneyData.additionalFields) || {},
+          customerProfile: (_selectedJourneyData && _selectedJourneyData.customerProfile) || {},
+          traceMetadata: (_selectedJourneyData && _selectedJourneyData.traceMetadata) || {}
+        };
+        window.currentJourneyData = { journey: window.lastJourney };
+
+        // Update context panel
+        document.getElementById('agent-journey-context').classList.remove('hidden');
+        document.getElementById('agent-ctx-company').textContent = journey.companyName || '—';
+        document.getElementById('agent-ctx-industry').textContent = journey.industryType || '—';
+        document.getElementById('agent-ctx-journey-type').textContent = journey.journeyType || '—';
+        document.getElementById('agent-ctx-step-count').textContent = journey.stepsCount || 0;
+
+        // Build service cards
+        var cardsHtml = journey.services.map(function(svc) {
+          return '<span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-dtcyan bg-opacity-10 text-dtcyan border border-dtcyan border-opacity-30 hover:bg-opacity-20 transition-all cursor-default">' +
+            '<span class="w-2 h-2 rounded-full bg-dtgreen animate-pulse"></span>' + svc + '</span>';
+        }).join('');
+        document.getElementById('agent-service-cards').innerHTML = cardsHtml || '<span class="text-xs text-gray-500">No services</span>';
+
+        // Build steps flow
+        var stepsHtml = journey.steps.map(function(s, i) {
+          var arrow = i < journey.steps.length - 1 ? '<span class="text-gray-600 mx-0.5">→</span>' : '';
+          var catColor = s.category === 'Acquisition' ? 'text-dtgreen' : s.category === 'FulfilmentPreparation' ? 'text-dtorange' : s.category === 'Conversion' ? 'text-dtcyan' : 'text-dtpurple';
+          return '<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-black bg-opacity-50 border border-dtborder">' +
+            '<span class="font-bold text-white">' + (i + 1) + '</span>' +
+            '<span class="' + catColor + '">' + (s.stepName || s.name || 'Step') + '</span>' +
+            '</span>' + arrow;
+        }).join('');
+        document.getElementById('agent-steps-flow').innerHTML = stepsHtml || '<span class="text-xs text-gray-500">No steps</span>';
+
+        // Populate Gremlin target service dropdown
+        var svcSelect = document.getElementById('gremlin-target-service');
+        svcSelect.innerHTML = '<option value="all">All Services (Random)</option>';
+        journey.services.forEach(function(svc) {
+          var opt = document.createElement('option');
+          opt.value = svc;
+          opt.textContent = svc;
+          svcSelect.appendChild(opt);
+        });
+
+        console.log('[Agent Hub] Journey selected:', journey.companyName, '-', journey.journeyType, '(' + journey.services.length + ' services)');
+      };
+
+      // Use current journey from Steps 1-3
+      window._agentUseCurrentJourney = function() {
+        var data = getJourneyData();
+        if (!data || !data.steps || data.steps.length === 0) {
+          showResult('gremlin-result', '⚠️ No journey data from Steps 1-3. Configure a journey first, or select one from the dropdown.');
+          return;
+        }
+
+        // Build summary for context panel
+        var journey = {
+          companyName: data.company,
+          industryType: data.industry,
+          journeyType: data.journeyType,
+          services: [...new Set((data.steps || []).map(function(s) { return s.serviceName || ''; }).filter(Boolean))],
+          stepsCount: data.steps.length,
+          steps: data.steps
+        };
+
+        // Update context panel with same logic
+        document.getElementById('agent-journey-context').classList.remove('hidden');
+        document.getElementById('agent-ctx-company').textContent = journey.companyName || '—';
+        document.getElementById('agent-ctx-industry').textContent = journey.industryType || '—';
+        document.getElementById('agent-ctx-journey-type').textContent = journey.journeyType || '—';
+        document.getElementById('agent-ctx-step-count').textContent = journey.stepsCount || 0;
+
+        var cardsHtml = journey.services.map(function(svc) {
+          return '<span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-dtcyan bg-opacity-10 text-dtcyan border border-dtcyan border-opacity-30">' +
+            '<span class="w-2 h-2 rounded-full bg-dtgreen animate-pulse"></span>' + svc + '</span>';
+        }).join('');
+        document.getElementById('agent-service-cards').innerHTML = cardsHtml || '<span class="text-xs text-gray-500">No services</span>';
+
+        var stepsHtml = journey.steps.map(function(s, i) {
+          var arrow = i < journey.steps.length - 1 ? '<span class="text-gray-600 mx-0.5">→</span>' : '';
+          return '<span class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-black bg-opacity-50 border border-dtborder">' +
+            '<span class="font-bold text-white">' + (i + 1) + '</span>' +
+            '<span class="text-dtcyan">' + (s.stepName || s.name || 'Step') + '</span>' +
+            '</span>' + arrow;
+        }).join('');
+        document.getElementById('agent-steps-flow').innerHTML = stepsHtml || '<span class="text-xs text-gray-500">No steps</span>';
+
+        var svcSelect = document.getElementById('gremlin-target-service');
+        svcSelect.innerHTML = '<option value="all">All Services (Random)</option>';
+        journey.services.forEach(function(svc) {
+          var opt = document.createElement('option');
+          opt.value = svc;
+          opt.textContent = svc;
+          svcSelect.appendChild(opt);
+        });
+
+        // Reset the dropdown indicator
+        var sel = document.getElementById('agent-journey-select');
+        sel.value = '';
+
+        console.log('[Agent Hub] Using current journey:', journey.companyName, '(' + journey.services.length + ' services)');
+      };
+
+      // Refresh journey list
+      window._agentRefreshJourneys = function() {
+        loadJourneyList();
+      };
+
+      // Agent panel switching
+      window._agentShowPanel = function(agent) {
+        // Toggle tabs
+        document.querySelectorAll('.agent-tab').forEach(function(tab) {
+          tab.classList.remove('active');
+          var tabAgent = tab.getAttribute('data-agent');
+          // Reset to inactive style
+          tab.className = tab.className.replace(/bg-\S+/g, '').replace(/text-\S+/g, '').replace(/border-\S+/g, '').trim();
+          tab.classList.add('agent-tab', 'text-xs', 'px-4', 'py-2', 'rounded-full', 'border', 'transition-all', 'cursor-pointer',
+            'bg-dtgray', 'text-gray-400', 'border-dtborder');
+        });
+
+        // Activate clicked tab
+        var activeTab = document.querySelector('.agent-tab[data-agent="' + agent + '"]');
+        if (activeTab) {
+          activeTab.classList.add('active');
+          // Remove inactive grays
+          activeTab.classList.remove('bg-dtgray', 'text-gray-400', 'border-dtborder');
+        }
+
+        // Toggle panels
+        document.querySelectorAll('.agent-panel').forEach(function(panel) {
+          panel.classList.add('hidden');
+        });
+        var activePanel = document.getElementById('agent-panel-' + agent);
+        if (activePanel) {
+          activePanel.classList.remove('hidden');
+        }
+
+        // Populate dashboard journey selector when switching to dashboard tab
+        if (agent === 'dashboard') {
+          populateDashboardJourneySelect();
+        }
+      };
+
       // ============ GREMLIN ============
 
       async function loadGremlinRecipes() {
@@ -9851,11 +9941,12 @@ Return the response in JSON code format that can be copied from this UI
         var duration = parseInt((document.getElementById('gremlin-duration') || {}).value || '120');
         if (!val) return alert('Select a recipe first');
         var company = (document.getElementById('companyName') || {}).value || 'Demo Company';
-        showResult('gremlin-result', '⏳ Injecting chaos...');
+        var targetSvc = (document.getElementById('gremlin-target-service') || {}).value || 'all';
+        showResult('gremlin-result', '⏳ Injecting chaos on ' + (targetSvc === 'all' ? 'all services' : targetSvc) + '...');
         try {
           var data = await agentFetch('/api/gremlin/inject', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ type: val, target: 'default', intensity: intensity, duration: duration, company: company })
+            body: JSON.stringify({ type: val, target: targetSvc, intensity: intensity, duration: duration, company: company })
           });
           showResult('gremlin-result', data);
           window._agentRefreshFaults();
@@ -9912,39 +10003,24 @@ Return the response in JSON code format that can be copied from this UI
         } catch (e) { showResult('gremlin-result', '❌ ' + e.message); }
       };
 
-      // ============ FIX-IT ============
+      // ============ FIX-IT (Workflow-only — quick test button) ============
 
-      window._agentAutoFix = async function() {
-        showResult('fixit-result', '⏳ Running auto-fix...');
+      window._fixitQuickTest = async function() {
+        var btn = document.getElementById('fixit-test-btn');
+        var status = document.getElementById('fixit-test-status');
+        if (btn) btn.disabled = true;
+        if (status) status.textContent = '⏳ Calling /api/fixit/auto...';
+        showResult('fixit-result', '⏳ Running auto-fix endpoint test...');
         try {
           var data = await agentFetch('/api/fixit/auto', { method: 'POST' });
           showResult('fixit-result', data);
-        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
-      };
-
-      window._agentDiagnose = async function() {
-        var problemId = (document.getElementById('fixit-problem-id') || {}).value || '';
-        showResult('fixit-result', '⏳ Diagnosing...');
-        try {
-          var data = await agentFetch('/api/fixit/diagnose', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ problemId: problemId.trim() || undefined })
-          });
-          showResult('fixit-result', data);
-        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
-      };
-
-      window._agentAgenticFix = async function() {
-        var input = (document.getElementById('fixit-agentic-input') || {}).value;
-        if (!input || !input.trim()) return alert('Describe the problem to diagnose');
-        showResult('fixit-result', '⏳ Agentic diagnosis in progress...');
-        try {
-          var data = await agentFetch('/api/fixit/agentic', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ description: input.trim() })
-          });
-          showResult('fixit-result', data);
-        } catch (e) { showResult('fixit-result', '❌ ' + e.message); }
+          if (status) status.textContent = '✅ Endpoint responded';
+        } catch (e) {
+          showResult('fixit-result', '❌ ' + e.message);
+          if (status) status.textContent = '❌ Failed: ' + e.message;
+        } finally {
+          if (btn) btn.disabled = false;
+        }
       };
 
       // ============ LIBRARIAN ============
@@ -10075,6 +10151,84 @@ Return the response in JSON code format that can be copied from this UI
         return storedConfig;
       }
 
+      // Populate the dashboard journey selector from cached journeys
+      function populateDashboardJourneySelect() {
+        var sel = document.getElementById('dashboard-journey-select');
+        if (!sel) return;
+        
+        // Keep the default option
+        sel.innerHTML = '<option value="">Use currently selected journey from Agent Hub</option>';
+        
+        if (!_cachedJourneys || _cachedJourneys.length === 0) return;
+        
+        // Group by companyName
+        var grouped = {};
+        _cachedJourneys.forEach(function(j) {
+          var group = j.companyName || 'Other';
+          if (!grouped[group]) grouped[group] = [];
+          grouped[group].push(j);
+        });
+
+        Object.keys(grouped).sort().forEach(function(company) {
+          var optgroup = document.createElement('optgroup');
+          optgroup.label = '🏢 ' + company;
+          grouped[company].forEach(function(j) {
+            var opt = document.createElement('option');
+            opt.value = j.filename;
+            opt.textContent = (j.journeyType || 'Journey') + ' (' + j.stepsCount + ' steps, ' + j.services.length + ' services)';
+            optgroup.appendChild(opt);
+          });
+          sel.appendChild(optgroup);
+        });
+      }
+
+      // Handle dashboard journey selection
+      window._dashSelectJourney = async function(filename) {
+        var info = document.getElementById('dashboard-journey-info');
+        
+        if (!filename) {
+          // Use default from Agent Hub
+          if (info) info.textContent = 'Dashboard will use the journey selected in the Agent Hub above';
+          return;
+        }
+
+        // Find journey in cache
+        var journey = _cachedJourneys.find(function(j) { return j.filename === filename; });
+        if (!journey) return;
+
+        // Load full config from server
+        try {
+          var configId = journey.id;
+          var data = await agentFetch('/api/admin/configs/' + encodeURIComponent(configId));
+          if (data.ok && data.config) {
+            // Set as current journey data for dashboard generation
+            window.lastJourney = {
+              companyName: journey.companyName,
+              industryType: journey.industryType,
+              journeyType: journey.journeyType,
+              domain: journey.domain,
+              steps: journey.steps,
+              additionalFields: data.config.additionalFields || {},
+              customerProfile: data.config.customerProfile || {},
+              traceMetadata: data.config.traceMetadata || {}
+            };
+            window.currentJourneyData = { journey: window.lastJourney };
+          }
+        } catch (err) {
+          // Use cached journey data
+          window.lastJourney = {
+            companyName: journey.companyName,
+            industryType: journey.industryType,
+            journeyType: journey.journeyType,
+            domain: journey.domain,
+            steps: journey.steps
+          };
+          window.currentJourneyData = { journey: window.lastJourney };
+        }
+
+        if (info) info.textContent = '✅ ' + journey.companyName + ' — ' + (journey.journeyType || 'Journey') + ' (' + journey.stepsCount + ' steps)';
+      };
+
       window._agentDashPreview = async function() {
         var journeyData = getJourneyData();
         showResult('dashboard-result', '⏳ Previewing fields...');
@@ -10089,7 +10243,7 @@ Return the response in JSON code format that can be copied from this UI
             var p = data.preview;
             var html = '<div class="space-y-2">';
             html += '<p class="text-dtpurple font-semibold">' + (p.name || 'Dashboard') + '</p>';
-            html += '<p class="text-gray-400">Industry: ' + (p.industry || '—') + '</p>';
+            html += '<p class="text-gray-400">Journey Type: ' + (p.journeyType || p.industry || '—') + '</p>';
             if (p.detectedFields) {
               var df = p.detectedFields;
               html += '<div class="mt-2"><span class="text-gray-500">String fields:</span> <span class="text-white">' + (df.stringFields || []).length + '</span></div>';
@@ -10327,7 +10481,6 @@ Return the response in JSON code format that can be copied from this UI
 
       function hookSwitchTab() {
         if (typeof window.switchTab !== 'function') {
-          // Main script hasn't defined switchTab yet, retry shortly
           setTimeout(hookSwitchTab, 200);
           return;
         }
@@ -10335,6 +10488,7 @@ Return the response in JSON code format that can be copied from this UI
         window.switchTab = function(tabName) {
           _orig(tabName);
           if (tabName === 'step4') {
+            loadJourneyList();
             loadGremlinRecipes();
             window._agentRefreshFaults();
             window._agentLibHistory();
@@ -10348,6 +10502,275 @@ Return the response in JSON code format that can be copied from this UI
       console.log('[AI Agents] ✅ All agent functions registered');
     })();
 
+  </script>
+
+  <!-- ============================================ -->
+  <!-- Dynatrace Settings Modal (UI-based, no MCP) -->
+  <!-- ============================================ -->
+  <div id="dt-settings-modal" class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4" onclick="if(event.target===this) closeDtSettingsModal()">
+    <div class="bg-dtcard border border-dtborder rounded-2xl shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-dtborder">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-dtcyan/20 border border-dtcyan flex items-center justify-center">
+            <span class="text-xl">⚙️</span>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-dtcyan">Dynatrace Settings</h2>
+            <p class="text-xs text-gray-400">Configure Events API credentials</p>
+          </div>
+        </div>
+        <button onclick="closeDtSettingsModal()" class="w-8 h-8 rounded-lg bg-dtgray hover:bg-red-600 text-gray-400 hover:text-white flex items-center justify-center transition-all text-lg">&times;</button>
+      </div>
+      
+      <!-- Body -->
+      <div class="p-6 space-y-5">
+        <!-- Status Banner -->
+        <div id="dt-cred-status-banner" class="p-3 rounded-lg bg-gray-800 border border-gray-600 text-sm text-gray-400">
+          <div class="flex items-center gap-2">
+            <span id="dt-cred-status-icon">⚪</span>
+            <span id="dt-cred-status-text">Checking status...</span>
+          </div>
+          <p id="dt-cred-status-detail" class="text-xs mt-1 text-gray-500"></p>
+        </div>
+
+        <!-- What This Does -->
+        <div class="p-3 rounded-lg bg-dtpurple/10 border border-dtpurple/30">
+          <h4 class="text-xs font-bold text-dtpurple mb-1">What does this enable?</h4>
+          <ul class="text-xs text-gray-400 space-y-1">
+            <li>• Sends <strong class="text-white">custom events</strong> to Dynatrace when AI agents inject chaos</li>
+            <li>• Feature flag changes appear in the <strong class="text-white">deployment timeline</strong></li>
+            <li>• Enables <strong class="text-white">CUSTOM_INFO</strong> and <strong class="text-white">CUSTOM_DEPLOYMENT</strong> events</li>
+          </ul>
+        </div>
+
+        <!-- Environment URL -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1.5">
+            Dynatrace Environment URL <span class="text-red-400">*</span>
+          </label>
+          <input type="url" id="dt-env-url-input" 
+            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-dtcyan focus:ring-1 focus:ring-dtcyan transition-all"
+            placeholder="https://abc12345.live.dynatrace.com">
+          <p class="text-xs text-gray-500 mt-1">Your Dynatrace SaaS or Managed tenant URL</p>
+        </div>
+
+        <!-- API Token -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-1.5">
+            API Token <span class="text-red-400">*</span>
+          </label>
+          <div class="relative">
+            <input type="password" id="dt-api-token-input" 
+              class="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2.5 pr-12 text-white text-sm font-mono focus:outline-none focus:border-dtcyan focus:ring-1 focus:ring-dtcyan transition-all"
+              placeholder="dt0c01.XXXXXXXX.YYYYYYYY">
+            <button onclick="toggleDtTokenVis()" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-dtcyan text-sm px-2 py-1 rounded transition-all" title="Show/Hide token">
+              👁️
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Requires <code class="text-dtcyan">events.ingest</code> scope (Access Tokens &rarr; Generate New Token)</p>
+        </div>
+        
+        <!-- Token Scope Help -->
+        <details class="text-xs">
+          <summary class="text-dtcyan cursor-pointer hover:text-white transition-colors font-medium">How to create an API Token</summary>
+          <div class="mt-2 p-3 rounded-lg bg-gray-800 border border-gray-600 space-y-2 text-gray-400">
+            <p>1. Go to your Dynatrace tenant</p>
+            <p>2. Navigate to <strong class="text-white">Access Tokens</strong> (Settings &rarr; Integration &rarr; Access Tokens)</p>
+            <p>3. Click <strong class="text-white">Generate new token</strong></p>
+            <p>4. Give it a name like <code class="text-dtcyan">BizObs Events</code></p>
+            <p>5. Add the scope: <code class="text-dtcyan">events.ingest</code> (Ingest events)</p>
+            <p>6. Click <strong class="text-white">Generate token</strong> and copy it</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between p-6 border-t border-dtborder">
+        <div class="flex gap-2">
+          <button onclick="testDtConnection()" id="dt-test-btn" class="px-4 py-2 rounded-lg bg-dtgray hover:bg-gray-600 text-white text-sm font-medium transition-all flex items-center gap-2">
+            🔌 Test Connection
+          </button>
+          <button onclick="clearDtCredentials()" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white text-sm font-medium transition-all">
+            🗑️ Clear
+          </button>
+        </div>
+        <button onclick="saveDtCredentials()" class="px-6 py-2 rounded-lg bg-dtcyan hover:bg-dtpurple text-black hover:text-white text-sm font-bold transition-all">
+          💾 Save Credentials
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // Dynatrace Settings Modal Logic (UI-based)
+    // ============================================
+
+    function openDtSettingsModal() {
+      document.getElementById('dt-settings-modal').classList.remove('hidden');
+      refreshDtCredentialStatus();
+    }
+
+    function closeDtSettingsModal() {
+      document.getElementById('dt-settings-modal').classList.add('hidden');
+    }
+
+    function toggleDtTokenVis() {
+      const input = document.getElementById('dt-api-token-input');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function updateDtStatusBanner(type, icon, text, detail) {
+      const banner = document.getElementById('dt-cred-status-banner');
+      document.getElementById('dt-cred-status-icon').textContent = icon;
+      document.getElementById('dt-cred-status-text').textContent = text;
+      document.getElementById('dt-cred-status-detail').textContent = detail || '';
+
+      const colors = {
+        success: 'bg-green-900/30 border-green-600 text-green-300',
+        error: 'bg-red-900/30 border-red-600 text-red-300',
+        warning: 'bg-yellow-900/30 border-yellow-600 text-yellow-300',
+        info: 'bg-gray-800 border-gray-600 text-gray-400'
+      };
+      banner.className = `p-3 rounded-lg border text-sm ${colors[type] || colors.info}`;
+    }
+
+    async function refreshDtCredentialStatus() {
+      try {
+        const res = await fetch('/api/admin/dt-credentials/status');
+        const data = await res.json();
+
+        if (data.configured) {
+          updateDtStatusBanner('success', '✅', 'Credentials configured', 
+            `Environment: ${data.environmentUrl} | Token: ${data.tokenPreview} | Source: ${data.source}`);
+          // Pre-fill the environment URL (not token for security)
+          document.getElementById('dt-env-url-input').value = data.environmentUrl || '';
+          document.getElementById('dt-api-token-input').value = ''; // Don't pre-fill token
+          document.getElementById('dt-api-token-input').placeholder = `Current: ${data.tokenPreview} (enter new to change)`;
+          updateDtIndicator(true);
+        } else if (data.environmentUrl && !data.tokenConfigured) {
+          updateDtStatusBanner('warning', '⚠️', 'Partially configured', 
+            `Environment URL set but API Token is missing`);
+          document.getElementById('dt-env-url-input').value = data.environmentUrl || '';
+          updateDtIndicator(false);
+        } else {
+          updateDtStatusBanner('info', '⚪', 'Not configured', 
+            'Add your Dynatrace Environment URL and API Token to enable event ingestion');
+          updateDtIndicator(false);
+        }
+      } catch (err) {
+        updateDtStatusBanner('error', '❌', 'Failed to check status', err.message);
+        updateDtIndicator(false);
+      }
+    }
+
+    function updateDtIndicator(configured) {
+      const dot = document.getElementById('dt-settings-indicator');
+      if (dot) {
+        dot.className = configured 
+          ? 'w-2 h-2 rounded-full bg-green-400 animate-pulse' 
+          : 'w-2 h-2 rounded-full bg-gray-500';
+        dot.title = configured ? 'Dynatrace connected' : 'Not configured';
+      }
+    }
+
+    async function saveDtCredentials() {
+      const envUrl = document.getElementById('dt-env-url-input').value.trim();
+      const apiToken = document.getElementById('dt-api-token-input').value.trim();
+
+      if (!envUrl) {
+        updateDtStatusBanner('error', '❌', 'Missing Environment URL', 'Please enter your Dynatrace tenant URL');
+        return;
+      }
+
+      // If token field is empty but credentials already configured, only update URL
+      if (!apiToken) {
+        // Check if we already have a token configured
+        const statusRes = await fetch('/api/admin/dt-credentials/status');
+        const statusData = await statusRes.json();
+        if (!statusData.tokenConfigured) {
+          updateDtStatusBanner('error', '❌', 'Missing API Token', 'Please enter your Dynatrace API Token');
+          return;
+        }
+      }
+
+      try {
+        updateDtStatusBanner('info', '⏳', 'Saving...', '');
+
+        // If no new token entered, we need to fetch the existing one server-side
+        // So we send a signal to only update URL
+        const body = { environmentUrl: envUrl };
+        if (apiToken) {
+          body.apiToken = apiToken;
+        }
+
+        const res = await fetch('/api/admin/dt-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+          updateDtStatusBanner('success', '✅', 'Credentials saved!', 
+            `${data.environmentUrl} | Token: ${data.tokenPreview}`);
+          updateDtIndicator(true);
+          // Clear the token input after save
+          document.getElementById('dt-api-token-input').value = '';
+          document.getElementById('dt-api-token-input').placeholder = `Current: ${data.tokenPreview} (enter new to change)`;
+        } else {
+          updateDtStatusBanner('error', '❌', 'Save failed', data.error);
+        }
+      } catch (err) {
+        updateDtStatusBanner('error', '❌', 'Save failed', err.message);
+      }
+    }
+
+    async function testDtConnection() {
+      const btn = document.getElementById('dt-test-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Testing...';
+      updateDtStatusBanner('info', '⏳', 'Testing connection...', 'Sending test event to Dynatrace');
+
+      try {
+        const res = await fetch('/api/admin/dt-credentials/test', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          updateDtStatusBanner('success', '✅', 'Connection successful!', data.message);
+        } else {
+          updateDtStatusBanner('error', '❌', 'Connection failed', data.error);
+        }
+      } catch (err) {
+        updateDtStatusBanner('error', '❌', 'Test failed', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🔌 Test Connection';
+      }
+    }
+
+    async function clearDtCredentials() {
+      if (!confirm('Clear all Dynatrace credentials from the server?')) return;
+      try {
+        await fetch('/api/admin/dt-credentials', { method: 'DELETE' });
+        document.getElementById('dt-env-url-input').value = '';
+        document.getElementById('dt-api-token-input').value = '';
+        document.getElementById('dt-api-token-input').placeholder = 'dt0c01.XXXXXXXX.YYYYYYYY';
+        updateDtStatusBanner('info', '⚪', 'Credentials cleared', 'Events will not be sent until credentials are configured again');
+        updateDtIndicator(false);
+      } catch (err) {
+        updateDtStatusBanner('error', '❌', 'Clear failed', err.message);
+      }
+    }
+
+    // Check credential status on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Update the settings indicator on load
+      fetch('/api/admin/dt-credentials/status')
+        .then(r => r.json())
+        .then(data => updateDtIndicator(data.configured))
+        .catch(() => updateDtIndicator(false));
+    });
   </script>
 </body>
 </html>

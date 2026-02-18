@@ -1,5 +1,12 @@
 import net from 'net';
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PORT_ALLOCATIONS_FILE = path.join(__dirname, '..', '.port-allocations.json');
 
 /**
  * Robust Port Manager to prevent EADDRINUSE conflicts
@@ -16,7 +23,9 @@ class PortManager extends EventEmitter {
     this.allocatedPorts = new Map(); // port -> { service, company, timestamp }
     this.pendingAllocations = new Set(); // ports currently being allocated
     this.allocationLock = new Map(); // service key -> allocation promise
-  console.log(`🔧 [PortManager] Initialized with range ${this.minPort}-${this.maxPort} (${this.maxPort - this.minPort + 1} ports available)`);
+    this.savedPortMap = new Map(); // serviceKey -> port (persisted preferred ports)
+    this._loadSavedAllocations();
+  console.log(`🔧 [PortManager] Initialized with range ${this.minPort}-${this.maxPort} (${this.maxPort - this.minPort + 1} ports available, ${this.savedPortMap.size} saved port preferences loaded)`);
   }
 
   /**
@@ -123,8 +132,20 @@ class PortManager extends EventEmitter {
       }
     }
     
-    // Find and reserve a new port
-    const port = await this.findAvailablePort();
+    // Check if we have a saved preferred port from previous session
+    let port = null;
+    const savedPort = this.savedPortMap.get(serviceKey);
+    if (savedPort && !this.allocatedPorts.has(savedPort) && !this.pendingAllocations.has(savedPort)) {
+      if (await this.isPortAvailable(savedPort)) {
+        port = savedPort;
+        console.log(`📌 [PortManager] Restoring saved port ${port} for ${serviceKey}`);
+      } else {
+        console.log(`⚠️ [PortManager] Saved port ${savedPort} for ${serviceKey} is no longer available, allocating new`);
+      }
+    }
+    
+    // Find and reserve a new port if no saved port was usable
+    if (!port) port = await this.findAvailablePort();
     
     // Mark as pending to prevent double allocation
     this.pendingAllocations.add(port);
@@ -144,6 +165,9 @@ class PortManager extends EventEmitter {
       
       console.log(`✅ [PortManager] Allocated port ${port} to ${serviceKey} (${this.allocatedPorts.size} total allocated)`);
       this.emit('portAllocated', { port, serviceName, companyName });
+      
+      // Persist the allocation for next restart
+      this._saveAllocations();
       
       return port;
       
@@ -171,6 +195,9 @@ class PortManager extends EventEmitter {
     this.allocatedPorts.delete(port);
     console.log(`🔓 [PortManager] Released port ${port} from ${allocation.service}-${allocation.company} (${this.allocatedPorts.size} remaining)`);
     this.emit('portReleased', { port, allocation });
+    
+    // Note: we do NOT remove from savedPortMap on release — we want to remember
+    // the preferred port so the service gets the same port on next restart
     
     return true;
   }
@@ -281,6 +308,54 @@ class PortManager extends EventEmitter {
       byCompany[allocation.company].push({ port, service: allocation.service });
     }
     return byCompany;
+  }
+  /**
+   * Public method to save current port state - called during graceful shutdown
+   */
+  saveState() {
+    this._saveAllocations();
+    console.log(`💾 [PortManager] Port state saved (${this.allocatedPorts.size} active, ${this.savedPortMap.size} saved preferences)`);
+  }
+
+  /**
+   * Save current allocations to disk for port persistence across restarts
+   */
+  _saveAllocations() {
+    try {
+      const data = {};
+      for (const [port, allocation] of this.allocatedPorts.entries()) {
+        const key = `${allocation.service}-${allocation.company}`;
+        data[key] = port;
+      }
+      // Also merge any saved ports that aren't currently active (preserve history)
+      for (const [key, port] of this.savedPortMap.entries()) {
+        if (!data[key]) data[key] = port;
+      }
+      fs.writeFileSync(PORT_ALLOCATIONS_FILE, JSON.stringify(data, null, 2));
+    } catch (err) {
+      console.warn(`⚠️ [PortManager] Failed to save port allocations: ${err.message}`);
+    }
+  }
+
+  /**
+   * Load saved port allocations from disk to restore preferred port mappings
+   */
+  _loadSavedAllocations() {
+    try {
+      if (fs.existsSync(PORT_ALLOCATIONS_FILE)) {
+        const raw = fs.readFileSync(PORT_ALLOCATIONS_FILE, 'utf-8');
+        const data = JSON.parse(raw);
+        for (const [key, port] of Object.entries(data)) {
+          const portNum = parseInt(port);
+          if (portNum >= this.minPort && portNum <= this.maxPort) {
+            this.savedPortMap.set(key, portNum);
+          }
+        }
+        console.log(`📂 [PortManager] Loaded ${this.savedPortMap.size} saved port preferences from disk`);
+      }
+    } catch (err) {
+      console.warn(`⚠️ [PortManager] Failed to load saved port allocations: ${err.message}`);
+    }
   }
 }
 

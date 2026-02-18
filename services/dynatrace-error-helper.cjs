@@ -72,6 +72,87 @@ const sendErrorEvent = (eventType, error, context = {}) => {
 };
 
 /**
+ * Send a CUSTOM_INFO event to Dynatrace via Events API v2 when a feature flag fires.
+ * Also enriches the current OneAgent PurePath trace with custom request attributes.
+ * @param {Object} details - { serviceName, stepName, featureFlag, errorType, httpStatus, correlationId, errorRate, domain, industryType, companyName }
+ */
+const sendFeatureFlagCustomEvent = async (details = {}) => {
+  const {
+    serviceName = 'unknown',
+    stepName = 'unknown',
+    featureFlag = 'unknown',
+    errorType = 'unknown',
+    httpStatus = 500,
+    correlationId = '',
+    errorRate = 0,
+    domain = '',
+    industryType = '',
+    companyName = ''
+  } = details;
+
+  // 1) Enrich the current PurePath trace via OneAgent SDK
+  if (dtApi && typeof dtApi.addCustomRequestAttribute === 'function') {
+    try {
+      dtApi.addCustomRequestAttribute('feature_flag.name', featureFlag);
+      dtApi.addCustomRequestAttribute('feature_flag.active', 'true');
+      dtApi.addCustomRequestAttribute('feature_flag.error_type', errorType);
+      dtApi.addCustomRequestAttribute('feature_flag.error_rate', String(errorRate));
+      dtApi.addCustomRequestAttribute('feature_flag.service', serviceName);
+      dtApi.addCustomRequestAttribute('feature_flag.step', stepName);
+    } catch (e) {
+      // Silently skip
+    }
+  }
+
+  // 2) Send CUSTOM_INFO event to Dynatrace Events API v2
+  const DT_ENVIRONMENT = process.env.DT_ENVIRONMENT || process.env.DYNATRACE_URL;
+  const DT_TOKEN = process.env.DT_PLATFORM_TOKEN || process.env.DYNATRACE_TOKEN;
+
+  if (!DT_ENVIRONMENT || !DT_TOKEN) {
+    console.log('[dynatrace-sdk] No DT credentials, skipping feature flag custom event');
+    return { success: false, reason: 'no_credentials' };
+  }
+
+  const eventPayload = {
+    eventType: 'CUSTOM_INFO',
+    title: `Feature Flag Triggered: ${featureFlag}`,
+    timeout: 15,
+    properties: {
+      'feature_flag.name': featureFlag,
+      'feature_flag.error_type': errorType,
+      'feature_flag.error_rate': String(errorRate),
+      'feature_flag.http_status': String(httpStatus),
+      'service.name': serviceName,
+      'journey.step': stepName,
+      'journey.correlationId': correlationId,
+      'journey.domain': domain,
+      'journey.industryType': industryType,
+      'journey.company': companyName,
+      'triggered.by': 'gremlin-agent',
+      'event.source': 'bizobs-feature-flag',
+      'dt.event.description': `Feature flag "${featureFlag}" injected ${errorType} error (HTTP ${httpStatus}) on ${serviceName} / ${stepName}`
+    }
+  };
+
+  try {
+    const response = await fetch(`${DT_ENVIRONMENT}/api/v2/events/ingest`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Api-Token ${DT_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventPayload)
+    });
+    const result = await response.text();
+    console.log(`[dynatrace-sdk] Feature flag custom event sent: ${response.status}`, result);
+    return { success: response.ok, status: response.status };
+  } catch (err) {
+    console.error('[dynatrace-sdk] Failed to send feature flag custom event:', err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
  * Enhanced error wrapper that captures errors for Dynatrace tracing
  */
 class TracedError extends Error {
@@ -227,5 +308,6 @@ module.exports = {
   markSpanAsFailed,
   reportError,
   sendErrorEvent,
+  sendFeatureFlagCustomEvent,
   addCustomAttributes
 };

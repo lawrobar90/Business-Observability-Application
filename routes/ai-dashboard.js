@@ -15,6 +15,21 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { performance } from 'perf_hooks';
+import {
+  getProvenVariables,
+  buildProvenDashboard,
+  getJourneyOverviewTiles,
+  getFilteredViewTiles,
+  getPerformanceTiles,
+  getGoldenSignalTiles,
+  getObservabilityTiles,
+  getSectionHeaders,
+  getHeaderMarkdown,
+  getJourneyFlowMarkdown,
+  getDeepLinksMarkdown,
+  getFooterMarkdown,
+  PROVEN_LAYOUT
+} from '../templates/dql/proven-dashboard-template.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -135,7 +150,22 @@ function detectPayloadFields(journeyData) {
     hasConversion: false,
     hasChannel: false,
     hasServices: false,
-    hasCurrency: false
+    hasCurrency: false,
+    hasPricing: false,
+    hasRisk: false,
+    hasFraud: false,
+    hasCompliance: false,
+    hasEngagement: false,
+    hasSatisfaction: false,
+    hasRetention: false,
+    hasProduct: false,
+    hasOperational: false,
+    hasForecast: false,
+    hasAcquisition: false,
+    hasUpsell: false,
+    hasBrowser: false,
+    hasSubscription: false,
+    hasMembership: false
   };
 
   // ---- Scan additionalFields ----
@@ -197,6 +227,21 @@ function detectPayloadFields(journeyData) {
   detected.hasConversion = allKeys.some(k => k.includes('conversion') || k.includes('funnel'));
   detected.hasChannel = allKeys.some(k => k.includes('channel') || k.includes('acquisition') || k.includes('entrychannel') || k.includes('campaign'));
   detected.hasCurrency = allKeys.some(k => k.includes('currency'));
+  detected.hasPricing = allKeys.some(k => k.includes('pricing') || k.includes('pricetier') || k.includes('pricingtier') || k.includes('contractvalue') || k.includes('annualrevenue'));
+  detected.hasRisk = allKeys.some(k => k.includes('risklevel') || k.includes('riskrating') || k.includes('securityrating'));
+  detected.hasFraud = allKeys.some(k => k.includes('fraud'));
+  detected.hasCompliance = allKeys.some(k => k.includes('compliance'));
+  detected.hasEngagement = allKeys.some(k => k.includes('engagement') || k.includes('pageview') || k.includes('sessionduration'));
+  detected.hasSatisfaction = allKeys.some(k => k.includes('satisfaction') || k.includes('rating') || k.includes('csat'));
+  detected.hasRetention = allKeys.some(k => k.includes('retention') || k.includes('purchasefrequency'));
+  detected.hasProduct = allKeys.some(k => k.includes('product') || k.includes('sku'));
+  detected.hasOperational = allKeys.some(k => k.includes('operationalcost') || k.includes('efficiency') || k.includes('utilization') || k.includes('costperacquisition'));
+  detected.hasForecast = allKeys.some(k => k.includes('growthpotential') || k.includes('futurevalue') || k.includes('expansion') || k.includes('markettrend') || k.includes('seasonal'));
+  detected.hasAcquisition = allKeys.some(k => k.includes('acquisitioncost') || k.includes('costperacquisition'));
+  detected.hasUpsell = allKeys.some(k => k.includes('upsell') || k.includes('crosssell'));
+  detected.hasBrowser = allKeys.some(k => k.includes('browser'));
+  detected.hasSubscription = allKeys.some(k => k.includes('subscription'));
+  detected.hasMembership = allKeys.some(k => k.includes('membership'));
 
   return detected;
 }
@@ -224,6 +269,21 @@ function formatFieldsForPrompt(detected) {
   if (detected.hasConversion) flags.push('🎯 Conversion data');
   if (detected.hasChannel) flags.push('📡 Channel/Acquisition');
   if (detected.hasServices) flags.push('🔧 Service names');
+  if (detected.hasPricing) flags.push('💳 Pricing/Tiers');
+  if (detected.hasRisk) flags.push('🛡️ Risk levels');
+  if (detected.hasFraud) flags.push('🚨 Fraud detection');
+  if (detected.hasCompliance) flags.push('📋 Compliance');
+  if (detected.hasEngagement) flags.push('📊 Engagement');
+  if (detected.hasSatisfaction) flags.push('😊 Satisfaction/Ratings');
+  if (detected.hasRetention) flags.push('🔄 Retention');
+  if (detected.hasProduct) flags.push('📦 Product data');
+  if (detected.hasOperational) flags.push('⚙️ Operational metrics');
+  if (detected.hasForecast) flags.push('🔮 Forecast/Growth');
+  if (detected.hasAcquisition) flags.push('🎯 Acquisition cost');
+  if (detected.hasUpsell) flags.push('📈 Upsell/Cross-sell');
+  if (detected.hasBrowser) flags.push('🌐 Browser data');
+  if (detected.hasSubscription) flags.push('📰 Subscription');
+  if (detected.hasMembership) flags.push('🏅 Membership');
   if (flags.length > 0) lines.push(`DATA SIGNALS: ${flags.join(', ')}`);
   return lines.join('\n');
 }
@@ -247,7 +307,7 @@ function generateDynamicFieldTiles(detected, company, journeyType) {
 
     dynamicTiles[tileKey] = {
       name: `📊 ${prettyName} Distribution`,
-      query: `fetch bizevents | ${baseFilter} | filter json.industryType == $JourneyType or $JourneyType == "*" | summarize count = count(), by: {${field.dqlField}} | sort count desc | limit 10`,
+      query: `fetch bizevents | ${baseFilter} | filter json.journeyType == $JourneyType or $JourneyType == "*" | summarize count = count(), by: {${field.dqlField}} | sort count desc | limit 10`,
       visualization: 'donutChart',
       visualizationSettings: {
         chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
@@ -274,7 +334,7 @@ function generateDynamicFieldTiles(detected, company, journeyType) {
 
     dynamicTiles[tileKey] = {
       name: `${isCurrency ? '💰' : isPercentage ? '📊' : '📈'} Avg ${prettyName}`,
-      query: `fetch bizevents | ${baseFilter} | filter json.industryType == $JourneyType or $JourneyType == "*" | filter in(json.stepName, $Step) | summarize value = avg(toDouble(${field.dqlField}))`,
+      query: `fetch bizevents | ${baseFilter} | filter json.journeyType == $JourneyType or $JourneyType == "*" | filter in(json.stepName, $Step) | summarize value = avg(toDouble(${field.dqlField}))`,
       visualization: viz,
       visualizationSettings: {
         singleValue: viz === 'singleValue' ? { label: prettyName.toUpperCase(), recordField: 'value', colorThresholdTarget: 'background' } : undefined,
@@ -283,6 +343,339 @@ function generateDynamicFieldTiles(detected, company, journeyType) {
       }
     };
   });
+
+  // ---- FLAG-BASED SMART TILES ----
+  // Generate specialized tiles based on detected boolean flags
+  const varFilter = `${baseFilter} | filter json.journeyType == $JourneyType or $JourneyType == "*"`;
+  const stepVarFilter = `${varFilter} | filter in(json.stepName, $Step)`;
+
+  if (detected.hasNPS) {
+    dynamicTiles['flag_nps_gauge'] = {
+      name: '📊 Net Promoter Score',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.netPromoterScore))`,
+      visualization: 'gauge',
+      visualizationSettings: {
+        gauge: { label: 'NPS', min: 0, max: 100 },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 70 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 40 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 40 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'unspecified', baseUnit: 'count', decimals: 0, suffix: '', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_nps_by_step'] = {
+      name: '📊 NPS by Journey Step',
+      query: `fetch bizevents | ${varFilter} | summarize AvgNPS = avg(toDouble(additionalfields.netPromoterScore)), by: {json.stepName} | sort AvgNPS desc`,
+      visualization: 'categoricalBarChart',
+      visualizationSettings: { chartSettings: { categoricalBarChartSettings: {} }, thresholds: [], unitsOverrides: [] }
+    };
+  }
+
+  if (detected.hasSatisfaction) {
+    dynamicTiles['flag_satisfaction_gauge'] = {
+      name: '😊 Customer Satisfaction',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.satisfactionRating))`,
+      visualization: 'gauge',
+      visualizationSettings: {
+        gauge: { label: 'CSAT', min: 0, max: 5 },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 4 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 3 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 3 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'unspecified', baseUnit: 'count', decimals: 1, suffix: '/5', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasChurnRisk) {
+    dynamicTiles['flag_churn_distribution'] = {
+      name: '⚠️ Churn Risk Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.churnRisk} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+    dynamicTiles['flag_churn_high_count'] = {
+      name: '🚨 High Churn Risk Count',
+      query: `fetch bizevents | ${varFilter} | summarize value = countIf(additionalfields.churnRisk == "high")`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'HIGH CHURN RISK', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#c62239' }, comparator: '>', value: 5 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '>', value: 2 },
+          { id: 3, color: { Default: '#2ab06f' }, comparator: '≤', value: 2 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'unspecified', baseUnit: 'count', decimals: 0, suffix: '', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasEngagement) {
+    dynamicTiles['flag_engagement_score'] = {
+      name: '📊 Avg Engagement Score',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.engagementScore))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'ENGAGEMENT SCORE', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 80 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 60 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 60 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'unspecified', baseUnit: 'count', decimals: 1, suffix: '', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_engagement_trend'] = {
+      name: '📈 Engagement Over Time',
+      query: `fetch bizevents | ${varFilter} | makeTimeseries value = avg(toDouble(additionalfields.engagementScore)), bins:30`,
+      visualization: 'lineChart',
+      visualizationSettings: {
+        chartSettings: { gapPolicy: 'connect', seriesOverrides: [{ seriesId: ['value'], override: { color: '#478ACA' } }] },
+        thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasRisk) {
+    dynamicTiles['flag_risk_distribution'] = {
+      name: '🛡️ Risk Level Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.riskLevel} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+    dynamicTiles['flag_security_rating'] = {
+      name: '🔒 Security Rating Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.securityRating} | sort count desc`,
+      visualization: 'categoricalBarChart',
+      visualizationSettings: { chartSettings: { categoricalBarChartSettings: {} }, thresholds: [], unitsOverrides: [] }
+    };
+  }
+
+  if (detected.hasFraud) {
+    dynamicTiles['flag_fraud_distribution'] = {
+      name: '🚨 Fraud Risk Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.fraudRisk} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasCompliance) {
+    dynamicTiles['flag_compliance_gauge'] = {
+      name: '📋 Compliance Score',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.complianceScore))`,
+      visualization: 'gauge',
+      visualizationSettings: {
+        gauge: { label: 'COMPLIANCE', min: 0, max: 100 },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 90 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 75 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 75 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'percentage', baseUnit: 'percent', decimals: 1, suffix: '%', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasRetention) {
+    dynamicTiles['flag_retention_rate'] = {
+      name: '🔄 Avg Retention Probability',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.retentionProbability)) * 100`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'RETENTION RATE', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 80 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 60 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 60 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'percentage', baseUnit: 'percent', decimals: 1, suffix: '%', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_purchase_frequency'] = {
+      name: '🛒 Avg Purchase Frequency',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.purchaseFrequency))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'PURCHASE FREQUENCY', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'unspecified', baseUnit: 'count', decimals: 1, suffix: 'x', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasPricing) {
+    dynamicTiles['flag_pricing_tier'] = {
+      name: '💳 Pricing Tier Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.pricingTier} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+    dynamicTiles['flag_avg_contract'] = {
+      name: '💰 Avg Contract Value',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.contractValue))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'AVG CONTRACT', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'currency', baseUnit: 'usd', decimals: 0, suffix: '$', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasProduct) {
+    dynamicTiles['flag_product_distribution'] = {
+      name: '📦 Product Type Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.ProductType} | sort count desc | limit 10`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasOperational) {
+    dynamicTiles['flag_efficiency'] = {
+      name: '⚙️ Avg Efficiency Rating',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.efficiencyRating))`,
+      visualization: 'gauge',
+      visualizationSettings: {
+        gauge: { label: 'EFFICIENCY', min: 0, max: 100 },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 85 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 70 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 70 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'percentage', baseUnit: 'percent', decimals: 1, suffix: '%', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_operational_cost'] = {
+      name: '💸 Avg Operational Cost',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.operationalCost))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'OPS COST', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'currency', baseUnit: 'usd', decimals: 0, suffix: '$', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasForecast) {
+    dynamicTiles['flag_growth_potential'] = {
+      name: '🔮 Avg Growth Potential',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.growthPotential))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'GROWTH POTENTIAL', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'currency', baseUnit: 'usd', decimals: 0, suffix: '$', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_market_trend'] = {
+      name: '📈 Market Trend Distribution',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.marketTrend} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasAcquisition) {
+    dynamicTiles['flag_avg_acquisition_cost'] = {
+      name: '🎯 Avg Acquisition Cost',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.acquisitionCost))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'ACQ COST', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'currency', baseUnit: 'usd', decimals: 0, suffix: '$', delimiter: true }]
+      }
+    };
+  }
+
+  if (detected.hasUpsell) {
+    dynamicTiles['flag_upsell_potential'] = {
+      name: '📈 Avg Upsell Potential',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.upsellPotential))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'UPSELL POTENTIAL', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'currency', baseUnit: 'usd', decimals: 0, suffix: '$', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_crosssell_distribution'] = {
+      name: '🔀 Cross-Sell Opportunity',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.crossSellOpportunity} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasSubscription) {
+    dynamicTiles['flag_subscription_distribution'] = {
+      name: '📰 Subscription Level',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.subscriptionLevel} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasMembership) {
+    dynamicTiles['flag_membership_distribution'] = {
+      name: '🏅 Membership Status',
+      query: `fetch bizevents | ${varFilter} | summarize count = count(), by: {additionalfields.membershipStatus} | sort count desc`,
+      visualization: 'donutChart',
+      visualizationSettings: {
+        chartSettings: { circleChartSettings: { valueType: 'relative', showTotalValue: true } },
+        legend: { ratio: 27 }, thresholds: [], unitsOverrides: []
+      }
+    };
+  }
+
+  if (detected.hasConversion) {
+    dynamicTiles['flag_conversion_rate'] = {
+      name: '🎯 Avg Conversion Rate',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.conversionRate)) * 100`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'CONVERSION RATE', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [{ id: 1, field: 'value', isEnabled: true, rules: [
+          { id: 1, color: { Default: '#2ab06f' }, comparator: '≥', value: 10 },
+          { id: 2, color: { Default: '#f5d30f' }, comparator: '≥', value: 5 },
+          { id: 3, color: { Default: '#c62239' }, comparator: '<', value: 5 }
+        ]}],
+        unitsOverrides: [{ identifier: 'value', unitCategory: 'percentage', baseUnit: 'percent', decimals: 1, suffix: '%', delimiter: true }]
+      }
+    };
+    dynamicTiles['flag_time_to_conversion'] = {
+      name: '⏱️ Avg Time to Conversion',
+      query: `fetch bizevents | ${varFilter} | summarize value = avg(toDouble(additionalfields.timeToConversion))`,
+      visualization: 'singleValue',
+      visualizationSettings: {
+        singleValue: { label: 'TIME TO CONVERT', recordField: 'value', colorThresholdTarget: 'background' },
+        thresholds: [], unitsOverrides: [{ identifier: 'value', unitCategory: 'time', baseUnit: 'minute', decimals: 1, suffix: ' min', delimiter: true }]
+      }
+    };
+  }
 
   return dynamicTiles;
 }
@@ -293,8 +686,8 @@ function generateDynamicFieldTiles(detected, company, journeyType) {
 
 function generateCoreTileTemplates(company, journeyType, steps, dynatraceUrl) {
   const baseFilter = `filter event.kind == "BIZ_EVENT" | filter json.companyName == "${company}"`;
-  const journeyFilter = `${baseFilter} | filter json.industryType == "${journeyType}"`;
-  const varFilter = `${baseFilter} | filter json.industryType == $JourneyType or $JourneyType == "*"`;
+  const journeyFilter = `${baseFilter} | filter json.journeyType == "${journeyType}"`;
+  const varFilter = `${baseFilter} | filter json.journeyType == $JourneyType or $JourneyType == "*"`;
   const stepFilter = `${varFilter} | filter in(json.stepName, $Step)`;
 
   return {
@@ -801,44 +1194,19 @@ function generateCoreTileTemplates(company, journeyType, steps, dynatraceUrl) {
 }
 
 // ============================================================================
-// VARIABLE GENERATOR
+// VARIABLE GENERATOR (uses proven template from working dashboard)
 // ============================================================================
 
 function generateVariables(company) {
-  return [
-    {
-      key: 'CompanyName', visible: true, type: 'query', version: 2, editable: true, multiple: false,
-      input: `fetch bizevents | filter event.kind == "BIZ_EVENT" | filter json.companyName == "${company}" | fields json.companyName | dedup json.companyName`
-    },
-    {
-      key: 'JourneyType', visible: true, type: 'query', version: 2, editable: true, multiple: true,
-      input: `fetch bizevents | filter event.kind == "BIZ_EVENT" | filter json.companyName == "${company}" | fields json.industryType | dedup json.industryType`
-    },
-    {
-      key: 'Step', visible: true, type: 'query', version: 2, editable: true, multiple: true,
-      input: `fetch bizevents | filter event.kind == "BIZ_EVENT" | filter in(json.industryType, $JourneyType) | filter json.companyName == "${company}" | fields json.stepName | dedup json.stepName`
-    },
-    {
-      key: 'Service', visible: true, type: 'query', version: 2, editable: true, multiple: false,
-      input: 'fetch dt.entity.service | fields id, entity.name | sort entity.name asc'
-    },
-    {
-      key: 'ServiceID', visible: true, type: 'query', version: 2, editable: true, multiple: false,
-      input: 'fetch dt.entity.service | filter entity.name == $Service | fields id'
-    }
-  ];
+  return getProvenVariables(company);
 }
 
 // ============================================================================
-// MARKDOWN SECTION HEADERS
+// MARKDOWN SECTION HEADERS (uses proven templates)
 // ============================================================================
 
 function generateMarkdownTiles(company, journeyType, steps, detected) {
-  const stepFlow = (steps || []).map((s, i) => {
-    const label = s.name || s.stepName || `Step ${i + 1}`;
-    const cat = s.category ? ` (${s.category})` : '';
-    return `**${i + 1}. ${label}**${cat}`;
-  }).join(' **→** ');
+  const dynatraceUrl = process.env.DT_ENVIRONMENT_URL || process.env.DYNATRACE_URL || 'https://your-environment.apps.dynatrace.com';
 
   const detectedSummary = [];
   if (detected.hasRevenue) detectedSummary.push('💰 Revenue');
@@ -848,29 +1216,15 @@ function generateMarkdownTiles(company, journeyType, steps, detected) {
   if (detected.hasChannel) detectedSummary.push('📡 Channels');
   if (detected.hasDeviceType) detectedSummary.push('📱 Devices');
   if (detected.hasServices) detectedSummary.push('🔧 Services');
-  const dataSignals = detectedSummary.length > 0 ? `\n**Data Signals Detected:** ${detectedSummary.join(' | ')}` : '';
+  const dataSignals = detectedSummary.length > 0 ? detectedSummary.join(' | ') : '🔧 Services';
+
+  const sectionHeaders = getSectionHeaders();
 
   return {
-    header: { type: 'markdown', content: `# ${company}\n## ${journeyType} - Business Observability Dashboard\n\n**Industry:** ${journeyType} | **Dashboard Type:** AI-Generated Bespoke Analytics${dataSignals}` },
-    journey_flow: { type: 'markdown', content: `## 🔄 Customer Journey Flow\n\n${stepFlow}\n\n---\n*End-to-end journey visualization with step-by-step metrics*` },
-    section_overall: {
-      type: 'data', title: '',
-      query: 'data record(a="Overall Journey Performance - All Steps")',
-      visualization: 'singleValue',
-      visualizationSettings: {
-        singleValue: { labelMode: 'none', isIconVisible: true, prefixIcon: 'RocketIcon', colorThresholdTarget: 'background' },
-        thresholds: [{ id: 1, field: 'a', isEnabled: true, rules: [{ id: 1, color: '#478ACA', comparator: '!=', value: 'x' }] }]
-      }
-    },
-    section_filtered: {
-      type: 'data', title: '',
-      query: 'data record(a="Filtered View - By Selected Step")',
-      visualization: 'singleValue',
-      visualizationSettings: {
-        singleValue: { labelMode: 'none', isIconVisible: true, prefixIcon: 'FilterIcon', colorThresholdTarget: 'background' },
-        thresholds: [{ id: 1, field: 'a', isEnabled: true, rules: [{ id: 1, color: '#7C38A1', comparator: '!=', value: 'x' }] }]
-      }
-    },
+    header: getHeaderMarkdown(company, journeyType, dataSignals),
+    journey_flow: getJourneyFlowMarkdown(steps),
+    section_overall: sectionHeaders.overall,
+    section_filtered: sectionHeaders.filtered,
     section_dynamic: {
       type: 'data', title: '',
       query: 'data record(a="Business Intelligence - Detected Data Fields")',
@@ -880,172 +1234,101 @@ function generateMarkdownTiles(company, journeyType, steps, detected) {
         thresholds: [{ id: 1, field: 'a', isEnabled: true, rules: [{ id: 1, color: '#E87A35', comparator: '!=', value: 'x' }] }]
       }
     },
-    section_performance: {
-      type: 'data', title: '',
-      query: 'data record(a="Performance & Operations")',
-      visualization: 'singleValue',
-      visualizationSettings: {
-        singleValue: { labelMode: 'none', isIconVisible: true, prefixIcon: 'ChartLineIcon', colorThresholdTarget: 'background' },
-        thresholds: [{ id: 1, field: 'a', isEnabled: true, rules: [{ id: 1, color: '#2AB06F', comparator: '!=', value: 'x' }] }]
-      }
-    },
-    section_service_infra: {
-      type: 'data', title: '',
-      query: 'data record(a="Service & Infrastructure Observability")',
-      visualization: 'singleValue',
-      visualizationSettings: {
-        singleValue: { labelMode: 'none', isIconVisible: true, prefixIcon: 'ServerIcon', colorThresholdTarget: 'background' },
-        thresholds: [{ id: 1, field: 'a', isEnabled: true, rules: [{ id: 1, color: '#7C3AED', comparator: '!=', value: 'x' }] }]
-      }
-    },
-    footer: { type: 'markdown', content: `*Dashboard auto-generated by BizObs Engine* | Monitoring ${company} journey performance across all touchpoints` }
+    section_performance: sectionHeaders.performance,
+    section_traffic: sectionHeaders.traffic,
+    section_latency: sectionHeaders.latency,
+    section_errors: sectionHeaders.errors,
+    section_saturation: sectionHeaders.saturation,
+    deep_links: getDeepLinksMarkdown(dynatraceUrl),
+    footer: getFooterMarkdown(company)
   };
 }
 
 // ============================================================================
-// DASHBOARD LAYOUT BUILDER
+// DASHBOARD LAYOUT BUILDER (uses proven template from working dashboard)
 // ============================================================================
 
 function buildDashboardLayout(coreTiles, dynamicTiles, markdownTiles, variables, company, journeyType, industry, aiSelectedTiles, detected) {
-  const dashboardJson = {
-    version: 21,
-    variables: variables,
-    tiles: {},
-    layouts: {},
-    settings: { defaultTimeframe: { value: { from: 'now()-24h', to: 'now()' }, enabled: true } }
-  };
+  const { company: _c, industry: _i, journeyType: _jt, steps, ...rest } = { company, industry, journeyType };
+  
+  // Use the proven template as the base — this gives us the exact same layout
+  // as the working manufacturing dashboard
+  const dashboard = buildProvenDashboard(company, journeyType, rest.steps || [], detected);
 
-  let y = 0;
-  let tileIndex = 0;
+  // Override variables with the ones generated for this company
+  dashboard.variables = variables;
 
-  const addDataTile = (template, x, width, height) => {
-    if (!template) return;
-    if (template.type === 'markdown') {
-      dashboardJson.tiles[tileIndex] = { title: template.name, type: 'markdown', content: template.content };
-    } else {
-      dashboardJson.tiles[tileIndex] = {
+  // If there are dynamic field tiles (from payload detection), append them after
+  // the Performance section but before the Golden Signals
+  const dynamicKeys = Object.keys(dynamicTiles);
+  if (dynamicKeys.length > 0) {
+    // Find the highest existing tile index
+    const existingIndices = Object.keys(dashboard.tiles).map(Number);
+    let nextIdx = Math.max(...existingIndices) + 1;
+
+    // Find the golden signals section Y position to insert dynamic tiles before it
+    const goldenY = PROVEN_LAYOUT.section_traffic?.y || 42;
+
+    // Shift all tiles at or below goldenY down to make room for dynamic tiles
+    const dynamicRowCount = Math.ceil(dynamicKeys.length / 3);
+    const dynamicHeight = (dynamicRowCount * 4) + 1; // 1 for section header + 4 per row
+
+    // Shift existing layouts down
+    Object.keys(dashboard.layouts).forEach(idx => {
+      if (dashboard.layouts[idx].y >= goldenY) {
+        dashboard.layouts[idx].y += dynamicHeight;
+      }
+    });
+
+    // Add dynamic section header
+    dashboard.tiles[nextIdx] = markdownTiles.section_dynamic;
+    dashboard.layouts[nextIdx] = { x: 0, y: goldenY, w: 24, h: 1 };
+    nextIdx++;
+
+    // Add dynamic tiles in 3-column grid
+    let dy = goldenY + 1;
+    let colIndex = 0;
+    dynamicKeys.forEach(key => {
+      const template = dynamicTiles[key];
+      dashboard.tiles[nextIdx] = {
         title: template.name, type: 'data', query: template.query,
         visualization: template.visualization, visualizationSettings: template.visualizationSettings,
         querySettings: { maxResultRecords: 1000, defaultScanLimitGbytes: 500, maxResultMegaBytes: 1, defaultSamplingRatio: 10, enableSampling: false },
         davis: { enabled: false, davisVisualization: { isAvailable: true } }
       };
-    }
-    dashboardJson.layouts[tileIndex] = { x, y, w: width, h: height };
-    tileIndex++;
-  };
-
-  const addSectionTile = (tile, height = 1) => {
-    dashboardJson.tiles[tileIndex] = tile;
-    dashboardJson.layouts[tileIndex] = { x: 0, y, w: 24, h: height };
-    y += height;
-    tileIndex++;
-  };
-
-  // ---- HEADER ----
-  addSectionTile(markdownTiles.header, 3);
-  addSectionTile(markdownTiles.journey_flow, 3);
-
-  // ---- STEP METRICS TABLE ----
-  addDataTile(coreTiles['step_metrics'], 0, 24, 6);
-  y += 6;
-
-  // ---- OVERALL JOURNEY PERFORMANCE ----
-  addSectionTile(markdownTiles.section_overall);
-  ['total_volume', 'success_rate', 'business_value', 'error_count'].forEach((key, i) => {
-    addDataTile(coreTiles[key], i * 6, 6, 3);
-  });
-  y += 3;
-  addDataTile(coreTiles['volume_trend'], 0, 12, 4);
-  addDataTile(coreTiles['conversion_funnel'], 12, 12, 4);
-  y += 4;
-
-  // ---- FILTERED VIEW ----
-  addSectionTile(markdownTiles.section_filtered);
-  ['total_volume_filtered', 'business_value_filtered', 'avg_order_value_filtered', 'step_duration_percentiles'].forEach((key, i) => {
-    addDataTile(coreTiles[key], i * 6, 6, 3);
-  });
-  y += 3;
-  addDataTile(coreTiles['volume_trend_filtered'], 0, 12, 4);
-  addDataTile(coreTiles['conversion_funnel_filtered'], 12, 12, 4);
-  y += 4;
-
-  // ---- DYNAMIC FIELD TILES ----
-  const dynamicKeys = Object.keys(dynamicTiles);
-  if (dynamicKeys.length > 0) {
-    addSectionTile(markdownTiles.section_dynamic);
-    let colIndex = 0;
-    dynamicKeys.forEach((key) => {
-      addDataTile(dynamicTiles[key], colIndex * 8, 8, 4);
+      dashboard.layouts[nextIdx] = { x: colIndex * 8, y: dy, w: 8, h: 4 };
+      nextIdx++;
       colIndex++;
-      if (colIndex >= 3) { colIndex = 0; y += 4; }
+      if (colIndex >= 3) { colIndex = 0; dy += 4; }
     });
-    if (colIndex > 0) y += 4;
   }
 
-  // ---- PERFORMANCE & OPERATIONS ----
-  addSectionTile(markdownTiles.section_performance);
-  addDataTile(coreTiles['step_performance'], 0, 12, 5);
-  addDataTile(coreTiles['sla_compliance'], 12, 12, 5);
-  y += 5;
-  addDataTile(coreTiles['error_rate_trend'], 0, 12, 4);
-  addDataTile(coreTiles['error_analysis'], 12, 12, 4);
-  y += 4;
-  addDataTile(coreTiles['error_types'], 0, 12, 4);
-  addDataTile(coreTiles['hourly_pattern'], 12, 12, 4);
-  y += 4;
-
-  // Extra performance tiles from AI
-  const extraPerfTiles = (aiSelectedTiles || []).filter(k =>
-    ['abandonment_analysis', 'step_funnel_dropoff', 'daily_comparison', 'peak_hours', 'top_errors'].includes(k) && coreTiles[k]
-  );
-  for (let i = 0; i < extraPerfTiles.length; i += 2) {
-    const w = extraPerfTiles[i + 1] ? 12 : 24;
-    addDataTile(coreTiles[extraPerfTiles[i]], 0, w, 4);
-    if (extraPerfTiles[i + 1]) addDataTile(coreTiles[extraPerfTiles[i + 1]], 12, 12, 4);
-    y += 4;
-  }
-
-  // ---- SERVICE & INFRASTRUCTURE ----
-  addSectionTile(markdownTiles.section_service_infra);
-  addDataTile(coreTiles['service_health_table'], 0, 24, 5);
-  y += 5;
-  addDataTile(coreTiles['service_response_time'], 0, 12, 5);
-  addDataTile(coreTiles['http_error_breakdown'], 12, 12, 5);
-  y += 5;
-  addDataTile(coreTiles['exception_analysis_table'], 0, 24, 5);
-  y += 5;
-  addDataTile(coreTiles['service_throughput'], 0, 12, 4);
-  addDataTile(coreTiles['failure_rate_timeseries'], 12, 12, 4);
-  y += 4;
-  addDataTile(coreTiles['process_cpu_usage'], 0, 12, 4);
-  addDataTile(coreTiles['process_memory_usage'], 12, 12, 4);
-  y += 4;
-  addDataTile(coreTiles['davis_problems'], 0, 12, 5);
-  addDataTile(coreTiles['log_errors'], 12, 12, 5);
-  y += 5;
-  addDataTile(coreTiles['trace_links_panel'], 0, 24, 4);
-  y += 4;
-
-  // Footer
-  addSectionTile(markdownTiles.footer, 1);
-
-  console.log(`[AI Dashboard] ✅ Layout complete: ${tileIndex} tiles, dynamic: ${dynamicKeys.length}, height: ${y}`);
-  return dashboardJson;
+  const tileCount = Object.keys(dashboard.tiles).length;
+  console.log(`[AI Dashboard] ✅ Proven layout: ${tileCount} tiles, dynamic: ${dynamicKeys.length}`);
+  return dashboard;
 }
 
 // ============================================================================
-// FALLBACK DASHBOARD (no Ollama)
+// FALLBACK DASHBOARD (no Ollama) - uses proven template
 // ============================================================================
 
 function generateDashboardStructure(journeyData) {
   const { company, industry, journeyType, steps } = journeyData;
-  const dynatraceUrl = process.env.DT_ENVIRONMENT_URL || process.env.DYNATRACE_URL || 'https://your-environment.apps.dynatrace.com';
   const detected = detectPayloadFields(journeyData);
-  const coreTiles = generateCoreTileTemplates(company, journeyType, steps, dynatraceUrl);
   const dynamicTiles = generateDynamicFieldTiles(detected, company, journeyType);
   const markdownTiles = generateMarkdownTiles(company, journeyType, steps, detected);
   const variables = generateVariables(company);
-  return buildDashboardLayout(coreTiles, dynamicTiles, markdownTiles, variables, company, journeyType, industry, [], detected);
+
+  // Build from proven template (same structure as working manufacturing dashboard)
+  const dashboard = buildProvenDashboard(company, journeyType, steps, detected);
+
+  // Merge dynamic tiles if any
+  const dynamicKeys = Object.keys(dynamicTiles);
+  if (dynamicKeys.length > 0) {
+    return buildDashboardLayout({}, dynamicTiles, markdownTiles, variables, company, journeyType, industry, [], detected);
+  }
+
+  return dashboard;
 }
 
 // ============================================================================
@@ -1059,7 +1342,6 @@ async function generateDashboardWithAI(journeyData, skills) {
   }
 
   const { company, industry, journeyType, steps } = journeyData;
-  const dynatraceUrl = process.env.DT_ENVIRONMENT_URL || process.env.DYNATRACE_URL || 'https://your-environment.apps.dynatrace.com';
 
   // STEP 1: Detect all fields
   const detected = detectPayloadFields(journeyData);
@@ -1072,15 +1354,13 @@ async function generateDashboardWithAI(journeyData, skills) {
   console.log(`  Booleans: ${detected.booleanFields.map(f => f.key).join(', ') || 'none'}`);
   console.log(`  Services: ${serviceNames.join(', ') || 'none'}`);
 
-  // STEP 2: Generate tile templates
-  const coreTiles = generateCoreTileTemplates(company, journeyType, steps, dynatraceUrl);
+  // STEP 2: Generate dynamic field tiles (custom to payload)
   const dynamicTiles = generateDynamicFieldTiles(detected, company, journeyType);
   const dynamicKeys = Object.keys(dynamicTiles);
 
-  // STEP 3: Build LLM prompt
+  // STEP 3: Build LLM prompt — now the LLM knows about the proven template structure
   const stepsText = (steps || []).map(s => `${s.name || s.stepName}${s.category ? ` [${s.category}]` : ''}`).join(', ');
 
-  // Keep prompt concise for fast LLM response
   const dataSignals = [];
   if (detected.hasRevenue) dataSignals.push('revenue');
   if (detected.hasLoyalty) dataSignals.push('loyalty');
@@ -1088,12 +1368,21 @@ async function generateDashboardWithAI(journeyData, skills) {
   if (detected.hasConversion) dataSignals.push('conversion');
   if (detected.hasChannel) dataSignals.push('channels');
 
-  const prompt = `Select 6-8 tiles for a ${industry} ${journeyType} dashboard. Steps: ${stepsText}. Data: ${dataSignals.join(', ') || 'standard'}.
-Tiles: step_performance, response_time, error_analysis, error_types, top_errors, hourly_pattern, step_funnel_dropoff, abandonment_analysis, daily_comparison, sla_compliance, peak_hours, error_rate_trend, completion_time
-Respond with ONLY this JSON, no other text: {"tiles":["name1","name2"]}`;  
+  const prompt = `You are building a BizObs dashboard for ${industry} - ${journeyType}.
+Steps: ${stepsText}. Data: ${dataSignals.join(', ') || 'standard'}.
+${fieldPromptText}
+The dashboard uses a proven template with these sections:
+1. Journey Overview (step metrics table, KPI cards, volume/funnel charts)
+2. Filtered View (KPIs filtered by step)
+3. Performance & Ops (step perf, SLA, errors, hourly)
+4. Golden Signals (TRAFFIC/LATENCY/ERRORS/SATURATION with service-level timeseries)
+5. Traces & Observability (exceptions, Davis problems, logs)
+${dynamicKeys.length > 0 ? `6. Dynamic tiles detected from payload: ${dynamicKeys.join(', ')}` : ''}
+Given the industry "${industry}" and journey "${journeyType}", suggest a dashboard title and any industry-specific insights.
+Respond with ONLY this JSON: {"title":"Dashboard Title","insight":"One-sentence insight about this industry journey"}`;
 
   try {
-    console.log('[AI Dashboard] 🤖 Calling Ollama API...');
+    console.log('[AI Dashboard] 🤖 Calling Ollama API (proven template mode)...');
     console.log(`[AI Dashboard] Model: ${OLLAMA_MODEL}, Prompt: ${prompt.length} chars`);
 
     const startTime = performance.now();
@@ -1124,33 +1413,34 @@ Respond with ONLY this JSON, no other text: {"tiles":["name1","name2"]}`;
       console.log(`[AI Dashboard] Tokens - Prompt: ${result.prompt_eval_count || 0}, Completion: ${result.eval_count || 0}`);
       console.log(`[AI Dashboard] Raw: ${responseText.substring(0, 300)}`);
 
-      let aiData;
+      let aiData = {};
       try {
-        // Try direct parse first, then extract JSON from surrounding text
         try { aiData = JSON.parse(responseText); } catch (e) {
-          const jsonMatch = responseText.match(/\{[\s\S]*"tiles"[\s\S]*\}/);
+          const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
           if (jsonMatch) { aiData = JSON.parse(jsonMatch[0]); }
-          else { throw e; }
         }
       } catch (e) {
-        console.error('[AI Dashboard] JSON parse error:', responseText.substring(0, 500));
-        throw new Error('AI returned invalid JSON');
+        console.warn('[AI Dashboard] Could not parse AI response, using defaults');
       }
 
-      const aiSelectedTiles = Array.isArray(aiData.tiles) ? aiData.tiles.filter(key => coreTiles[key]) : [];
-      console.log(`[AI Dashboard] 🤖 AI selected: ${aiSelectedTiles.join(', ')}`);
-      if (aiData.reasoning) console.log(`[AI Dashboard] 💡 Reasoning: ${aiData.reasoning}`);
+      console.log(`[AI Dashboard] 🤖 AI title: ${aiData.title || 'N/A'}`);
+      if (aiData.insight) console.log(`[AI Dashboard] 💡 Insight: ${aiData.insight}`);
 
-      // STEP 4: Build dashboard
+      // STEP 4: Build dashboard from PROVEN TEMPLATE
+      const dashboard = buildProvenDashboard(company, journeyType, steps, detected);
       const markdownTiles = generateMarkdownTiles(company, journeyType, steps, detected);
       const variables = generateVariables(company);
-      const dashboardJson = buildDashboardLayout(coreTiles, dynamicTiles, markdownTiles, variables, company, journeyType, industry, aiSelectedTiles, detected);
+
+      // Merge dynamic tiles if any
+      if (dynamicKeys.length > 0) {
+        return buildDashboardLayout({}, dynamicTiles, markdownTiles, variables, company, journeyType, industry, [], detected);
+      }
 
       // Log GenAI span
       await logGenAISpan(createGenAISpan(prompt, responseText, OLLAMA_MODEL, result.prompt_eval_count || 0, result.eval_count || 0, duration));
       console.log('[AI Dashboard] 📊 GenAI span logged');
 
-      return dashboardJson;
+      return dashboard;
     } finally {
       clearTimeout(timeout);
     }
@@ -1225,7 +1515,16 @@ router.post('/generate', async (req, res) => {
           customerProfile: cpKeys,
           flags: {
             revenue: detected.hasRevenue, loyalty: detected.hasLoyalty, ltv: detected.hasLTV,
-            segments: detected.hasSegments, devices: detected.hasDeviceType, channel: detected.hasChannel
+            segments: detected.hasSegments, devices: detected.hasDeviceType, channel: detected.hasChannel,
+            nps: detected.hasNPS, churnRisk: detected.hasChurnRisk, conversion: detected.hasConversion,
+            pricing: detected.hasPricing, risk: detected.hasRisk, fraud: detected.hasFraud,
+            compliance: detected.hasCompliance, engagement: detected.hasEngagement,
+            satisfaction: detected.hasSatisfaction, retention: detected.hasRetention,
+            product: detected.hasProduct, operational: detected.hasOperational,
+            forecast: detected.hasForecast, acquisition: detected.hasAcquisition,
+            upsell: detected.hasUpsell, browser: detected.hasBrowser,
+            subscription: detected.hasSubscription, membership: detected.hasMembership,
+            services: detected.hasServices
           }
         },
         generatedAt: new Date().toISOString()
@@ -1294,7 +1593,19 @@ router.post('/preview', async (req, res) => {
           stringFields: detected.stringFields.map(f => f.key),
           numericFields: detected.numericFields.map(f => f.key),
           booleanFields: detected.booleanFields.map(f => f.key),
-          flags: { revenue: detected.hasRevenue, loyalty: detected.hasLoyalty, ltv: detected.hasLTV, segments: detected.hasSegments, devices: detected.hasDeviceType, channel: detected.hasChannel, services: detected.hasServices }
+          flags: {
+            revenue: detected.hasRevenue, loyalty: detected.hasLoyalty, ltv: detected.hasLTV,
+            segments: detected.hasSegments, devices: detected.hasDeviceType, channel: detected.hasChannel,
+            nps: detected.hasNPS, churnRisk: detected.hasChurnRisk, conversion: detected.hasConversion,
+            pricing: detected.hasPricing, risk: detected.hasRisk, fraud: detected.hasFraud,
+            compliance: detected.hasCompliance, engagement: detected.hasEngagement,
+            satisfaction: detected.hasSatisfaction, retention: detected.hasRetention,
+            product: detected.hasProduct, operational: detected.hasOperational,
+            forecast: detected.hasForecast, acquisition: detected.hasAcquisition,
+            upsell: detected.hasUpsell, browser: detected.hasBrowser,
+            subscription: detected.hasSubscription, membership: detected.hasMembership,
+            services: detected.hasServices
+          }
         },
         dynamicTilesGenerated: Object.keys(dynamicTiles),
         dynamicTileCount: Object.keys(dynamicTiles).length

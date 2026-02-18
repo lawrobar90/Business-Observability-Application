@@ -57,17 +57,18 @@ function nextChaosId(): string {
 const APP_BASE = `http://localhost:${process.env.PORT || 8080}`;
 
 async function callFeatureFlagAPI(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   body?: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const url = `${APP_BASE}${path}`;
   try {
-    const res = await fetch(url, {
+    const opts: RequestInit = {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    };
+    if (body && method !== 'GET') opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
     return (await res.json()) as Record<string, unknown>;
   } catch (err) {
     log.error(`Feature flag API call failed: ${method} ${path}`, { error: String(err) });
@@ -79,13 +80,18 @@ async function callRemediationAPI(
   flag: string,
   value: unknown,
   reason: string,
+  targetService?: string,
 ): Promise<Record<string, unknown>> {
-  return callFeatureFlagAPI('POST', '/api/remediation/feature-flag', {
+  const body: Record<string, unknown> = {
     flag,
     value,
     reason,
     triggeredBy: 'gremlin-agent',
-  });
+  };
+  if (targetService) {
+    body.targetService = targetService;
+  }
+  return callFeatureFlagAPI('POST', '/api/remediation/feature-flag', body);
 }
 
 // ─── Recipes ──────────────────────────────────────────────────
@@ -93,20 +99,51 @@ async function callRemediationAPI(
 const enableErrorsRecipe: ChaosRecipe = {
   type: 'enable_errors',
   name: 'Enable Error Injection',
-  description: 'Turns on errorInjectionEnabled so journey simulations produce errors. Uses the remediation API which sends Dynatrace deployment events.',
+  description: 'Enables error injection on a specific service (or all) by setting errors_per_transaction via per-service feature flag overrides. Intensity 1-10 maps to 10%-100% error rate.',
   async inject(params) {
     const id = nextChaosId();
-    log.info(`👹 Enabling error injection`, { id });
-    const before = await callRemediationAPI('errorInjectionEnabled', true, 'Gremlin: enabling error injection');
+    const intensity = params.intensity ?? 5;
+    const errorRate = Math.min(intensity / 10, 1.0);
+    const targetService = params.target && params.target !== 'default' ? params.target : undefined;
+    log.info(`👹 Enabling error injection (rate=${errorRate})`, { id, targetService: targetService || 'all' });
+
+    // Set errors_per_transaction via the feature flag API (System B) — this is what child services actually read
+    if (targetService) {
+      await callFeatureFlagAPI('POST', '/api/feature_flag', {
+        flags: { errors_per_transaction: errorRate },
+        targetService: targetService,
+        triggeredBy: 'gremlin-agent'
+      });
+    } else {
+      await callFeatureFlagAPI('POST', '/api/feature_flag', {
+        flags: { errors_per_transaction: errorRate },
+        triggeredBy: 'gremlin-agent'
+      });
+    }
+
+    // Also set the legacy remediation flag for DT event tracking
+    await callRemediationAPI('errorInjectionEnabled', true, `Gremlin: enabling error injection (rate=${errorRate})${targetService ? ` on ${targetService}` : ''}`, targetService);
+
     return {
-      chaosId: id, type: 'enable_errors', target: 'errorInjectionEnabled',
+      chaosId: id, type: 'enable_errors', target: targetService || 'all',
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousValue: (before as any).previousValue ?? false },
+      revertInfo: { errorRate, targetService },
       status: 'active',
     };
   },
   async revert(ctx) {
-    await callRemediationAPI('errorInjectionEnabled', ctx.revertInfo.previousValue ?? false, 'Gremlin revert: error injection');
+    const targetService = ctx.revertInfo.targetService as string | undefined;
+    if (targetService) {
+      // Remove per-service override — service falls back to safe defaults (errors_per_transaction=0)
+      await callFeatureFlagAPI('DELETE', `/api/feature_flag/service/${encodeURIComponent(targetService)}`);
+    } else {
+      // Reset global errors_per_transaction to 0
+      await callFeatureFlagAPI('POST', '/api/feature_flag', {
+        flags: { errors_per_transaction: 0 },
+        triggeredBy: 'gremlin-agent'
+      });
+    }
+    await callRemediationAPI('errorInjectionEnabled', false, 'Gremlin revert: error injection', targetService);
     log.info(`Reverted error injection`, { chaosId: ctx.chaosId });
   },
 };
@@ -114,29 +151,34 @@ const enableErrorsRecipe: ChaosRecipe = {
 const increaseErrorRateRecipe: ChaosRecipe = {
   type: 'increase_error_rate',
   name: 'Increase Error Rate',
-  description: 'Raises errors_per_transaction via the feature flag API. Intensity 1-10 maps to 10%-100% error rate.',
+  description: 'Raises errors_per_transaction for a SPECIFIC service via per-service targeting. Intensity 1-10 maps to 10%-100% error rate. Only the targeted service is affected.',
   async inject(params) {
     const id = nextChaosId();
     const intensity = params.intensity ?? 5;
     const newRate = Math.min(intensity / 10, 1.0);
-    log.info(`👹 Increasing error rate to ${newRate}`, { id, intensity });
+    const targetService = params.target || 'all';
+    log.info(`👹 Increasing error rate to ${newRate} for service: ${targetService}`, { id, intensity });
 
-    const current = await callFeatureFlagAPI('GET', '/api/feature_flag');
-    const prevRate = ((current as any).flags || {}).errors_per_transaction ?? 0.1;
-
-    await callFeatureFlagAPI('POST', '/api/feature_flag', { flags: { errors_per_transaction: newRate } });
-    await callRemediationAPI('errorInjectionEnabled', true, `Gremlin: error rate → ${newRate}`);
+    // Set per-service override so only the targeted service gets elevated errors
+    await callFeatureFlagAPI('POST', '/api/feature_flag', {
+      flags: { errors_per_transaction: newRate },
+      targetService: targetService,
+      triggeredBy: 'gremlin-agent'
+    });
+    await callRemediationAPI('errorInjectionEnabled', true, `Gremlin: error rate → ${newRate} on ${targetService}`, targetService);
 
     return {
-      chaosId: id, type: 'increase_error_rate', target: 'errors_per_transaction',
+      chaosId: id, type: 'increase_error_rate', target: targetService,
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousRate: prevRate },
+      revertInfo: { targetService },
       status: 'active',
     };
   },
   async revert(ctx) {
-    await callFeatureFlagAPI('POST', '/api/feature_flag', { flags: { errors_per_transaction: ctx.revertInfo.previousRate } });
-    log.info(`Reverted error rate to ${ctx.revertInfo.previousRate}`, { chaosId: ctx.chaosId });
+    const targetService = String(ctx.revertInfo.targetService || ctx.target);
+    // Remove per-service override — service falls back to safe defaults
+    await callFeatureFlagAPI('DELETE', `/api/feature_flag/service/${encodeURIComponent(targetService)}`);
+    log.info(`Reverted error rate for service: ${targetService}`, { chaosId: ctx.chaosId });
   },
 };
 
@@ -146,17 +188,19 @@ const slowResponsesRecipe: ChaosRecipe = {
   description: 'Turns on slowResponsesEnabled to simulate latency in journey steps.',
   async inject(params) {
     const id = nextChaosId();
-    log.info(`👹 Enabling slow responses`, { id });
-    const before = await callRemediationAPI('slowResponsesEnabled', true, 'Gremlin: enabling slow responses');
+    const targetService = params.target && params.target !== 'default' ? params.target : undefined;
+    log.info(`👹 Enabling slow responses`, { id, targetService: targetService || 'all' });
+    const before = await callRemediationAPI('slowResponsesEnabled', true, `Gremlin: enabling slow responses${targetService ? ` on ${targetService}` : ''}`, targetService);
     return {
-      chaosId: id, type: 'slow_responses', target: 'slowResponsesEnabled',
+      chaosId: id, type: 'slow_responses', target: targetService || 'slowResponsesEnabled',
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousValue: (before as any).previousValue ?? false },
+      revertInfo: { previousValue: (before as any).previousValue ?? false, targetService },
       status: 'active',
     };
   },
   async revert(ctx) {
-    await callRemediationAPI('slowResponsesEnabled', ctx.revertInfo.previousValue ?? false, 'Gremlin revert: slow responses');
+    const targetService = ctx.revertInfo.targetService as string | undefined;
+    await callRemediationAPI('slowResponsesEnabled', ctx.revertInfo.previousValue ?? false, 'Gremlin revert: slow responses', targetService);
     log.info(`Reverted slow responses`, { chaosId: ctx.chaosId });
   },
 };
@@ -167,17 +211,19 @@ const disableCircuitBreakerRecipe: ChaosRecipe = {
   description: 'Turns off the circuit breaker so errors cascade without protection.',
   async inject(params) {
     const id = nextChaosId();
-    log.info(`👹 Disabling circuit breaker`, { id });
-    const before = await callRemediationAPI('circuitBreakerEnabled', false, 'Gremlin: disabling circuit breaker');
+    const targetService = params.target && params.target !== 'default' ? params.target : undefined;
+    log.info(`👹 Disabling circuit breaker`, { id, targetService: targetService || 'all' });
+    const before = await callRemediationAPI('circuitBreakerEnabled', false, `Gremlin: disabling circuit breaker${targetService ? ` on ${targetService}` : ''}`, targetService);
     return {
-      chaosId: id, type: 'disable_circuit_breaker', target: 'circuitBreakerEnabled',
+      chaosId: id, type: 'disable_circuit_breaker', target: targetService || 'circuitBreakerEnabled',
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousValue: (before as any).previousValue ?? false },
+      revertInfo: { previousValue: (before as any).previousValue ?? false, targetService },
       status: 'active',
     };
   },
   async revert(ctx) {
-    await callRemediationAPI('circuitBreakerEnabled', ctx.revertInfo.previousValue ?? false, 'Gremlin revert: circuit breaker');
+    const targetService = ctx.revertInfo.targetService as string | undefined;
+    await callRemediationAPI('circuitBreakerEnabled', ctx.revertInfo.previousValue ?? false, 'Gremlin revert: circuit breaker', targetService);
     log.info(`Reverted circuit breaker`, { chaosId: ctx.chaosId });
   },
 };
@@ -188,17 +234,19 @@ const disableCacheRecipe: ChaosRecipe = {
   description: 'Turns off caching to increase load and response times.',
   async inject(params) {
     const id = nextChaosId();
-    log.info(`👹 Disabling cache`, { id });
-    const before = await callRemediationAPI('cacheEnabled', false, 'Gremlin: disabling cache');
+    const targetService = params.target && params.target !== 'default' ? params.target : undefined;
+    log.info(`👹 Disabling cache`, { id, targetService: targetService || 'all' });
+    const before = await callRemediationAPI('cacheEnabled', false, `Gremlin: disabling cache${targetService ? ` on ${targetService}` : ''}`, targetService);
     return {
-      chaosId: id, type: 'disable_cache', target: 'cacheEnabled',
+      chaosId: id, type: 'disable_cache', target: targetService || 'cacheEnabled',
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousValue: (before as any).previousValue ?? true },
+      revertInfo: { previousValue: (before as any).previousValue ?? true, targetService },
       status: 'active',
     };
   },
   async revert(ctx) {
-    await callRemediationAPI('cacheEnabled', ctx.revertInfo.previousValue ?? true, 'Gremlin revert: cache');
+    const targetService = ctx.revertInfo.targetService as string | undefined;
+    await callRemediationAPI('cacheEnabled', ctx.revertInfo.previousValue ?? true, 'Gremlin revert: cache', targetService);
     log.info(`Reverted cache disable`, { chaosId: ctx.chaosId });
   },
 };
@@ -206,35 +254,36 @@ const disableCacheRecipe: ChaosRecipe = {
 const targetCompanyRecipe: ChaosRecipe = {
   type: 'target_company',
   name: 'Target Company Error Injection',
-  description: 'Enables high error injection for a specific company. Target = company name, intensity = error rate.',
+  description: 'Enables high error injection for a specific service within a company. Target = service name, intensity = error rate. Only the targeted service is affected.',
   async inject(params) {
     const id = nextChaosId();
-    const company = params.target;
+    const targetService = params.target;
     const intensity = params.intensity ?? 7;
     const newRate = Math.min(intensity / 10, 1.0);
-    log.info(`👹 Targeting ${company} with error rate ${newRate}`, { id });
+    const company = (params.details?.companyName as string) || targetService;
+    log.info(`👹 Targeting service ${targetService} with error rate ${newRate}`, { id });
 
-    const current = await callFeatureFlagAPI('GET', '/api/feature_flag');
-    const prevRate = ((current as any).flags || {}).errors_per_transaction ?? 0.1;
-
+    // Set per-service override for the targeted service only
     await callFeatureFlagAPI('POST', '/api/feature_flag', {
-      action: 'enable', companyName: company,
+      flags: { errors_per_transaction: newRate },
+      targetService: targetService,
+      companyName: company,
+      triggeredBy: 'gremlin-agent'
     });
-    await callFeatureFlagAPI('POST', '/api/feature_flag', { flags: { errors_per_transaction: newRate } });
-    await callRemediationAPI('errorInjectionEnabled', true, `Gremlin: targeting ${company} at ${newRate}`);
+    await callRemediationAPI('errorInjectionEnabled', true, `Gremlin: targeting ${targetService} at ${newRate}`, targetService);
 
     return {
-      chaosId: id, type: 'target_company', target: company,
+      chaosId: id, type: 'target_company', target: targetService,
       injectedAt: new Date().toISOString(),
-      revertInfo: { previousRate: prevRate, company },
+      revertInfo: { targetService, company },
       status: 'active',
     };
   },
   async revert(ctx) {
-    const company = ctx.revertInfo.company as string;
-    await callFeatureFlagAPI('POST', '/api/feature_flag', { action: 'disable', companyName: company });
-    await callFeatureFlagAPI('POST', '/api/feature_flag', { flags: { errors_per_transaction: ctx.revertInfo.previousRate } });
-    log.info(`Reverted company targeting: ${company}`, { chaosId: ctx.chaosId });
+    const targetService = String(ctx.revertInfo.targetService || ctx.target);
+    // Remove per-service override
+    await callFeatureFlagAPI('DELETE', `/api/feature_flag/service/${encodeURIComponent(targetService)}`);
+    log.info(`Reverted service targeting: ${targetService}`, { chaosId: ctx.chaosId });
   },
 };
 
@@ -249,12 +298,13 @@ const customFlagRecipe: ChaosRecipe = {
     log.info(`👹 Custom flag: ${flagName} → ${newValue}`, { id });
 
     // Try remediation API first (System A — sends DT events)
-    const before = await callRemediationAPI(flagName, newValue, `Gremlin: ${flagName} → ${newValue}`);
+    const targetService = params.details?.targetService as string | undefined;
+    const before = await callRemediationAPI(flagName, newValue, `Gremlin: ${flagName} → ${newValue}`, targetService);
     if ((before as any).ok) {
       return {
         chaosId: id, type: 'custom_flag', target: flagName,
         injectedAt: new Date().toISOString(),
-        revertInfo: { previousValue: (before as any).previousValue, system: 'remediation' },
+        revertInfo: { previousValue: (before as any).previousValue, system: 'remediation', targetService },
         status: 'active',
       };
     }
@@ -272,7 +322,8 @@ const customFlagRecipe: ChaosRecipe = {
   },
   async revert(ctx) {
     if (ctx.revertInfo.system === 'remediation') {
-      await callRemediationAPI(ctx.target, ctx.revertInfo.previousValue, `Gremlin revert: ${ctx.target}`);
+      const targetService = ctx.revertInfo.targetService as string | undefined;
+      await callRemediationAPI(ctx.target, ctx.revertInfo.previousValue, `Gremlin revert: ${ctx.target}`, targetService);
     } else {
       await callFeatureFlagAPI('POST', '/api/feature_flag', { flags: { [ctx.target]: ctx.revertInfo.previousValue } });
     }
