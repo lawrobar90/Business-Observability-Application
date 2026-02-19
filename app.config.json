@@ -1,0 +1,55 @@
+{
+  "$schema": "./.dt-app/app.config.schema.json",
+  "environmentUrl": "https://bko67471.sprint.apps.dynatracelabs.com/",
+  "app": {
+    "id": "my.bizobs.generator",
+    "name": "AI Business Observability Generator",
+    "version": "2.2.5",
+    "description": "AI-powered autonomous observability and chaos engineering platform",
+    "scopes": [
+      {
+        "name": "environment-api",
+        "comment": "Required for DQL queries and entity access"
+      },
+      {
+        "name": "storage:logs:read",
+        "comment": "Read service logs"
+      },
+      {
+        "name": "storage:events:read",
+        "comment": "Read Dynatrace events"
+      },
+      {
+        "name": "app-settings:objects:read",
+        "comment": "Read app settings for stored API configuration"
+      },
+      {
+        "name": "app-settings:objects:write",
+        "comment": "Write app settings for storing API configuration"
+      },
+      {
+        "name": "app-engine:edge-connects:read",
+        "comment": "Read EdgeConnect configurations"
+      },
+      {
+        "name": "app-engine:edge-connects:write",
+        "comment": "Create and update EdgeConnect configurations"
+      },
+      {
+        "name": "app-engine:edge-connects:delete",
+        "comment": "Delete EdgeConnect configurations"
+      },
+      {
+        "name": "oauth2:clients:manage",
+        "comment": "Create OAuth clients for EdgeConnect auto-generated credentials"
+      }
+    ],
+    "settings": {
+      "apiConfig": {
+        "name": "API Configuration",
+        "description": "Configure the connection to the BizObs Generator service",
+        "schemaIds": ["app:my.bizobs.generator:api-config"]
+      }
+    }
+  }
+}
