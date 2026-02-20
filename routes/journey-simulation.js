@@ -5,6 +5,8 @@ import fs from 'fs';
 import path from 'path';
 import { ensureServiceRunning, getServicePort, getServiceNameFromStep, stopServicesForCompany, stopAllServices } from '../services/service-manager.js';
 import loadRunnerManager from '../scripts/continuous-loadrunner.js';
+// Import transaction tracking for volume-based chaos triggering
+import { recordTransaction } from '../dist/agents/gremlin/autonomousScheduler.js';
 
 const router = express.Router();
 
@@ -1036,7 +1038,7 @@ router.post('/simulate-journey', async (req, res) => {
       companyName: req.body.journey?.companyName || req.body.companyName || 'DefaultCompany',
       domain: req.body.journey?.domain || req.body.domain || 'default.com',
       industryType: req.body.journey?.industryType || req.body.industryType || 'general',
-      journeyType: req.body.journey?.journeyType || req.body.journeyType || req.body.journey?.description || req.body.description || 'customer_journey',
+      journeyType: req.body.journey?.journeyType || req.body.journeyType || req.body.journey?.description || req.body.description || req.body.journey?.industryType || req.body.industryType || req.body.journey?.companyName || req.body.companyName || 'DefaultJourney',
       additionalFields: req.body.journey?.additionalFields || req.body.additionalFields || null,
       customerProfile: req.body.journey?.customerProfile || req.body.customerProfile || null,
       traceMetadata: req.body.journey?.traceMetadata || req.body.traceMetadata || null,
@@ -1112,6 +1114,7 @@ router.post('/simulate-journey', async (req, res) => {
       companyName: currentPayload.companyName,
       domain: currentPayload.domain,
       industryType: currentPayload.industryType,
+      journeyType: currentPayload.journeyType,
       journeyDetail: journeyDetail
     };
     
@@ -1400,15 +1403,21 @@ router.post('/simulate-journey', async (req, res) => {
       provider: currentPayload.provider
     };
     
-    // Start continuous LoadRunner test ONLY if not already called from a LoadRunner
-    // Check for LoadRunner headers to prevent infinite spawning loop
+    // Start continuous LoadRunner test ONLY if not already called from a LoadRunner or auto-load
+    // Check for LoadRunner/auto-load headers to prevent infinite spawning loop
     const isFromLoadRunner = req.headers['x-loadrunner-test'] === 'true' || 
                              req.headers['x-lr-scenario'] || 
-                             req.body.loadRunnerTriggered === true;
+                             req.headers['x-auto-load'] === 'true' ||
+                             req.body.loadRunnerTriggered === true ||
+                             req.body.loadRunnerTest === true;
+    
+    // Also skip if a LoadRunner test is already running for this company
+    const existingTest = loadRunnerManager.activeTests[currentPayload.companyName];
+    const alreadyRunning = existingTest && existingTest.pid;
     
     let continuousGeneration = { active: false, reason: 'called_from_loadrunner' };
     
-    if (!isFromLoadRunner) {
+    if (!isFromLoadRunner && !alreadyRunning) {
       const journeyConfig = req.body.journey || req.body.aiJourney || req.body;
       try {
         await loadRunnerManager.startLoadTest(journeyConfig, 'light-load');
@@ -1424,7 +1433,16 @@ router.post('/simulate-journey', async (req, res) => {
         console.error(`[journey-sim] ⚠️  Failed to start LoadRunner test:`, err.message);
       }
     } else {
-      console.log(`[journey-sim] ℹ️  Skipping LoadRunner auto-start (called from LoadRunner)`);
+      const reason = isFromLoadRunner ? 'called from LoadRunner/auto-load' : 'already running';
+      console.log(`[journey-sim] ℹ️  Skipping LoadRunner auto-start (${reason})`);
+    }
+    
+    // Record transaction for volume-based chaos triggering
+    try {
+      recordTransaction(1);
+      console.log('[journey-sim] 📊 Transaction recorded for volume-based chaos triggering');
+    } catch (recordErr) {
+      console.error('[journey-sim] ⚠️  Failed to record transaction (non-fatal):', recordErr.message);
     }
     
     res.json({
@@ -2178,6 +2196,14 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
     // Collect error summary
     const errorSummary = failedJourneys.length > 0 ? 
       failedJourneys.map(f => `Customer ${f.customerIndex}: ${f.error || 'Journey incomplete'}`).slice(0, 3) : [];
+
+    // Record transactions for volume-based chaos triggering
+    try {
+      recordTransaction(totalSuccessful);
+      console.log(`[journey-sim] 📊 Recorded ${totalSuccessful} transaction(s) for volume-based chaos triggering`);
+    } catch (recordErr) {
+      console.error('[journey-sim] ⚠️  Failed to record transactions (non-fatal):', recordErr.message);
+    }
 
     res.json({
       success: true,

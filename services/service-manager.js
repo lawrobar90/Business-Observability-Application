@@ -13,6 +13,37 @@ const __dirname = path.dirname(__filename);
 const childServices = {};
 const childServiceMeta = {};
 
+// Dormant services: stopped services whose metadata is preserved for quick restart
+// Key = internalServiceName, Value = { ...meta, stoppedAt, previousPort }
+const dormantServices = {};
+
+// Per-company stop flag — prevents ensureServiceRunning from recreating services
+// during a company-level stop operation (cleared after 30s)
+const stoppedCompanies = new Set();
+
+// Version counter — increments each time a service is (re)started for the same internalServiceName
+// This allows Dynatrace users to filter by DT_RELEASE_VERSION tag to distinguish service generations
+const serviceVersionCounter = {};
+
+/**
+ * Block service creation for a specific company (temporary, auto-clears after 30s)
+ */
+export function blockCompany(companyName) {
+  stoppedCompanies.add(companyName);
+  console.log(`[service-manager] ⛔ Blocked service creation for company: ${companyName}`);
+  setTimeout(() => {
+    stoppedCompanies.delete(companyName);
+    console.log(`[service-manager] ✅ Unblocked service creation for company: ${companyName}`);
+  }, 30000);
+}
+
+/**
+ * Unblock service creation for a specific company
+ */
+export function unblockCompany(companyName) {
+  stoppedCompanies.delete(companyName);
+}
+
 // Enhanced metrics tracking per service
 const serviceMetrics = {
   // serviceName: { requests: 0, lastRequest: null, startTime: Date.now(), errors: 0, lastHealth: 'unknown' }
@@ -220,14 +251,16 @@ export async function getServicePort(stepName, companyName = null) {
   
   try {
     // Check if service already has a port allocated using the compound name
-    const existingPort = portManager.getServicePort(internalServiceName, companyName);
+    // Use 'default' for company since internalServiceName already includes company
+    const existingPort = portManager.getServicePort(internalServiceName, 'default');
     if (existingPort) {
       console.log(`[service-manager] Service "${baseServiceName}" for ${companyName} already allocated to port ${existingPort}`);
       return existingPort;
     }
     
     // Allocate new port using robust port manager with compound name
-    const port = await portManager.allocatePort(internalServiceName, companyName);
+    // Use 'default' for company since internalServiceName already includes company
+    const port = await portManager.allocatePort(internalServiceName, 'default');
     console.log(`[service-manager] Service "${baseServiceName}" for ${companyName} allocated port ${port}`);
     return port;
     
@@ -322,12 +355,13 @@ export async function startChildService(internalServiceName, scriptPath, portPar
         DT_CUSTOM_PROP: `dtServiceName=${dynatraceServiceName} companyName=${companyName} domain=${domain} industryType=${industryType} stepName=${stepName || 'unknown'}`,
         
         // 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags
-        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} app=bizobs-journey environment=ace-box industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
+        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} app=bizobs-journey environment=ace-box industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} version=gen-${serviceVersionCounter[internalServiceName] || 1} stage=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
         
-        // 📦 DT_RELEASE_*: Release tracking metadata
+        // 📦 DT_RELEASE_*: Release tracking metadata (version increments per restart)
         DT_RELEASE_PRODUCT: 'BizObs-Engine',
-        DT_RELEASE_STAGE: 'production',
-        DT_RELEASE_VERSION: '1.0.0',
+        DT_RELEASE_STAGE: companyName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
+        DT_RELEASE_VERSION: `${serviceVersionCounter[internalServiceName] || 1}.0.0`,
+        DT_RELEASE_BUILD_VERSION: `gen-${serviceVersionCounter[internalServiceName] || 1}`,
         
         // 🔗 DT_CLUSTER_ID / DT_NODE_ID: Cluster and node identification
         DT_CLUSTER_ID: dynatraceServiceName,
@@ -353,6 +387,8 @@ export async function startChildService(internalServiceName, scriptPath, portPar
     child.stderr.on('data', d => console.error(`[${dynatraceServiceName}][ERR] ${d.toString().trim()}`));
     child.on('exit', code => {
       console.log(`[${dynatraceServiceName}] exited with code ${code}`);
+      // If stopService is handling cleanup (saving to dormant), skip this
+      if (child._beingStopped) return;
       delete childServices[internalServiceName];
       delete childServiceMeta[internalServiceName];
       // Free up the port using port manager
@@ -362,16 +398,22 @@ export async function startChildService(internalServiceName, scriptPath, portPar
     // Track startup time and metadata
     child.startTime = new Date().toISOString();
     const startTimeMs = Date.now();
+    // Increment version counter for this service
+    if (!serviceVersionCounter[internalServiceName]) serviceVersionCounter[internalServiceName] = 0;
+    serviceVersionCounter[internalServiceName]++;
+    const serviceVersion = serviceVersionCounter[internalServiceName];
     childServices[internalServiceName] = child;
     // Record metadata for future context checks
     childServiceMeta[internalServiceName] = { 
       companyName, 
       domain, 
-      industryType, 
+      industryType,
+      journeyType: env.JOURNEY_TYPE || '',
       startTime: startTimeMs,
       port,
       stepName: stepName,  // Include step name for UI display
-      baseServiceName: dynatraceServiceName
+      baseServiceName: dynatraceServiceName,
+      serviceVersion
     };
     return child;
     
@@ -385,6 +427,19 @@ export async function startChildService(internalServiceName, scriptPath, portPar
   }
 }// Function to start services dynamically based on journey steps
 export async function ensureServiceRunning(stepName, companyContext = {}) {
+  // Block service creation during stop-everything sequence
+  if (global.stoppingEverything) {
+    console.log(`[service-manager] ⛔ Blocking service creation for ${stepName} — stoppingEverything is active`);
+    return { port: null, serviceName: null, blocked: true };
+  }
+  
+  // Block service creation for companies that are being stopped
+  const companyName_ = companyContext.companyName || 'DefaultCompany';
+  if (stoppedCompanies.has(companyName_)) {
+    console.log(`[service-manager] ⛔ Blocking service creation for ${stepName} — company ${companyName_} is being stopped`);
+    return { port: null, serviceName: null, blocked: true };
+  }
+  
   console.log(`[service-manager] ensureServiceRunning called for step: ${stepName}`);
   
   // Use exact serviceName from payload if provided, otherwise auto-generate with context
@@ -400,6 +455,7 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
   const companyName = companyContext.companyName || 'DefaultCompany';
   const domain = companyContext.domain || 'default.com';
   const industryType = companyContext.industryType || 'general';
+  const journeyType = companyContext.journeyType || '';
   const stepEnvName = companyContext.stepName || stepName;
   const category = stepContext.category || 'general';
   
@@ -413,6 +469,7 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
     companyName,
     domain,
     industryType,
+    journeyType,
     baseServiceName,
     stepName: stepEnvName  // Include step name for UI display
   };
@@ -438,6 +495,22 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
     console.log(`[service-manager] Service ${internalServiceName} already running (PID: ${existing.pid}), reusing existing instance for ${companyName}`);
     // Return the port number
     return existingMeta?.port;
+  }
+
+  // Check dormant services — metadata match means quick revival
+  // Port reuse happens automatically via portManager.savedPortMap
+  const dormant = dormantServices[internalServiceName];
+  if (dormant && !existing) {
+    const dormantMatch = dormant.domain === desiredMeta.domain &&
+                         dormant.industryType === desiredMeta.industryType &&
+                         dormant.companyName === desiredMeta.companyName;
+    if (dormantMatch) {
+      console.log(`[service-manager] 🔄 Reviving dormant service ${internalServiceName} (was on port ${dormant.previousPort})`);
+      delete dormantServices[internalServiceName];
+    } else {
+      console.log(`[service-manager] Dormant service ${internalServiceName} metadata mismatch, starting fresh`);
+      delete dormantServices[internalServiceName];
+    }
   }
 
   if (!existing || metaMismatch) {
@@ -519,6 +592,7 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DOMAIN = ${JSON.stringify(domain)};\n` +
 `process.env.INDUSTRY_TYPE = ${JSON.stringify(industryType)};\n` +
 `process.env.CATEGORY = ${JSON.stringify(category)};\n` +
+`process.env.SERVICE_VERSION = ${JSON.stringify(String(serviceVersionCounter[internalServiceName] || 1))};\n` +
 `process.env.PORT = ${JSON.stringify(String(allocatedPort))};\n` +
 `process.env.MAIN_SERVER_PORT = '8080';\n` +
 `process.title = process.env.SERVICE_NAME;\n` +
@@ -537,12 +611,13 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DT_CUSTOM_PROP = 'dtServiceName=' + process.env.SERVICE_NAME + ' companyName=' + process.env.COMPANY_NAME + ' domain=' + process.env.DOMAIN + ' industryType=' + process.env.INDUSTRY_TYPE + ' stepName=' + process.env.STEP_NAME;\n` +
 `\n` +
 `// 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags\n` +
-`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' app=bizobs-journey environment=ace-box industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
+`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' app=bizobs-journey environment=ace-box industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' version=gen-' + (process.env.SERVICE_VERSION || '1') + ' stage=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
 `\n` +
-`// 📦 DT_RELEASE_*: Release tracking\n` +
+`// 📦 DT_RELEASE_*: Release tracking (version increments per restart)\n` +
 `process.env.DT_RELEASE_PRODUCT = 'BizObs-Engine';\n` +
-`process.env.DT_RELEASE_STAGE = 'production';\n` +
-`process.env.DT_RELEASE_VERSION = '1.0.0';\n` +
+`process.env.DT_RELEASE_STAGE = process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();\n` +
+`process.env.DT_RELEASE_VERSION = (process.env.SERVICE_VERSION || '1') + '.0.0';\n` +
+`process.env.DT_RELEASE_BUILD_VERSION = 'gen-' + (process.env.SERVICE_VERSION || '1');\n` +
 `\n` +
 `// 🔗 DT_CLUSTER_ID / DT_NODE_ID: Cluster and node identification\n` +
 `process.env.DT_CLUSTER_ID = process.env.SERVICE_NAME;\n` +
@@ -570,7 +645,9 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
           CATEGORY: category,
           BASE_SERVICE_NAME: baseServiceName,
           DYNATRACE_SERVICE_NAME: dynatraceServiceName,
+          JOURNEY_TYPE: journeyType,
           JOURNEY_DETAIL: companyContext.journeyDetail || stepName || 'Unknown_Journey',
+          SERVICE_VERSION: String(serviceVersionCounter[internalServiceName] || 1),
           _SERVICE_CWD: serviceDir
         });
         // Wait for service health endpoint to be ready before returning port
@@ -766,22 +843,31 @@ export async function stopAllServices() {
     child.kill('SIGKILL');
   });
   
-  // Clear all port allocations using port manager
+  // Move to dormant and clear all port allocations using port manager
   Object.keys(childServices).forEach(serviceName => {
     const meta = childServiceMeta[serviceName];
-    if (meta && meta.port) {
-      portManager.releasePort(meta.port, serviceName);
+    if (meta) {
+      dormantServices[serviceName] = {
+        ...meta,
+        previousPort: meta.port,
+        stoppedAt: new Date().toISOString()
+      };
+      if (meta.port) {
+        portManager.releasePort(meta.port, serviceName);
+      }
     }
     delete childServices[serviceName];
     delete childServiceMeta[serviceName];
   });
+  console.log(`[service-manager] 💤 Moved ${Object.keys(dormantServices).length} service(s) to dormant`);
   
   // NUCLEAR OPTION: Kill ALL journey services by name, including zombies from previous server restarts
   console.log('[service-manager] 💣 Killing ALL journey services by name (including zombies)...');
   const { execSync } = await import('child_process');
   try {
-    // Kill all journey service processes by name pattern
-    execSync('pkill -9 -f "Service$"', { stdio: 'ignore' });
+    // Kill all journey service processes — matches process titles like "AlphaService", "CheckService", etc.
+    // Note: process.title sets cmdline with null-byte padding, so $ anchor won't work
+    execSync('pkill -9 -f "[A-Z].*Service"', { stdio: 'ignore' });
     console.log('[service-manager] ✅ All journey services killed by name pattern');
   } catch (e) {
     // pkill returns exit code 1 if no processes found, which is fine
@@ -816,10 +902,17 @@ export function stopCustomerJourneyServices() {
       stoppedCount++;
     }
     
-    // Clear port allocation for stopped service
+    // Move to dormant before cleanup
     const meta = childServiceMeta[serviceName];
-    if (meta && meta.port) {
-      portManager.releasePort(meta.port, serviceName);
+    if (meta) {
+      dormantServices[serviceName] = {
+        ...meta,
+        previousPort: meta.port,
+        stoppedAt: new Date().toISOString()
+      };
+      if (meta.port) {
+        portManager.releasePort(meta.port, serviceName);
+      }
     }
     delete childServices[serviceName];
     delete childServiceMeta[serviceName];
@@ -864,12 +957,19 @@ export async function stopServicesForCompany(companyName) {
       }
     }
 
+    // Move to dormant before cleanup
+    dormantServices[serviceName] = {
+      ...meta,
+      previousPort: meta.port,
+      stoppedAt: new Date().toISOString()
+    };
+
     // Release port
     if (meta.port) {
       portManager.releasePort(meta.port, serviceName);
     }
 
-    // Clean up tracking
+    // Clean up active tracking
     delete childServices[serviceName];
     delete childServiceMeta[serviceName];
   }
@@ -908,6 +1008,9 @@ export async function stopService(serviceName) {
 
   console.log(`[service-manager] 🛑 Stopping service: ${serviceName}`);
 
+  // Mark that stopService is handling cleanup (prevents on-exit handler from deleting meta)
+  child._beingStopped = true;
+
   try {
     child.kill('SIGTERM');
     
@@ -938,9 +1041,54 @@ export async function stopService(serviceName) {
     portManager.releasePort(meta.port, serviceName);
   }
 
-  // Clean up tracking
+  // Move to dormant instead of deleting — preserve metadata for quick restart
+  const dormantMeta = childServiceMeta[serviceName];
+  if (dormantMeta) {
+    dormantServices[serviceName] = {
+      ...dormantMeta,
+      previousPort: dormantMeta.port,
+      stoppedAt: new Date().toISOString()
+    };
+    console.log(`[service-manager] 💤 Service ${serviceName} moved to dormant (port was ${dormantMeta.port})`);
+  }
+
+  // Clean up active tracking
   delete childServices[serviceName];
   delete childServiceMeta[serviceName];
+}
+
+/**
+ * Get all dormant services
+ */
+export function getDormantServices() {
+  return { ...dormantServices };
+}
+
+/**
+ * Clear all dormant services
+ */
+export function clearDormantServices() {
+  const count = Object.keys(dormantServices).length;
+  for (const key of Object.keys(dormantServices)) {
+    delete dormantServices[key];
+  }
+  console.log(`[service-manager] 🧹 Cleared ${count} dormant service(s)`);
+  return count;
+}
+
+/**
+ * Clear dormant services for a specific company
+ */
+export function clearDormantServicesForCompany(companyName) {
+  let count = 0;
+  for (const [key, meta] of Object.entries(dormantServices)) {
+    if (meta.companyName === companyName) {
+      delete dormantServices[key];
+      count++;
+    }
+  }
+  console.log(`[service-manager] 🧹 Cleared ${count} dormant service(s) for ${companyName}`);
+  return count;
 }
 
 // Convenience helper: ensure a service is started and ready (health endpoint responding)

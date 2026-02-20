@@ -28,7 +28,7 @@ const activeTests = new Map();
  * Uses the same journey format as single simulation but generates multiple customers
  */
 function generateLoadRunnerScript(journeyConfig, testConfig, errorSimulationEnabled = true) {
-  const { companyName, domain, steps = [], additionalFields = {} } = journeyConfig;
+  const { companyName, domain, steps = [], additionalFields = {}, journeyType, industryType } = journeyConfig;
   const testId = crypto.randomUUID();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   
@@ -333,7 +333,7 @@ MaxIterations=${totalJourneys}
  */
 function generateCurlSimulation(journeyConfig, testConfig, testDir, errorSimulationEnabled = true) {
   const { journeyInterval, duration } = testConfig;
-  const { companyName, domain, steps = [] } = journeyConfig;
+  const { companyName, domain, steps = [], journeyType, industryType } = journeyConfig;
   const testId = crypto.randomUUID();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   
@@ -443,6 +443,8 @@ execute_customer_journey() {
     "journeyId": "\$correlation_id",
     "companyName": "${companyName}",
     "domain": "${domain}",
+    "industryType": "${industryType || 'general'}",
+    "journeyType": "${journeyType || ''}",
     "steps": ${JSON.stringify(steps)},
     "additionalFields": ${JSON.stringify(journeyConfig.additionalFields || {})},
     "customerProfile": {

@@ -18,6 +18,34 @@ if (!testDir || !scenario) {
   process.exit(1);
 }
 
+// ============================================
+// Stop-Flag Mechanism
+// ============================================
+// Before each loop iteration, we check for stop flag files.
+// If a global STOP_ALL file or a company-specific STOP file exists,
+// the simulator exits cleanly. This ensures processes die even if
+// SIGKILL fails to reach detached processes.
+
+const LOADRUNNER_BASE_DIR = path.dirname(testDir); // parent of company dir
+const STOP_ALL_FLAG = path.join(LOADRUNNER_BASE_DIR, 'STOP_ALL');
+const STOP_COMPANY_FLAG = path.join(testDir, 'STOP');
+
+function shouldStop() {
+  try {
+    if (fs.existsSync(STOP_ALL_FLAG)) {
+      console.log(`[LR-Simulator] 🛑 STOP_ALL flag detected — shutting down.`);
+      return true;
+    }
+    if (fs.existsSync(STOP_COMPANY_FLAG)) {
+      console.log(`[LR-Simulator] 🛑 STOP flag detected for company — shutting down.`);
+      return true;
+    }
+  } catch (err) {
+    // If we can't check, continue running
+  }
+  return false;
+}
+
 // Load test configuration
 const testConfigPath = path.join(testDir, 'test-config.json');
 const scenarioPath = path.join(path.dirname(testDir), 'scenarios', `${scenario}.json`);
@@ -34,7 +62,7 @@ try {
   process.exit(1);
 }
 
-const { companyName, domain, industryType, steps } = testConfig;
+const { companyName, domain, industryType, steps, journeyType } = testConfig;
 const { loadrunner_config } = scenarioConfig;
 
 const intervalMs = (loadrunner_config.journey_interval || 30) * 1000; // Convert to ms
@@ -163,14 +191,14 @@ async function executeJourney() {
       domain,
       industryType,
       steps: steps,
-      journeyType: testConfig.journeyType || 'customer_journey',
+      journeyType: testConfig.journeyType || industryType || companyName,
       description: testConfig.description || `Automated journey for ${companyName}`
     },
     companyName,
     domain,
     industryType,
     steps: steps,  // TOP-LEVEL steps array for service chaining
-    journeyType: testConfig.journeyType || 'customer_journey',
+    journeyType: testConfig.journeyType || industryType || companyName,
     description: testConfig.description || `Automated journey for ${companyName}`,
     // Use diverse customer-specific data instead of static testConfig data
     additionalFields: {
@@ -328,6 +356,12 @@ async function runLoadTest() {
   let customerCount = 0;
   
   while (true) {
+    // Check stop flags before each iteration
+    if (shouldStop()) {
+      console.log(`[LR-Simulator] 🛑 Exiting load test for ${companyName} (stop flag).`);
+      process.exit(0);
+    }
+
     const startTime = Date.now();
     
     try {
@@ -378,6 +412,12 @@ async function runLoadTest() {
     const waitTime = Math.max(intervalMs - elapsed, 1000); // At least 1 second
     
     await new Promise(resolve => setTimeout(resolve, waitTime));
+
+    // Check stop flags again after waiting
+    if (shouldStop()) {
+      console.log(`[LR-Simulator] 🛑 Exiting load test for ${companyName} (stop flag after wait).`);
+      process.exit(0);
+    }
   }
 }
 

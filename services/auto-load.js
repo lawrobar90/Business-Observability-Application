@@ -72,7 +72,7 @@ function buildJourneyFromMeta(companyName, services) {
     companyName,
     domain: firstMeta.domain || `https://www.${companyName.toLowerCase().replace(/[^a-z]/g, '')}.com`,
     industryType: firstMeta.industryType || companyName,
-    journeyType: firstMeta.journeyType || 'customer_journey',
+    journeyType: firstMeta.journeyType || firstMeta.industryType || companyName,
     steps
   };
 }
@@ -156,6 +156,7 @@ function fireJourney(journey, companyName, iterationCount) {
  */
 function startAutoLoad(companyName, services) {
   if (activeAutoLoads.has(companyName)) return; // Already running
+  if (!watcherInterval) return; // Watcher has been stopped — don't start new auto-loads
 
   const journey = buildJourneyFromMeta(companyName, services);
   if (!journey || journey.steps.length === 0) return;
@@ -202,9 +203,9 @@ function startAutoLoad(companyName, services) {
 }
 
 /**
- * Stop auto-load for a company
+ * Stop auto-load for a company (exported for per-company stop)
  */
-function stopAutoLoad(companyName) {
+export function stopAutoLoad(companyName) {
   const info = activeAutoLoads.get(companyName);
   if (!info) return;
 
@@ -321,6 +322,7 @@ export function stopAutoLoadWatcher() {
 export default {
   startAutoLoadWatcher,
   stopAutoLoadWatcher,
+  stopAutoLoad,
   stopAllAutoLoads,
   getAutoLoadStatus
 };

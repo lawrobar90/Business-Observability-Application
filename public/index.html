@@ -4631,7 +4631,7 @@
           companyName: lastJourney.companyName || 'DefaultCompany',
           domain: lastJourney.domain || 'default.com',
           industryType: lastJourney.industryType || 'general',
-          journeyType: lastJourney.journeyType || 'customer_journey',
+          journeyType: lastJourney.journeyType || lastJourney.industryType || lastJourney.companyName || 'DefaultJourney',
           description: lastJourney.description || `${lastJourney.companyName || 'Customer'} journey`,
           
           // Include all additional fields from the AI processing (check multiple sources)
@@ -5253,6 +5253,7 @@
     // ============ SERVICE MANAGEMENT DASHBOARD ============
     
     let currentDashboardTab = 'services';
+    let dashboardRefreshInterval = null;
     
     /**
      * Switch dashboard tabs
@@ -5296,6 +5297,16 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         await refreshServiceDashboard();
+        
+        // Start auto-refresh every 5 seconds
+        if (dashboardRefreshInterval) {
+          clearInterval(dashboardRefreshInterval);
+        }
+        console.log('⏰ Starting dashboard auto-refresh (5s interval)');
+        dashboardRefreshInterval = setInterval(async () => {
+          console.log('🔄 Auto-refreshing dashboard...');
+          await refreshServiceDashboard();
+        }, 5000);
       }
     };
     
@@ -5312,6 +5323,13 @@
       if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+        
+        // Stop auto-refresh
+        if (dashboardRefreshInterval) {
+          console.log('⏹️ Stopping dashboard auto-refresh');
+          clearInterval(dashboardRefreshInterval);
+          dashboardRefreshInterval = null;
+        }
       }
     };
     
@@ -5416,6 +5434,30 @@
                 </select>
               </div>
             </div>
+           </div>
+          
+          <!-- Global Actions -->
+          <div class="bg-gradient-to-r from-red-900 to-red-700 rounded-xl border-2 border-red-500 p-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                  <h3 class="text-sm font-bold text-white uppercase tracking-wider">Global Actions</h3>
+                  <p class="text-xs text-red-200 mt-0.5">Stop services across company, industry, or everything</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="svcStopByCompany()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-red-400">
+                  🏢 Stop by Company
+                </button>
+                <button onclick="svcStopByIndustry()" class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-red-400">
+                  🏭 Stop by Industry
+                </button>
+                <button onclick="svcStopEverything()" class="bg-red-900 hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 border-red-300 shadow-lg">
+                  💀 STOP EVERYTHING
+                </button>
+              </div>
+            </div>
           </div>
         `;
         
@@ -5510,26 +5552,45 @@
     };
     
     /**
-     * Service Controls — Toolbar action handlers
+     * Service Controls — Global action handlers
      */
-    window.svcStopIndividual = async function() {
-      const sel = document.getElementById('svc-stop-individual');
-      const serviceName = sel?.value;
-      if (!serviceName) { alert('Please select a service first.'); return; }
-      await stopService(serviceName);
-    };
-    
     window.svcStopByCompany = async function() {
-      const sel = document.getElementById('svc-stop-company');
-      const companyName = sel?.value;
-      if (!companyName) { alert('Please select a company first.'); return; }
+      const data = window._svcDashboardData;
+      if (!data || !data.companies || data.companies.length === 0) {
+        alert('No companies with running services found!');
+        return;
+      }
+      
+      // Build list of companies
+      const companies = data.companies.map(c => c.companyName).sort();
+      const companyName = prompt(`Enter company name to stop all its services:\n\nAvailable: ${companies.join(', ')}`, companies[0] || '');
+      
+      if (!companyName) return;
+      if (!companies.includes(companyName)) {
+        alert(`Company "${companyName}" not found. Available: ${companies.join(', ')}`);
+        return;
+      }
+      
       await stopCompanyServices(companyName);
     };
     
     window.svcStopByIndustry = async function() {
-      const sel = document.getElementById('svc-stop-industry');
-      const industryType = sel?.value;
-      if (!industryType) { alert('Please select an industry first.'); return; }
+      const data = window._svcDashboardData;
+      if (!data || !data.companies || data.companies.length === 0) {
+        alert('No services running!');
+        return;
+      }
+      
+      // Build list of unique industries
+      const industries = [...new Set(data.companies.map(c => c.industryType || 'unknown'))].sort();
+      const industryType = prompt(`Enter industry type to stop all its services:\n\nAvailable: ${industries.join(', ')}`, industries[0] || '');
+      
+      if (!industryType) return;
+      if (!industries.includes(industryType)) {
+        alert(`Industry "${industryType}" not found. Available: ${industries.join(', ')}`);
+        return;
+      }
+      
       if (!confirm(`Stop ALL services for the "${industryType}" industry?`)) return;
       
       try {
@@ -7221,7 +7282,7 @@ Return the response in JSON code format that can be copied from this UI
         
         // Include journey metadata
         journeyId: journey.journeyId || journey.id || `journey_${Date.now()}`,
-        journeyType: journey.journeyType || 'customer_journey',
+        journeyType: journey.journeyType || journey.industryType || journey.companyName || 'DefaultJourney',
         description: journey.description || `${journey.companyName || 'Customer'} journey`,
         
         // Include all additional fields from the AI processing (check both locations)
@@ -7881,7 +7942,7 @@ Return the response in JSON code format that can be copied from this UI
             companyName: formCompanyName || lastJourney.companyName || 'DefaultCompany',
             domain: formDomain || lastJourney.domain || 'default.com',
             industryType: formIndustryType || lastJourney.industryType || 'general',
-            journeyType: lastJourney.journeyType || 'customer_journey',
+            journeyType: lastJourney.journeyType || lastJourney.industryType || lastJourney.companyName || 'DefaultJourney',
             description: lastJourney.description || `${lastJourney.companyName || 'Customer'} journey`,
             
             // Include all additional fields from the AI processing
