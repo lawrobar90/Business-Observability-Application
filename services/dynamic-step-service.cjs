@@ -747,18 +747,10 @@ function createStepService(serviceName, stepName) {
           console.log(`🔧 [${properServiceName}] Error isolated to THIS service — chain will continue to downstream services`);
         }
         
-        // 🎯 BIZEVENT hasError: When error is injected by feature flag, update req.body so
-        // OneAgent's bizevent capture (from the HTTP request) includes hasError = true
-        if (errorInjected) {
-          req.body.hasError = true;
-          req.body.error_occurred = true;
-          if (req.body.additionalFields) {
-            req.body.additionalFields.hasError = true;
-            req.body.additionalFields.errorType = errorInjected.error_type;
-            req.body.additionalFields.errorMessage = errorInjected.message;
-            req.body.additionalFields.httpStatus = errorInjected.http_status || 500;
-          }
-        }
+        // 🚫 DO NOT modify req.body here — req.body IS processedPayload (same object ref from line 472).
+        // Modifying it contaminates the chain payload: nextPayload = { ...processedPayload } would
+        // carry hasError:true to the next service, causing checkForStepError to throw on ALL
+        // downstream services (chain contamination bug). Error data goes in the response object only.
         
         // Generate dynamic metadata based on step name
         const metadata = generateStepMetadata(currentStepName);
@@ -908,6 +900,14 @@ function createStepService(serviceName, stepName) {
 
             const nextPayload = {
               ...processedPayload,  // Use flattened payload instead of original
+              // 🔒 CLEAN THE CHAIN: Ensure no error contamination from this service passes downstream
+              hasError: false,
+              error_occurred: false,
+              status: 'completed',
+              error: undefined,
+              traceError: undefined,
+              httpStatus: undefined,
+              _traceInfo: undefined,
               stepName: nextStepName,
               serviceName: nextServiceName,
               // Add step-specific fields for the next step
@@ -979,16 +979,18 @@ function createStepService(serviceName, stepName) {
         res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
         res.setHeader('x-correlation-id', correlationId);
         
-        // 🔧 ERROR ISOLATION: If error was injected, set error headers and return HTTP 4xx/5xx
-        // ONLY for THIS service's response — the chain has already continued to downstream services
+        // 🔧 ERROR ISOLATION: Always return HTTP 200 on the /process endpoint so the chain
+        // doesn't propagate 500s to upstream callers (OneAgent captures outbound 500s as failures
+        // on the calling service). Error is already captured via reportError/markSpanAsFailed
+        // custom attributes above — DT sees the error on THIS service's PurePath only.
         if (errorInjected) {
           const errorHttpStatus = errorInjected.http_status || 500;
           res.setHeader('x-trace-error', 'true');
           res.setHeader('x-error-type', `FeatureFlagError_${errorInjected.error_type}`);
           res.setHeader('x-journey-step-failed', 'true');
           res.setHeader('x-http-status', errorHttpStatus.toString());
-          // Return HTTP error status so Dynatrace captures failure rate on THIS service only
-          res.status(errorHttpStatus).json(response);
+          // Return HTTP 200 to keep chain clean — error is captured via OneAgent SDK attributes
+          res.json(response);
         } else {
           res.json(response);
         }
