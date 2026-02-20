@@ -11,6 +11,7 @@ import { recordChaosEvent, recordChaosRevert, searchSimilar } from '../librarian
 import { chatJSON } from '../../utils/llmClient.js';
 import { config } from '../../utils/config.js';
 import { createLogger } from '../../utils/logger.js';
+import { sendChaosEvent, sendChaosRevertEvent } from '../../utils/dtEventHelper.js';
 
 const log = createLogger('gremlin');
 
@@ -76,6 +77,20 @@ export async function injectChaos(params: {
     details: { intensity: chaosParams.intensity, durationMs: chaosParams.durationMs, recipe: recipe.name },
   });
 
+  // Send Dynatrace event (stays OPEN for problem correlation)
+  await sendChaosEvent(
+    result.chaosId,
+    chosenType,
+    params.target,
+    {
+      'chaos.intensity': chaosParams.intensity,
+      'chaos.duration.ms': chaosParams.durationMs,
+      'chaos.recipe': recipe.name,
+      'chaos.autonomous': params.details?.autonomous || false,
+      'chaos.reasoning': params.details?.reasoning || '',
+    }
+  );
+
   // Schedule auto-revert
   if (chaosParams.durationMs && chaosParams.durationMs > 0) {
     const timer = setTimeout(async () => {
@@ -106,6 +121,10 @@ export async function revertChaos(chaosId: string): Promise<boolean> {
   if (timer) { clearTimeout(timer); revertTimers.delete(chaosId); }
 
   await recordChaosRevert(chaosId);
+
+  // Send Dynatrace revert event (closes the chaos)
+  await sendChaosRevertEvent(chaosId, fault.type, fault.target);
+
   log.info(`✅ Chaos reverted: ${chaosId}`);
   return true;
 }

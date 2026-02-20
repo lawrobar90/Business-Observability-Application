@@ -1,0 +1,20 @@
+{
+  "companyName": "Ultimate",
+  "domain": "ultimate.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Zap",
+      "serviceName": "ZapService",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/z",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T22:11:10.467Z"
+}

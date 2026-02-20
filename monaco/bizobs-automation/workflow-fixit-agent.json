@@ -1,0 +1,201 @@
+{
+  "title": "{{ .name }}",
+  "description": "Automatically triggers Fix-It AI Agent for autonomous problem remediation using Davis Root Cause AI",
+  "owner": "{{ .Env.DT_WORKFLOW_OWNER | default \"bizobs-automation\" }}",
+  "isPrivate": false,
+  "actor": {
+    "type": "USER",
+    "name": "automation"
+  },
+  "trigger": {
+    "eventTrigger": {
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "davis-problem",
+        "value": {
+          "categories": {
+            "error": true,
+            "slowdown": true,
+            "resource": true
+          },
+          "onProblemOpen": true
+        }
+      },
+      "filterQuery": "matchesValue(event.status, \"OPEN\")"
+    }
+  },
+  "tasks": {
+    "get_problem_details": {
+      "name": "Get Problem Details",
+      "description": "Fetch detailed problem information from Dynatrace",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/problems/{{ event()[\"event_id\"] }}",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    },
+    "trigger_fixit_agent": {
+      "name": "Trigger Fix-It AI Agent",
+      "description": "Send problem to Fix-It agent via webhook for autonomous remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/workflow-webhook/problem",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Workflow": "true"
+        },
+        "payload": {
+          "event_type": "{{ event()[\"event_type\"] }}",
+          "event_id": "{{ event()[\"event_id\"] }}",
+          "title": "{{ event()[\"title\"] }}",
+          "description": "{{ event()[\"description\"] | default \"\" }}",
+          "problem_id": "{{ event()[\"display_id\"] }}",
+          "entity_id": "{{ event()[\"entity_id\"] | default \"\" }}",
+          "entity_name": "{{ event()[\"entity_name\"] | default \"\" }}",
+          "severity": "{{ event()[\"severity\"] }}",
+          "status": "{{ event()[\"status\"] }}",
+          "start_time": "{{ event()[\"start_time\"] | default 0 }}",
+          "workflow_id": "{{ execution()[\"id\"] }}",
+          "workflow_name": "{{ .name }}"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": ["get_problem_details"],
+      "conditions": {
+        "states": {
+          "get_problem_details": "OK"
+        }
+      }
+    },
+    "log_remediation_start": {
+      "name": "Log Remediation Start",
+      "description": "Send CUSTOM_INFO event to track Fix-It agent activation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_INFO",
+          "title": "Fix-It AI Agent Activated for Problem {{ event()[\"display_id\"] }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "event.category": "autonomous_remediation",
+            "agent.type": "fixit",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "problem.title": "{{ event()[\"title\"] }}",
+            "problem.severity": "{{ event()[\"severity\"] }}",
+            "entity.id": "{{ event()[\"entity_id\"] | default \"\" }}",
+            "entity.name": "{{ event()[\"entity_name\"] | default \"\" }}",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "{{ .name }}",
+            "fixit.runId": "{{ result(\"trigger_fixit_agent\")[\"body\"][\"runId\"] | default \"pending\" }}",
+            "remediation.status": "started",
+            "triggered.by": "dynatrace_workflow",
+            "timestamp": "{{ now() | toDate(\"2006-01-02T15:04:05Z\") }}"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": ["trigger_fixit_agent"],
+      "conditions": {
+        "states": {
+          "trigger_fixit_agent": "OK"
+        }
+      }
+    },
+    "wait_for_remediation": {
+      "name": "Wait for Fix-It Completion",
+      "description": "Wait 60 seconds for Fix-It agent to complete remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.BIZOBS_API_URL | default \"http://localhost:8080\" }}/api/autonomous/status",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": ["log_remediation_start"],
+      "conditions": {
+        "states": {
+          "log_remediation_start": "OK"
+        }
+      },
+      "retry": {
+        "count": 6,
+        "delay": 10,
+        "failedLoopIterationsOnly": true
+      }
+    },
+    "log_remediation_complete": {
+      "name": "Log Remediation Complete",
+      "description": "Send CUSTOM_DEPLOYMENT event to track completed remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "{{ .Env.DT_ENVIRONMENT }}/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ .Env.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_DEPLOYMENT",
+          "title": "Fix-It AI Agent Completed for Problem {{ event()[\"display_id\"] }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "deployment.name": "Autonomous Remediation",
+            "deployment.version": "{{ now() | toDate(\"2006-01-02T15:04:05Z\") }}",
+            "deployment.source": "Fix-It AI Agent",
+            "event.category": "autonomous_remediation",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "problem.title": "{{ event()[\"title\"] }}",
+            "fixit.status": "{{ result(\"wait_for_remediation\")[\"body\"][\"fixit\"][\"status\"] | default \"completed\" }}",
+            "fixit.lastRun": "{{ result(\"wait_for_remediation\")[\"body\"][\"fixit\"][\"lastRun\"] | default \"\" }}",
+            "remediation.type": "autonomous_ai",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "{{ .name }}",
+            "triggered.by": "dynatrace_workflow_fixit"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "predecessors": ["wait_for_remediation"],
+      "conditions": {
+        "states": {
+          "wait_for_remediation": "OK"
+        }
+      }
+    }
+  }
+}

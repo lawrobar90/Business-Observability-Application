@@ -21,6 +21,43 @@ const LR_MANAGER_SCRIPT = path.join(LOADRUNNER_DIR, 'lr-test-manager.sh');
 class LoadRunnerManager {
   constructor() {
     this.activeTests = this.loadActiveTests();
+    // Clear stop flags on fresh startup — stop flags are ephemeral,
+    // meant to prevent respawning during an active stop sequence only
+    this._clearStopFlag(this._stopAllFlagPath());
+    console.log('[LR-Manager] Initialized — stop flags cleared for fresh start');
+  }
+
+  // ============================================
+  // Stop-Flag Helpers
+  // ============================================
+  _stopAllFlagPath() {
+    return path.join(LOADRUNNER_DIR, 'STOP_ALL');
+  }
+
+  _stopCompanyFlagPath(companyName) {
+    return path.join(LOADRUNNER_DIR, companyName, 'STOP');
+  }
+
+  _writeStopFlag(flagPath) {
+    try {
+      const dir = path.dirname(flagPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(flagPath, new Date().toISOString());
+      console.log(`[LR-Manager] 🏳️  Stop flag written: ${flagPath}`);
+    } catch (err) {
+      console.error(`[LR-Manager] Failed to write stop flag ${flagPath}:`, err.message);
+    }
+  }
+
+  _clearStopFlag(flagPath) {
+    try {
+      if (fs.existsSync(flagPath)) {
+        fs.unlinkSync(flagPath);
+        console.log(`[LR-Manager] ✅ Stop flag cleared: ${flagPath}`);
+      }
+    } catch (err) {
+      console.error(`[LR-Manager] Failed to clear stop flag ${flagPath}:`, err.message);
+    }
   }
 
   loadActiveTests() {
@@ -54,6 +91,14 @@ class LoadRunnerManager {
     
     // Stop existing test for this company
     await this.stopLoadTest(companyName);
+    
+    // Clear only the company-specific stop flag (NOT the global STOP_ALL)
+    // so the new process can run. If STOP_ALL is set, we should NOT start.
+    if (fs.existsSync(this._stopAllFlagPath())) {
+      console.log(`[LR-Manager] ⛔ STOP_ALL flag is set — refusing to start new test for ${companyName}`);
+      return false;
+    }
+    this._clearStopFlag(this._stopCompanyFlagPath(companyName));
     
     // Use fixed test directory per company (no timestamps)
     const testDir = path.join(LOADRUNNER_DIR, companyName);
@@ -169,10 +214,15 @@ class LoadRunnerManager {
     
     if (!test) {
       console.log(`[LR-Manager] No active test for ${companyName}`);
+      // Still write a stop flag in case an orphan process is running
+      this._writeStopFlag(this._stopCompanyFlagPath(companyName));
       return false;
     }
     
     console.log(`[LR-Manager] 🛑 Stopping LoadRunner test for ${companyName} (PID: ${test.pid})`);
+    
+    // Write stop flag FIRST so the process exits even if SIGKILL doesn't reach it
+    this._writeStopFlag(this._stopCompanyFlagPath(companyName));
     
     try {
       process.kill(test.pid, 'SIGKILL');
@@ -199,6 +249,9 @@ class LoadRunnerManager {
     const companies = Object.keys(this.activeTests);
     
     console.log(`[LR-Manager] 🛑 Stopping ${companies.length} active tests...`);
+    
+    // Write global STOP_ALL flag FIRST — any simulator that checks will exit
+    this._writeStopFlag(this._stopAllFlagPath());
     
     for (const company of companies) {
       await this.stopLoadTest(company);

@@ -29,6 +29,16 @@ configs:
       automation:
         resource: workflow
 
+  # Fix-It AI Agent Workflow - Autonomous Problem Remediation
+  - id: workflow-fixit-agent
+    config:
+      name: "BizObs Fix-It AI Agent - Autonomous Remediation"
+      template: workflow-fixit-agent.json
+      skip: false
+    type:
+      automation:
+        resource: workflow
+
   # BizEvents Capture - Node.js HTTP Incoming
   - id: bizevents-nodejs
     config:

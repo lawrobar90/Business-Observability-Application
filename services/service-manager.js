@@ -352,10 +352,10 @@ export async function startChildService(internalServiceName, scriptPath, portPar
         DT_APPLICATION_ID: dynatraceServiceName,
         
         // 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service
-        DT_CUSTOM_PROP: `dtServiceName=${dynatraceServiceName} companyName=${companyName} domain=${domain} industryType=${industryType} stepName=${stepName || 'unknown'}`,
+        DT_CUSTOM_PROP: `dtServiceName=${dynatraceServiceName} companyName=${companyName} domain=${domain} industryType=${industryType} journeyType=${env.JOURNEY_TYPE || 'unknown'} stepName=${stepName || 'unknown'}`,
         
         // 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags
-        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} app=bizobs-journey environment=ace-box industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} version=gen-${serviceVersionCounter[internalServiceName] || 1} stage=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
+        DT_TAGS: `company=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} service=${dynatraceServiceName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()} app=bizobs-journey environment=ace-box industry=${industryType.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-type=${(env.JOURNEY_TYPE || 'unknown').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} journey-detail=${(env.JOURNEY_DETAIL || stepName || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()} version=gen-${serviceVersionCounter[internalServiceName] || 1} stage=${companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`,
         
         // 📦 DT_RELEASE_*: Release tracking metadata (version increments per restart)
         DT_RELEASE_PRODUCT: 'BizObs-Engine',
@@ -592,6 +592,7 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DOMAIN = ${JSON.stringify(domain)};\n` +
 `process.env.INDUSTRY_TYPE = ${JSON.stringify(industryType)};\n` +
 `process.env.CATEGORY = ${JSON.stringify(category)};\n` +
+`process.env.JOURNEY_TYPE = ${JSON.stringify(journeyType || 'unknown')};\n` +
 `process.env.SERVICE_VERSION = ${JSON.stringify(String(serviceVersionCounter[internalServiceName] || 1))};\n` +
 `process.env.PORT = ${JSON.stringify(String(allocatedPort))};\n` +
 `process.env.MAIN_SERVER_PORT = '8080';\n` +
@@ -608,10 +609,10 @@ export async function ensureServiceRunning(stepName, companyContext = {}) {
 `process.env.DT_APPLICATION_ID = process.env.SERVICE_NAME;\n` +
 `\n` +
 `// 🔑 DT_CUSTOM_PROP: Adds custom metadata properties to the service\n` +
-`process.env.DT_CUSTOM_PROP = 'dtServiceName=' + process.env.SERVICE_NAME + ' companyName=' + process.env.COMPANY_NAME + ' domain=' + process.env.DOMAIN + ' industryType=' + process.env.INDUSTRY_TYPE + ' stepName=' + process.env.STEP_NAME;\n` +
+`process.env.DT_CUSTOM_PROP = 'dtServiceName=' + process.env.SERVICE_NAME + ' companyName=' + process.env.COMPANY_NAME + ' domain=' + process.env.DOMAIN + ' industryType=' + process.env.INDUSTRY_TYPE + ' journeyType=' + (process.env.JOURNEY_TYPE || 'unknown') + ' stepName=' + process.env.STEP_NAME;\n` +
 `\n` +
 `// 🏷️ DT_TAGS: Space-separated key=value pairs for Dynatrace tags\n` +
-`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' app=bizobs-journey environment=ace-box industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' version=gen-' + (process.env.SERVICE_VERSION || '1') + ' stage=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
+`process.env.DT_TAGS = 'company=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' service=' + process.env.SERVICE_NAME.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() + ' app=bizobs-journey environment=ace-box industry=' + process.env.INDUSTRY_TYPE.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-type=' + (process.env.JOURNEY_TYPE || 'unknown').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' journey-detail=' + (process.env.STEP_NAME || 'unknown_journey').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() + ' version=gen-' + (process.env.SERVICE_VERSION || '1') + ' stage=' + process.env.COMPANY_NAME.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();\n` +
 `\n` +
 `// 📦 DT_RELEASE_*: Release tracking (version increments per restart)\n` +
 `process.env.DT_RELEASE_PRODUCT = 'BizObs-Engine';\n` +

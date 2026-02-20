@@ -21,15 +21,7 @@
           "substepName": "ViewSearchResults",
           "duration": 2
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 2,
@@ -37,7 +29,6 @@
       "serviceName": "SelectRoomAndRateService",
       "description": "Customer selects a room type and rate plan (Standard, Flex, Meal Deal).",
       "category": "Consideration",
-      "timestamp": "2026-02-16T16:16:58.868Z",
       "estimatedDuration": 4,
       "businessRationale": "Room and rate selection directly influence revenue; add-ons and flexible rates increase margin.",
       "substeps": [
@@ -49,15 +40,7 @@
           "substepName": "RatePlanSelection",
           "duration": 2
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 3,
@@ -65,7 +48,6 @@
       "serviceName": "CheckoutAndPaymentService",
       "description": "Customer enters personal details, payment information, and confirms the booking.",
       "category": "Purchase",
-      "timestamp": "2026-02-16T16:16:58.868Z",
       "estimatedDuration": 5,
       "businessRationale": "Payment is the highest-value conversion step; failures directly reduce revenue.",
       "substeps": [
@@ -77,15 +59,7 @@
           "substepName": "ProcessPayment",
           "duration": 3
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 4,
@@ -93,7 +67,6 @@
       "serviceName": "PreStayEngagementService",
       "description": "Customer receives confirmation, checks booking details, and may add extras such as breakfast or parking.",
       "category": "Engagement",
-      "timestamp": "2026-02-16T16:16:58.868Z",
       "estimatedDuration": 2,
       "businessRationale": "Pre-stay engagement increases add-on revenue and reduces customer support load.",
       "substeps": [
@@ -105,15 +78,7 @@
           "substepName": "AddExtras",
           "duration": 1
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": true
-      }
+      ]
     },
     {
       "stepIndex": 5,
@@ -121,7 +86,6 @@
       "serviceName": "CheckInAndStayExperienceService",
       "description": "Customer checks in at the hotel and experiences their stay.",
       "category": "Fulfillment",
-      "timestamp": "2026-02-16T16:16:58.868Z",
       "estimatedDuration": 10,
       "businessRationale": "Check-in experience strongly influences satisfaction and future booking likelihood.",
       "substeps": [
@@ -133,15 +97,7 @@
           "substepName": "StayExperience",
           "duration": 7
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 6,
@@ -149,7 +105,6 @@
       "serviceName": "PostStayFeedbackService",
       "description": "Customer receives a post-stay email and submits feedback or a review.",
       "category": "Retention",
-      "timestamp": "2026-02-16T16:16:58.868Z",
       "estimatedDuration": 3,
       "businessRationale": "Feedback drives reputation, NPS, and future conversion rates; reviews influence organic acquisition.",
       "substeps": [
@@ -161,17 +116,9 @@
           "substepName": "SubmitReview",
           "duration": 2
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-16T16:17:29.881Z"
+  "timestamp": "2026-02-20T14:57:10.527Z"
 }

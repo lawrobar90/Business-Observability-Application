@@ -1,0 +1,227 @@
+{
+  "title": "BizObs Fix-It AI Agent with Davis Intelligence",
+  "description": "Automatically analyzes problems with Davis CoPilot AI and triggers Fix-It Agent for autonomous remediation",
+  "isPrivate": false,
+  "trigger": {
+    "eventTrigger": {
+      "isActive": true,
+      "triggerConfiguration": {
+        "type": "davis-problem",
+        "value": {
+          "categories": {
+            "error": true,
+            "slowdown": true,
+            "resource": true
+          }
+        }
+      },
+      "filterQuery": "matchesValue(event.status, \"OPEN\")"
+    }
+  },
+  "tasks": {
+    "get_problem_details": {
+      "name": "Get Problem Details",
+      "description": "Fetch full problem context from Dynatrace",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "https://bko67471.sprint.apps.dynatracelabs.com/api/v2/problems/{{ event()[\"event_id\"] }}",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Api-Token {{ _.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    },
+    "davis_analyze_problem": {
+      "name": "Davis CoPilot - Analyze Problem",
+      "description": "Use Davis AI to analyze root cause and suggest remediation",
+      "action": "dynatrace.davis.workflow:analyze-problem",
+      "active": true,
+      "input": {
+        "problemId": "{{ event()[\"event_id\"] }}",
+        "analysisPrompt": "Analyze this problem and provide: 1) Root cause analysis, 2) Affected services and dependencies, 3) Recommended remediation actions, 4) Impact assessment. Problem: {{ event()[\"title\"] }}"
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": ["get_problem_details"],
+      "conditions": {
+        "states": {
+          "get_problem_details": "OK"
+        }
+      }
+    },
+    "trigger_fixit_agent": {
+      "name": "Trigger Fix-It AI Agent",
+      "description": "Send problem + Davis insights to Fix-It agent for autonomous remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "http://localhost:8080/api/workflow-webhook/problem-with-davis",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Workflow": "true",
+          "X-Davis-Enhanced": "true"
+        },
+        "payload": {
+          "event_type": "{{ event()[\"event_type\"] }}",
+          "event_id": "{{ event()[\"event_id\"] }}",
+          "title": "{{ event()[\"title\"] }}",
+          "description": "{{ event()[\"description\"] | default \"\" }}",
+          "problem_id": "{{ event()[\"display_id\"] }}",
+          "entity_id": "{{ event()[\"entity_id\"] | default \"\" }}",
+          "entity_name": "{{ event()[\"entity_name\"] | default \"\" }}",
+          "severity": "{{ event()[\"severity\"] }}",
+          "status": "{{ event()[\"status\"] }}",
+          "start_time": "{{ event()[\"start_time\"] | default 0 }}",
+          "workflow_id": "{{ execution()[\"id\"] }}",
+          "workflow_name": "BizObs Fix-It AI Agent with Davis Intelligence",
+          "davis_insights": {
+            "analysis": "{{ result(\"davis_analyze_problem\")[\"analysis\"] | default \"Davis analysis pending\" }}",
+            "root_cause": "{{ result(\"davis_analyze_problem\")[\"rootCause\"] | default \"\" }}",
+            "affected_entities": "{{ result(\"davis_analyze_problem\")[\"affectedEntities\"] | default [] | tojson }}",
+            "recommendations": "{{ result(\"davis_analyze_problem\")[\"recommendations\"] | default \"\" }}",
+            "confidence": "{{ result(\"davis_analyze_problem\")[\"confidence\"] | default 0 }}",
+            "evidence": "{{ result(\"davis_analyze_problem\")[\"evidence\"] | default [] | tojson }}"
+          },
+          "problem_details": {
+            "impact_level": "{{ result(\"get_problem_details\")[\"impactLevel\"] | default \"\" }}",
+            "root_cause_entity": "{{ result(\"get_problem_details\")[\"rootCauseEntity\"][\"name\"] | default \"\" }}",
+            "affected_entities_count": "{{ result(\"get_problem_details\")[\"affectedEntities\"] | length | default 0 }}"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": ["davis_analyze_problem"],
+      "conditions": {
+        "states": {
+          "davis_analyze_problem": "OK"
+        }
+      }
+    },
+    "log_davis_enrichment": {
+      "name": "Log Davis AI Enrichment",
+      "description": "Send event to Dynatrace showing Davis analysis was used",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "https://bko67471.sprint.apps.dynatracelabs.com/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ _.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_INFO",
+          "title": "Davis CoPilot Enhanced Remediation: {{ event()[\"display_id\"] }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "event.category": "davis_enhanced_remediation",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "problem.title": "{{ event()[\"title\"] }}",
+            "davis.analysis": "{{ result(\"davis_analyze_problem\")[\"analysis\"] | default \"pending\" }}",
+            "davis.confidence": "{{ result(\"davis_analyze_problem\")[\"confidence\"] | default 0 }}",
+            "fixit.runId": "{{ result(\"trigger_fixit_agent\")[\"body\"][\"runId\"] | default \"pending\" }}",
+            "remediation.status": "started_with_davis_ai",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "Fix-It with Davis Intelligence",
+            "ai.collaboration": "davis_copilot + ollama + fixit_agent"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": ["trigger_fixit_agent"],
+      "conditions": {
+        "states": {
+          "trigger_fixit_agent": "OK"
+        }
+      }
+    },
+    "wait_for_remediation": {
+      "name": "Wait for Fix-It Completion",
+      "description": "Poll Fix-It agent status until remediation completes",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "http://localhost:8080/api/autonomous/status",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "predecessors": ["log_davis_enrichment"],
+      "conditions": {
+        "states": {
+          "log_davis_enrichment": "OK"
+        }
+      },
+      "retry": {
+        "count": 6,
+        "delay": 10,
+        "failedLoopIterationsOnly": true
+      }
+    },
+    "log_remediation_complete": {
+      "name": "Log Remediation Complete",
+      "description": "Send deployment event showing Davis + Fix-It completed remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "https://bko67471.sprint.apps.dynatracelabs.com/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ _.DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_DEPLOYMENT",
+          "title": "Autonomous Remediation Complete: {{ event()[\"display_id\"] }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "deployment.name": "Davis + Fix-It Autonomous Remediation",
+            "deployment.version": "{{ now() | toDate(\"2006-01-02T15:04:05Z\") }}",
+            "deployment.source": "Dynatrace Intelligence + Fix-It AI",
+            "problem.id": "{{ event()[\"display_id\"] }}",
+            "problem.title": "{{ event()[\"title\"] }}",
+            "davis.root_cause": "{{ result(\"davis_analyze_problem\")[\"rootCause\"] | default \"analyzed\" }}",
+            "davis.confidence": "{{ result(\"davis_analyze_problem\")[\"confidence\"] | default 0 }}",
+            "fixit.status": "{{ result(\"wait_for_remediation\")[\"body\"][\"fixit\"][\"status\"] | default \"completed\" }}",
+            "fixit.lastRun": "{{ result(\"wait_for_remediation\")[\"body\"][\"fixit\"][\"lastRun\"] | default \"\" }}",
+            "remediation.type": "davis_copilot_enhanced",
+            "ai.stack": "Davis CoPilot → Fix-It Agent → Ollama",
+            "workflow.id": "{{ execution()[\"id\"] }}",
+            "workflow.name": "Davis Intelligence + Fix-It"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 6
+      },
+      "predecessors": ["wait_for_remediation"],
+      "conditions": {
+        "states": {
+          "wait_for_remediation": "OK"
+        }
+      }
+    }
+  }
+}

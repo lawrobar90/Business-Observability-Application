@@ -1,0 +1,31 @@
+{
+  "companyName": "Final",
+  "domain": "final.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Svc1",
+      "serviceName": "Svc1Service",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/a",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "stepName": "Svc2",
+      "serviceName": "Svc2Service",
+      "port": 8082,
+      "endpoints": [
+        {
+          "path": "/b",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T22:05:55.966Z"
+}

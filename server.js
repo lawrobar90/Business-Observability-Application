@@ -18,9 +18,9 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus, cleanupOrphanedServiceProcesses } from './services/service-manager.js';
+import { ensureServiceRunning, getServiceNameFromStep, getServicePort, stopAllServices, stopCustomerJourneyServices, getChildServices, getChildServiceMeta, performHealthCheck, getServiceStatus, cleanupOrphanedServiceProcesses, getDormantServices, clearDormantServices, clearDormantServicesForCompany, blockCompany } from './services/service-manager.js';
 import portManager from './services/port-manager.js';
-import { startAutoLoadWatcher, stopAutoLoadWatcher, stopAllAutoLoads, getAutoLoadStatus } from './services/auto-load.js';
+import { startAutoLoadWatcher, stopAutoLoadWatcher, stopAllAutoLoads, getAutoLoadStatus, stopAutoLoad } from './services/auto-load.js';
 
 import journeyRouter from './routes/journey.js';
 import simulateRouter from './routes/simulate.js';
@@ -38,6 +38,11 @@ import aiDashboardRouter from './routes/ai-dashboard.js';
 import gremlinRouter from './dist/routes/gremlin.js';
 import fixitRouter from './dist/routes/fixit.js';
 import librarianRouter from './dist/routes/librarian.js';
+import autonomousRouter from './dist/routes/autonomous.js';
+import workflowWebhookRouter from './dist/routes/workflow-webhook.js';
+// Autonomous Agent Control Functions
+import { startScheduler as startGremlinScheduler } from './dist/agents/gremlin/autonomousScheduler.js';
+import { startDetector as startFixitDetector } from './dist/agents/fixit/problemDetector.js';
 // MCP integration removed - not needed for core functionality
 import { injectDynatraceMetadata, injectErrorMetadata, propagateMetadata, validateMetadata } from './middleware/dynatrace-metadata.js';
 import { performComprehensiveHealthCheck } from './middleware/observability-hygiene.js';
@@ -238,10 +243,16 @@ async function sendDynatraceEvent(eventType, properties, dtEnvironmentOverride =
     if (eventProps['problem.id'] && eventProps['problem.id'] !== 'N/A') descriptionParts.push(`Problem: ${eventProps['problem.id']}`);
     const autoDescription = descriptionParts.join(' | ');
     
+    // For chaos injection events, keep them OPEN (no timeout) so they correlate with problems
+    // For other events (like remediation), use default 15-minute timeout
+    const isChaosInjection = eventProps['change.type'] === 'chaos-injection';
+    const shouldStayOpen = properties.keepOpen || isChaosInjection;
+    
     const eventPayload = {
       eventType: deploymentEventType,
       title: eventTitle,
-      timeout: 15,
+      // Only set timeout for non-chaos events; chaos events stay OPEN until explicitly closed
+      ...(shouldStayOpen ? {} : { timeout: 15 }),
       properties: {
         'dt.event.description': eventProps['dt.event.description'] || autoDescription,
         'deployment.name': eventProps['deployment.name'] || `Feature Flag: ${eventProps['feature.flag'] || 'unknown'}`,
@@ -256,6 +267,10 @@ async function sendDynatraceEvent(eventType, properties, dtEnvironmentOverride =
       },
       ...properties
     };
+    
+    if (shouldStayOpen) {
+      console.log(`[Event API] Creating OPEN event (no timeout) for chaos injection - will stay open until explicitly closed`);
+    }
     
     // Add entitySelector if provided — targets the event to a specific DT entity
     if (properties.entitySelector) {
@@ -546,6 +561,8 @@ app.use('/api/ai-dashboard', aiDashboardRouter);
 app.use('/api/gremlin', gremlinRouter.default || gremlinRouter);
 app.use('/api/fixit', fixitRouter.default || fixitRouter);
 app.use('/api/librarian', librarianRouter.default || librarianRouter);
+app.use('/api/autonomous', autonomousRouter.default || autonomousRouter);
+app.use('/api/workflow-webhook', workflowWebhookRouter.default || workflowWebhookRouter);
 // MCP routes removed - not needed
 
 // 🚦 FEATURE FLAG API - Generic, scalable, future-proof
@@ -654,6 +671,8 @@ app.get('/api/feature_flag', async (req, res) => {
     }
   });
   
+  const baseService = req.query.baseService;
+  
   const filterInfo = journey ? `journey: ${journey}` : 
                      (company || companyName) ? `company: ${company || companyName}` : 
                      service ? `service: ${service}` :
@@ -662,18 +681,29 @@ app.get('/api/feature_flag', async (req, res) => {
   console.log(`📊 [Feature Flags API] GET all flags (${filterInfo}):`, globalFeatureFlags);
   
   // If a specific service is requesting, return per-service override if it exists
-  // otherwise return global defaults (NOT the global elevated rate)
+  // Check BOTH the compound name (service) AND the base name (baseService)
+  // This allows chaos targeting by clean service name to work for all instances
   let effectiveFlags = { ...globalFeatureFlags };
-  if (service) {
-    const svcOverride = serviceFeatureFlags[service];
+  if (service || baseService) {
+    // Try compound name first (most specific), then base name (for chaos targeting)
+    let svcOverride = service ? serviceFeatureFlags[service] : null;
+    if (!svcOverride && baseService) {
+      svcOverride = serviceFeatureFlags[baseService];
+      if (svcOverride) {
+        console.log(`🎯 [Feature Flags API] Service "${service || baseService}" matched base service override for "${baseService}":`, svcOverride);
+      }
+    }
+    
     if (svcOverride) {
       // This service has a targeted override — merge it on top of defaults
       effectiveFlags = { ...DEFAULT_FEATURE_FLAGS, ...svcOverride };
-      console.log(`🎯 [Feature Flags API] Service "${service}" has targeted override:`, svcOverride);
+      if (service === baseService || !baseService) {
+        console.log(`🎯 [Feature Flags API] Service "${service}" has targeted override:`, svcOverride);
+      }
     } else {
       // No override for this service — use safe defaults (no elevated error rate)
       effectiveFlags = { ...DEFAULT_FEATURE_FLAGS };
-      console.log(`✅ [Feature Flags API] Service "${service}" has no override, using defaults`);
+      console.log(`✅ [Feature Flags API] Service "${service || baseService}" has no override, using defaults`);
     }
   }
   
@@ -681,7 +711,7 @@ app.get('/api/feature_flag', async (req, res) => {
     success: true,
     flags: effectiveFlags,
     defaults: DEFAULT_FEATURE_FLAGS,
-    serviceOverrides: service ? (serviceFeatureFlags[service] || null) : serviceFeatureFlags,
+    serviceOverrides: (service || baseService) ? (serviceFeatureFlags[service] || serviceFeatureFlags[baseService] || null) : serviceFeatureFlags,
     targetedServices: Object.keys(serviceFeatureFlags),
     currently_running: {
       companies: Array.from(runningCompanies),
@@ -1003,6 +1033,7 @@ app.delete('/api/feature_flag/service/:serviceName', (req, res) => {
   sendDynatraceEvent('CUSTOM_CONFIGURATION', {
     title: `Chaos Reverted: ${serviceName}`,
     entitySelector: buildEntitySelector([serviceName]),
+    keepOpen: true, // Keep open to show when chaos was removed
     properties: {
       'dt.event.description': `[REMEDIATION] Chaos injection reverted for ${serviceName}. Previous error-inducing flags: ${previousFlags ? JSON.stringify(previousFlags) : 'none'}. Service returned to default (healthy) configuration. This deployment event should resolve previously injected failures.`,
       'deployment.name': `Chaos Revert: ${serviceName}`,
@@ -1460,6 +1491,33 @@ app.post('/api/admin/services/stop-by-company', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'companyName required' });
     }
     
+    console.log(`🛑 [Admin] STOP BY COMPANY: ${companyName} — blocking new service creation + stopping loads`);
+    
+    // 1) Block ensureServiceRunning for this company (prevents in-flight requests from recreating services)
+    blockCompany(companyName);
+    
+    // 2) Stop auto-load for this company (prevents watcher from firing new journeys)
+    stopAutoLoad(companyName);
+    
+    // 3) Stop the continuous LoadRunner test for this company
+    try {
+      await fetch(`http://localhost:${process.env.PORT || 8080}/api/journey-simulation/continuous-generation/stop/${encodeURIComponent(companyName)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }
+      });
+      console.log(`🛑 [Admin] Stopped continuous journey generation for ${companyName}`);
+    } catch (e) { /* ignore */ }
+    
+    // 4) Kill any loadrunner-simulator processes for this company
+    try {
+      const { execSync } = await import('child_process');
+      execSync(`pkill -9 -f "loadrunner-simulator.*${companyName}"`, { stdio: 'ignore' });
+      console.log(`🛑 [Admin] Killed loadrunner-simulator processes for ${companyName}`);
+    } catch (e) { /* pkill returns 1 if no match, that's fine */ }
+    
+    // 5) Small delay to let in-flight requests drain
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 6) Now stop the actual services
     const { getChildServices, getChildServiceMeta, stopService } = await import('./services/service-manager.js');
     const services = getChildServices();
     const metadata = getChildServiceMeta();
@@ -1472,6 +1530,14 @@ app.post('/api/admin/services/stop-by-company', async (req, res) => {
         stoppedServices.push(serviceName);
       }
     }
+    
+    // 7) Force kill any zombie processes for this company
+    try {
+      const { execSync } = await import('child_process');
+      execSync(`pkill -9 -f "${companyName}.*Service"`, { stdio: 'ignore' });
+    } catch (e) { /* ignore */ }
+    
+    console.log(`✅ [Admin] Stopped ${stoppedServices.length} services for ${companyName}`);
     
     res.json({ 
       ok: true, 
@@ -1521,7 +1587,12 @@ app.post('/api/admin/services/stop-everything', async (req, res) => {
   try {
     console.log('🛑 [Admin] STOP EVERYTHING: Stopping all load generators and services...');
     
-    // Stop LoadRunner service tests
+    // Set global flag to prevent new services from being created during stop sequence
+    global.stoppingEverything = true;
+    
+    // Stop the auto-load WATCHER first (prevents it from restarting auto-loads)
+    stopAutoLoadWatcher();
+    
     // Stop all auto-load generators
     stopAllAutoLoads();
     
@@ -1530,6 +1601,15 @@ app.post('/api/admin/services/stop-everything', async (req, res) => {
         method: 'POST', headers: { 'Content-Type': 'application/json' }
       });
       await lrStopRes.json();
+    } catch (e) { /* ignore */ }
+    
+    // Stop continuous LoadRunner journey tests (journey-simulation route)
+    try {
+      const jrnStopRes = await fetch(`http://localhost:${process.env.PORT || 8080}/api/journey-simulation/continuous-generation/stop-all`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }
+      });
+      await jrnStopRes.json();
+      console.log('🛑 [Admin] Stopped continuous journey generation LoadRunner tests');
     } catch (e) { /* ignore */ }
     
     // Stop old-style loadTests
@@ -1543,17 +1623,84 @@ app.post('/api/admin/services/stop-everything', async (req, res) => {
       try { global.continuousJourneyProcess.kill(); global.continuousJourneyProcess = null; } catch (e) { /* ignore */ }
     }
     
-    // Stop all child services
-    await stopAllServices();
+    // Stop all child services + force kill orphans
+    const killAll = async () => {
+      await stopAllServices();
+      try {
+        const { execSync } = await import('child_process');
+        execSync('pkill -9 -f "dynamic-step-service" 2>/dev/null', { stdio: 'ignore' });
+        execSync('pkill -9 -f "[A-Z].*Service" 2>/dev/null', { stdio: 'ignore' });
+      } catch (e) { /* ignore */ }
+    };
     
-    // Force kill orphans
-    try {
-      const { execSync } = await import('child_process');
-      execSync('pkill -9 -f "dynamic-step-service" 2>/dev/null', { stdio: 'ignore' });
-    } catch (e) { /* ignore */ }
+    await killAll();
     
-    console.log('✅ [Admin] STOP EVERYTHING complete');
+    // Send response immediately
+    console.log('✅ [Admin] STOP EVERYTHING initial pass complete');
     res.json({ ok: true, message: 'All load generators, services, and ports stopped.' });
+    
+    // Schedule background cleanup passes to catch services spawned by in-flight requests
+    const scheduleCleanup = (delay, passNum) => {
+      setTimeout(async () => {
+        console.log(`🧹 [Admin] Cleanup pass ${passNum}...`);
+        await killAll();
+        if (passNum === 3) {
+          global.stoppingEverything = false;
+          console.log('✅ [Admin] All cleanup passes complete');
+        }
+      }, delay);
+    };
+    
+    scheduleCleanup(2000, 1);
+    scheduleCleanup(5000, 2);
+    scheduleCleanup(8000, 3);
+    
+  } catch (e) {
+    global.stoppingEverything = false;
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+// DORMANT SERVICES ENDPOINTS
+// ════════════════════════════════════════════════════════════
+
+// Get dormant (stopped but remembered) services
+app.get('/api/admin/services/dormant', (req, res) => {
+  try {
+    const dormant = getDormantServices();
+    const dormantList = Object.entries(dormant).map(([name, meta]) => ({
+      serviceName: name,
+      companyName: meta.companyName || 'Unknown',
+      domain: meta.domain || 'unknown',
+      industryType: meta.industryType || 'unknown',
+      baseServiceName: meta.baseServiceName || name,
+      stepName: meta.stepName || 'unknown',
+      previousPort: meta.previousPort,
+      serviceVersion: meta.serviceVersion || null,
+      stoppedAt: meta.stoppedAt
+    }));
+    res.json({
+      ok: true,
+      dormantServices: dormantList,
+      count: dormantList.length
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Clear all dormant services
+app.post('/api/admin/services/clear-dormant', (req, res) => {
+  try {
+    const { companyName } = req.body || {};
+    let cleared;
+    if (companyName) {
+      cleared = clearDormantServicesForCompany(companyName);
+    } else {
+      cleared = clearDormantServices();
+    }
+    res.json({ ok: true, cleared });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -2149,15 +2296,35 @@ app.get('/api/dt-proxy/logs', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   console.log('[server] Health check endpoint called');
+  // Detect caller's IP (for firewall guidance in the AppEngine UI)
+  const rawIp = req.headers['x-forwarded-for']
+    ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
+    : req.socket?.remoteAddress || req.ip || null;
+  // Strip IPv6-mapped IPv4 prefix (::ffff:1.2.3.4 → 1.2.3.4)
+  const callerIp = rawIp && rawIp.startsWith('::ffff:') ? rawIp.slice(7) : rawIp;
   const runningServices = getChildServices();
-  const serviceStatuses = Object.keys(runningServices).map(serviceName => ({
-    service: serviceName,
-    running: true,
-    pid: runningServices[serviceName]?.pid || null
-  }));
+  const meta = getChildServiceMeta();
+  const serviceStatuses = Object.keys(runningServices).map(serviceName => {
+    const m = meta[serviceName] || {};
+    return {
+      service: serviceName,
+      running: true,
+      pid: runningServices[serviceName]?.pid || null,
+      port: m.port || null,
+      companyName: m.companyName || null,
+      domain: m.domain || null,
+      industryType: m.industryType || null,
+      stepName: m.stepName || null,
+      baseServiceName: m.baseServiceName || null,
+      serviceVersion: m.serviceVersion || 1,
+      releaseStage: (m.companyName || 'unknown').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase(),
+      startTime: m.startTime || null
+    };
+  });
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    callerIp,
     mainProcess: {
       pid: process.pid,
       uptime: process.uptime(),
@@ -2260,9 +2427,14 @@ app.post('/api/remediation/feature-flag', async (req, res) => {
       const allSelectors = buildEntitySelectorsForServices(Object.keys(getChildServiceMeta()));
       entitySelectorForEvent = allSelectors.length > 0 ? allSelectors : undefined;
     }
+    
+    // Keep event open if triggered by gremlin-agent (chaos injection)
+    const isGremlinTriggered = triggeredBy === 'gremlin-agent';
+    
     const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
       title: `Remediation: ${flag} ${value ? 'enabled' : 'disabled'}`,
       entitySelector: entitySelectorForEvent,
+      keepOpen: isGremlinTriggered, // Keep open for chaos injection events
       properties: {
         'dt.event.description': `[REMEDIATION] Feature flag '${flag}' changed from ${previousValue} to ${value} as remediation action. Reason: ${reason || 'Not specified'}. This configuration change was triggered by ${triggeredBy} to address problem ${problemId || 'N/A'}. The flag change directly affects service behavior and error rates.`,
         'deployment.name': `Remediation: ${flag}`,
@@ -2276,7 +2448,7 @@ app.post('/api/remediation/feature-flag', async (req, res) => {
         'problem.id': problemId || 'N/A',
         'remediation.type': 'feature_flag_toggle',
         'application': 'BizObs',
-        'change.type': 'remediation',
+        'change.type': isGremlinTriggered ? 'chaos-injection' : 'remediation',
         'change.impact': value ? 'Error injection enabled' : 'Error injection disabled - service should recover'
       }
     }, dtEnvironment, dtToken);
@@ -2332,9 +2504,14 @@ app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
           const allSelectors = buildEntitySelectorsForServices(Object.keys(getChildServiceMeta()));
           bulkEntitySelector = allSelectors.length > 0 ? allSelectors : undefined;
         }
+        
+        // Keep event open if triggered by gremlin-agent (chaos injection)
+        const isGremlinTriggered = triggeredBy === 'gremlin-agent';
+        
         const eventResult = await sendDynatraceEvent('CUSTOM_CONFIGURATION', {
           title: `Bulk Remediation: ${flag} ${value ? 'enabled' : 'disabled'}`,
           entitySelector: bulkEntitySelector,
+          keepOpen: isGremlinTriggered, // Keep open for chaos injection events
           properties: {
             'dt.event.description': `[REMEDIATION] Bulk remediation: '${flag}' changed from ${previousValue} to ${value}. Reason: ${reason || 'Bulk update'}. Triggered by: ${triggeredBy}. This bulk configuration change directly affects error rates across targeted services.`,
             'deployment.name': `Bulk Remediation: ${flag}`,
@@ -2348,7 +2525,7 @@ app.post('/api/remediation/feature-flags/bulk', async (req, res) => {
             'problem.id': problemId || 'N/A',
             'remediation.type': 'bulk_feature_flag_toggle',
             'application': 'BizObs',
-            'change.type': 'bulk-remediation',
+            'change.type': isGremlinTriggered ? 'chaos-injection' : 'bulk-remediation',
             'change.impact': value ? 'Error injection enabled across services' : 'Error injection disabled - services should recover'
           }
         }, dtEnvironment, dtToken);
@@ -4491,6 +4668,20 @@ server.listen(PORT, () => {
   
   // Store health monitor for cleanup
   server.healthMonitor = healthMonitor;
+  
+  // --- Auto-start AI Agents ---
+  console.log('🤖 Starting autonomous AI agents...');
+  try {
+    // Start Gremlin Chaos Scheduler (auto-enabled, 2-hour warmup, volume-based triggering)
+    startGremlinScheduler();
+    console.log('✅ Gremlin AI Agent: Started (warmup: 2 hours, volume-based triggering)');
+    
+    // Start Fix-It Problem Detector (auto-enabled, continuous monitoring)
+    startFixitDetector();
+    console.log('✅ Fix-It AI Agent: Started (continuous problem detection)');
+  } catch (agentError) {
+    console.error('⚠️  AI Agents startup error (non-fatal):', agentError.message);
+  }
   
   // --- Auto-start MCP Server ---
   console.log('🔍 Checking for Dynatrace MCP Server configuration...');

@@ -1,0 +1,31 @@
+{
+  "companyName": "FinalTest",
+  "domain": "finaltest.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Alpha",
+      "serviceName": "AlphaService",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/a",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "stepName": "Beta",
+      "serviceName": "BetaService",
+      "port": 8082,
+      "endpoints": [
+        {
+          "path": "/b",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T21:58:53.726Z"
+}

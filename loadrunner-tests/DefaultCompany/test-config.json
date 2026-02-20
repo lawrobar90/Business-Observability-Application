@@ -1,22 +1,22 @@
 {
-  "companyName": "Telecommunications",
-  "domain": "https://www.telecom.com",
-  "industryType": "Telecommunications",
+  "companyName": "DefaultCompany",
+  "domain": "default.com",
+  "industryType": "general",
   "steps": [
     {
       "stepIndex": 1,
-      "stepName": "FirstDataUsage",
-      "serviceName": "FirstDataUsageService",
-      "description": "FirstDataUsage step for Telecommunications",
+      "stepName": "Discovery",
+      "serviceName": "DiscoveryService",
+      "description": "Discovery step for DefaultCompany",
       "category": "Acquisition",
-      "estimatedDuration": 6,
+      "estimatedDuration": 4,
       "substeps": [
         {
-          "substepName": "FirstDataUsageStep1",
+          "substepName": "DiscoveryStep1",
           "duration": 2
         },
         {
-          "substepName": "FirstDataUsageStep2",
+          "substepName": "DiscoveryStep2",
           "duration": 2
         }
       ],
@@ -31,18 +31,18 @@
     },
     {
       "stepIndex": 2,
-      "stepName": "ComparisonClickthrough",
-      "serviceName": "ComparisonClickthroughService",
-      "description": "ComparisonClickthrough step for Telecommunications",
+      "stepName": "Retention",
+      "serviceName": "RetentionService",
+      "description": "Retention step for DefaultCompany",
       "category": "Fulfilment",
       "estimatedDuration": 5,
       "substeps": [
         {
-          "substepName": "ComparisonClickthroughStep1",
+          "substepName": "RetentionStep1",
           "duration": 2
         },
         {
-          "substepName": "ComparisonClickthroughStep2",
+          "substepName": "RetentionStep2",
           "duration": 2
         }
       ],
@@ -57,18 +57,18 @@
     },
     {
       "stepIndex": 3,
-      "stepName": "IdentityVerification",
-      "serviceName": "IdentityVerificationService",
-      "description": "IdentityVerification step for Telecommunications",
+      "stepName": "Consideration",
+      "serviceName": "ConsiderationService",
+      "description": "Consideration step for DefaultCompany",
       "category": "Fulfilment",
       "estimatedDuration": 6,
       "substeps": [
         {
-          "substepName": "IdentityVerificationStep1",
+          "substepName": "ConsiderationStep1",
           "duration": 2
         },
         {
-          "substepName": "IdentityVerificationStep2",
+          "substepName": "ConsiderationStep2",
           "duration": 2
         }
       ],
@@ -83,18 +83,18 @@
     },
     {
       "stepIndex": 4,
-      "stepName": "Checkout",
-      "serviceName": "CheckoutService",
-      "description": "Checkout step for Telecommunications",
+      "stepName": "Awareness",
+      "serviceName": "AwarenessService",
+      "description": "Awareness step for DefaultCompany",
       "category": "Revenue",
-      "estimatedDuration": 5,
+      "estimatedDuration": 2,
       "substeps": [
         {
-          "substepName": "CheckoutStep1",
+          "substepName": "AwarenessStep1",
           "duration": 2
         },
         {
-          "substepName": "CheckoutStep2",
+          "substepName": "AwarenessStep2",
           "duration": 2
         }
       ],
@@ -109,5 +109,5 @@
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-18T13:46:55.849Z"
+  "timestamp": "2026-02-18T21:47:26.776Z"
 }

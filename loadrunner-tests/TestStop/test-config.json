@@ -1,14 +1,40 @@
 {
-  "companyName": "TestCo",
-  "domain": "testco.com",
-  "industryType": "general",
+  "companyName": "TestStop",
+  "domain": "teststop.com",
+  "industryType": "technology",
   "steps": [
     {
       "stepIndex": 1,
+      "stepName": "Discovery",
+      "serviceName": "DiscoveryService",
+      "description": "Discovery step for TestStop",
+      "category": "Acquisition",
+      "estimatedDuration": 6,
+      "substeps": [
+        {
+          "substepName": "DiscoveryStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "DiscoveryStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 2,
       "stepName": "Checkout",
       "serviceName": "CheckoutService",
-      "description": "Checkout step for TestCo",
-      "category": "Acquisition",
+      "description": "Checkout step for TestStop",
+      "category": "Revenue",
       "estimatedDuration": 4,
       "substeps": [
         {
@@ -28,34 +54,8 @@
         "likelihood": 0.1,
         "shouldSimulateError": false
       }
-    },
-    {
-      "stepIndex": 2,
-      "stepName": "Cart",
-      "serviceName": "CartService",
-      "description": "Cart step for TestCo",
-      "category": "Revenue",
-      "estimatedDuration": 3,
-      "substeps": [
-        {
-          "substepName": "CartStep1",
-          "duration": 2
-        },
-        {
-          "substepName": "CartStep2",
-          "duration": 2
-        }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-18T13:46:55.823Z"
+  "timestamp": "2026-02-18T21:52:35.025Z"
 }

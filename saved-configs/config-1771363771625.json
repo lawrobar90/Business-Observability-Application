@@ -1,0 +1,1596 @@
+{
+  "companyName": "Smyths",
+  "domain": "https://www.smythstoys.com/uk/en-gb",
+  "industryType": "",
+  "journeyRequirements": "Typical journey from website to feedback post delivery",
+  "copilotResponse": "",
+  "copilotResponseStep2": "{\n  \"journey\": {\n    \"companyName\": \"Smyths\",\n    \"domain\": \"https://www.smythstoys.com/uk/en-gb\",\n    \"industryType\": \"E-commerce\",\n    \"journeyType\": \"Purchase Journey\",\n    \"journeyDetail\": \"Purchase Journey\",\n    \"journeyId\": \"journey_smyths_2025\",\n    \"journeyStartTime\": \"2025-11-21T00:00:00.000Z\",\n    \"steps\": [\n      {\n        \"stepIndex\": 1,\n        \"stepName\": \"ProductDiscovery\",\n        \"serviceName\": \"ProductDiscoveryService\",\n        \"description\": \"Customer browses categories, performs searches, and views product detail pages.\",\n        \"category\": \"Discovery\",\n        \"timestamp\": \"2025-11-21T00:00:00.000Z\",\n        \"estimatedDuration\": 6,\n        \"businessRationale\": \"Retail browsing typically lasts 5–8 minutes as users compare toys, check stock, and evaluate prices.\",\n        \"substeps\": [\n          {\"substepName\": \"CategoryBrowsing\", \"duration\": 2},\n          {\"substepName\": \"SearchAndPDPViews\", \"duration\": 4}\n        ]\n      },\n      {\n        \"stepIndex\": 2,\n        \"stepName\": \"BasketCreation\",\n        \"serviceName\": \"BasketCreationService\",\n        \"description\": \"Customer adds items to basket and reviews basket contents.\",\n        \"category\": \"Engagement\",\n        \"estimatedDuration\": 3,\n        \"businessRationale\": \"Basket formation is quick in toy retail; users add 1–3 items and review pricing.\",\n        \"substeps\": [\n          {\"substepName\": \"AddToBasket\", \"duration\": 2},\n          {\"substepName\": \"BasketReview\", \"duration\": 1}\n        ]\n      },\n      {\n        \"stepIndex\": 3,\n        \"stepName\": \"CheckoutStart\",\n        \"serviceName\": \"CheckoutStartService\",\n        \"description\": \"Customer initiates checkout, selects delivery method, and enters address details.\",\n        \"category\": \"Conversion\",\n        \"estimatedDuration\": 5,\n        \"businessRationale\": \"Checkout initiation takes 4–6 minutes due to address entry and delivery option selection.\",\n        \"substeps\": [\n          {\"substepName\": \"AddressEntry\", \"duration\": 3},\n          {\"substepName\": \"DeliverySelection\", \"duration\": 2}\n        ]\n      },\n      {\n        \"stepIndex\": 4,\n        \"stepName\": \"PaymentProcessing\",\n        \"serviceName\": \"PaymentProcessingService\",\n        \"description\": \"Customer enters payment details and completes payment.\",\n        \"category\": \"Transaction\",\n        \"estimatedDuration\": 4,\n        \"businessRationale\": \"Payment flows in retail average 3–5 minutes depending on card verification and 3DS checks.\",\n        \"substeps\": [\n          {\"substepName\": \"PaymentDetailsEntry\", \"duration\": 2},\n          {\"substepName\": \"PaymentAuthorization\", \"duration\": 2}\n        ]\n      },\n      {\n        \"stepIndex\": 5,\n        \"stepName\": \"OrderFulfilment\",\n        \"serviceName\": \"OrderFulfilmentService\",\n        \"description\": \"Order is processed, packed, dispatched, and delivered to the customer.\",\n        \"category\": \"Fulfilment\",\n        \"estimatedDuration\": 4320,\n        \"businessRationale\": \"Typical UK toy retail delivery takes 2–4 days depending on warehouse load and courier performance.\",\n        \"substeps\": [\n          {\"substepName\": \"WarehouseProcessing\", \"duration\": 1440},\n          {\"substepName\": \"CourierDelivery\", \"duration\": 2880}\n        ]\n      },\n      {\n        \"stepIndex\": 6,\n        \"stepName\": \"PostDeliveryFeedback\",\n        \"serviceName\": \"PostDeliveryFeedbackService\",\n        \"description\": \"Customer receives follow-up email and submits product/store feedback.\",\n        \"category\": \"Engagement\",\n        \"estimatedDuration\": 10,\n        \"businessRationale\": \"Feedback submission typically takes under 10 minutes and directly impacts NPS and retention.\",\n        \"substeps\": [\n          {\"substepName\": \"EmailPromptRead\", \"duration\": 3},\n          {\"substepName\": \"FeedbackSubmission\", \"duration\": 7}\n        ]\n      }\n    ]\n  },\n  \"customerProfile\": {\n    \"userId\": \"user_smyths_001\",\n    \"email\": \"testuser@smythstoys.com/uk/en-gb\",\n    \"userSegment\": \"Standard\",\n    \"digitalBehaviorPattern\": \"Browses multiple categories, compares prices, and purchases during seasonal promotions.\",\n    \"businessValueTier\": \"Medium\",\n    \"experienceExpectations\": \"Fast search results, accurate stock levels, and smooth checkout.\",\n    \"conversionLikelihood\": 0.42,\n    \"technologyProfile\": \"Mobile-first shopper using Chrome on a mid-range Android device with stable broadband.\"\n  },\n  \"traceMetadata\": {\n    \"correlationId\": \"trace_smyths_2025\",\n    \"sessionId\": \"session_smyths_001\",\n    \"businessContext\": {\n      \"campaignSource\": \"Organic Search\",\n      \"customerSegment\": \"standard\",\n      \"businessValue\": 120.50,\n      \"revenueImpact\": 45.00,\n      \"transactionAmount\": 89.99\n    }\n  },\n  \"additionalFields\": {\n    \"transactionValue\": 89.99,\n    \"basketValue\": 92.47,\n    \"discountApplied\": 2.48,\n    \"conversionRate\": 0.038,\n    \"searchToPdpRate\": 0.41,\n    \"pdpToBasketRate\": 0.16,\n    \"basketToCheckoutRate\": 0.52,\n    \"paymentSuccessRate\": 0.96,\n    \"deliverySlaHours\": 72,\n    \"customerLifetimeValue\": 248.00,\n    \"loyaltyStatus\": \"none\",\n    \"engagementScore\": 68,\n    \"netPromoterScore\": 62,\n    \"fraudRiskScore\": 0.03,\n    \"refundProbability\": 0.07,\n    \"deliveryMethod\": \"standard\",\n    \"paymentMethod\": \"card\",\n    \"deviceType\": \"mobile\",\n    \"sessionDurationMinutes\": 18,\n    \"pageLoadTimeSeconds\": 2.4,\n    \"searchLatencyMs\": 180,\n    \"checkoutErrorRate\": 0.012,\n    \"stockAccuracyScore\": 0.97,\n    \"productName\": [\"LEGO City Fire Truck\", \"Barbie Dream Camper\"],\n    \"productSKU\": [\"SKU-LEGO-FT-001\", \"SKU-BARBIE-DC-204\"],\n    \"productPrice\": [24.99, 64.99],\n    \"productCategory\": [\"Construction Toys\", \"Dolls & Playsets\"],\n    \"productQuantity\": [1, 1],\n    \"deliveryOptions\": [\"standard\", \"express\"],\n    \"paymentMethods\": [\"card\", \"paypal\"],\n    \"customerSatisfactionScore\": 0.88,\n    \"searchZeroResultRate\": 0.06,\n    \"basketAbandonmentRate\": 0.48,\n    \"orderFulfilmentScore\": 0.91,\n    \"feedbackCompletionRate\": 0.27\n  }\n}\n",
+  "promptText1": "Smyths at https://www.smythstoys.com/uk/en-gb is the focus for this chat.\n\nYou are a Business Observability specialist creating realistic customer journey simulations for application monitoring and business analytics platforms.\n\nYour goal is to analyze Smyths's digital business model to create accurate observability scenarios with proper business events, revenue tracking, and customer experience metrics that would be monitored in production.\n\nFocus on Smyths's digital touchpoints and business-critical user flows that generate measurable business outcomes. Analyze their:\n\n**DIGITAL BUSINESS ARCHITECTURE:**\n1. **Primary Revenue Streams**: What are their main monetization methods and typical transaction values?\n2. **Critical User Journeys**: What are the 3 most important customer flows that drive revenue?\n3. **Journey Classification**: What specific industry type and concise journey names describe their flows (e.g. \"Trial Signup\", \"Purchase Journey\")?\n4. **Technology Stack**: What platforms, APIs, and services likely power their digital experience?\n\n**OBSERVABILITY REQUIREMENTS:**\n1. **Business Events**: What key business moments should be tracked (purchases, signups, upgrades, cancellations)?\n2. **Revenue Attribution**: How do customer actions translate to measurable business value?\n3. **Experience Metrics**: What user experience indicators impact their business outcomes?\n\n**MONITORING PRIORITIES:**\n1. **Performance Impact**: Which slow services would hurt their revenue most?\n2. **Error Consequences**: What failures would cause immediate business loss?\n3. **Conversion Tracking**: What steps in their funnel need observability data?\n\nReturn a structured analysis focusing on:\n- Specific business events that need monitoring\n- Revenue impact of different user actions\n- Technology dependencies that affect customer experience\n- Realistic conversion rates and transaction values for their industry\n- Key performance indicators that matter for their business model\n\nBase your analysis on publicly available information about Smyths's business model, but focus on practical observability scenarios rather than generic business strategy.",
+  "promptText2": "Create a business observability customer journey JSON for Smyths (https://www.smythstoys.com/uk/en-gb) based on your previous analysis.\n\n🎯 SPECIFIC JOURNEY REQUIREMENTS: \"Typical journey from website to feedback post delivery\"\n\nThe customer journey MUST model the exact observability scenario described above. Design realistic business events, user interactions, and measurable outcomes that would appear in application monitoring dashboards and business analytics platforms.\n\n⚠️ CRITICAL: Must include duration fields and business value tracking or response will be rejected ⚠️\n\nReturn JSON with this structure:\n{\n  \"journey\": {\n    \"companyName\": \"Smyths\",\n    \"domain\": \"https://www.smythstoys.com/uk/en-gb\",\n    \"industryType\": \"[Use industry from C-suite analysis]\",\n    \"journeyType\": \"[Concise journey name like 'Trial Signup', 'Purchase Journey', 'Subscription Flow']\",\n    \"journeyDetail\": \"[Same as journeyType - concise 2-3 word description]\",\n    \"journeyId\": \"journey_smyths_2025\",\n    \"journeyStartTime\": \"2025-11-21T00:00:00.000Z\",\n    \"steps\": [\n      {\n        \"stepIndex\": 1,\n        \"stepName\": \"[IndustrySpecificStepName]\",\n        \"serviceName\": \"[IndustrySpecificStepNameService]\",\n        \"description\": \"[What happens in this step]\",\n        \"category\": \"[StepCategory]\",\n        \"timestamp\": \"2025-11-21T00:00:00.000Z\",\n        \"estimatedDuration\": \"[realistic_minutes]\",\n        \"businessRationale\": \"[Why this duration for this industry]\",\n        \"substeps\": [\n          {\"substepName\": \"[substep description]\", \"duration\": \"[minutes]\"},\n          {\"substepName\": \"[substep description]\", \"duration\": \"[minutes]\"}\n        ]\n      }\n    ]\n  },\n  \"customerProfile\": {\n    \"userId\": \"user_smyths_001\",\n    \"email\": \"testuser@smythstoys.com/uk/en-gb\",\n    \"userSegment\": \"[High-value|Standard|New - based on Smyths's segmentation]\",\n    \"digitalBehaviorPattern\": \"[How they typically interact with Smyths]\",\n    \"businessValueTier\": \"[Revenue potential of this user type]\",\n    \"experienceExpectations\": \"[Performance and UX standards they expect]\",\n    \"conversionLikelihood\": \"[Probability of completing business goal]\",\n    \"technologyProfile\": \"[Device preferences, browser, connectivity affecting UX]\"\n  },\n  \"traceMetadata\": {\n    \"correlationId\": \"trace_smyths_2025\",\n    \"sessionId\": \"session_smyths_001\",\n    \"businessContext\": {\n      \"campaignSource\": \"[e.g. Organic Search, Paid Search, Social Media]\",\n      \"customerSegment\": \"[e.g. premium, standard, enterprise]\",\n      \"businessValue\": \"[e.g. £1,250]\",\n      \"revenueImpact\": \"[e.g. £450 per customer]\",\n      \"transactionAmount\": \"[e.g. £89.99]\"\n    }\n  },\n  \"additionalFields\": {\n    \"<<DYNAMICALLY GENERATE 20-40 fields based on your C-suite analysis, the industry, and this specific journey. Each field name should be camelCase. Use your knowledge of Smyths's business model to create fields that would appear in real observability dashboards.\n\nFIELD TYPE MIX — use all of these where applicable:\n- REVENUE: numeric currency values (e.g. transactionValue: 67.49)\n- METRIC: numeric decimals/integers for rates, scores, percentages (e.g. conversionRate: 0.72, netPromoterScore: 65)\n- STRING: descriptive text, categories, statuses (e.g. loyaltyStatus: 'vip', pricingTier: 'Gold')\n- PRODUCT ARRAYS: arrays of product names, SKUs, prices, and categories that represent the items in this journey (e.g. productName: ['Widget Pro', 'Widget Lite'], productSKU: ['SKU-WP-001', 'SKU-WL-002'], productPrice: [29.99, 19.99], productCategory: ['Electronics', 'Accessories'])\n\nARRAY RULES:\n- Product-related fields MUST be arrays with 2-5 items representing realistic products for Smyths\n- Parallel arrays must have the same length (e.g. if productName has 3 items, productSKU and productPrice must also have 3)\n- Use industry-appropriate product names, SKU formats, and price points\n- Other fields that naturally have multiple values may also be arrays (e.g. paymentMethods: ['card', 'paypal'], deliveryOptions: ['standard', 'express'])\n\nInclude fields for: revenue/financial data, customer behaviour, conversion metrics, risk/compliance, operational efficiency, product details (as arrays), engagement scores, and any industry-specific KPIs relevant to this journey.>>\"\n  }\n}\n\nRequirements:\n- Create exactly 6 business-critical steps that generate measurable business events\n- Every step needs estimatedDuration (minutes) and businessRationale explaining revenue/experience impact\n- Every substep needs duration (minutes) - substeps must add up to step duration\n- ServiceName = StepName + 'Service' in PascalCase format (for microservice architecture)\n- Use realistic durations that match industry performance expectations\n- Only step 1 needs timestamp field\n- Replace ALL placeholders with actual values based on Smyths's business model\n- **CRITICAL: Set industryType to specific industry (e.g. \"Cloud Software\", \"Streaming Media\", \"E-commerce\")**\n- **CRITICAL: Set journeyType and journeyDetail to concise 2-3 word journey name (e.g. \"Trial Signup\", \"Purchase Journey\", \"Support Request\")**\n- **CRITICAL: additionalFields must be 20-40 key-value pairs — no nested objects. Dynamically generate field names based on this company and journey. Product-related fields (names, SKUs, prices, categories) MUST be parallel arrays with 2-5 items. Other fields are flat scalars. Each field must have a real value, not a placeholder.**\n- **Field type rules: Revenue fields = numeric (e.g. 67.49), Metric fields = numeric (e.g. 0.72), String fields = text (e.g. \"premium\"), Product fields = identifiers (e.g. \"SKU-001\")**\n- Focus on user actions that create business value and generate observable events\n- Include realistic business metrics: conversion rates, transaction values, performance thresholds\n- All business values should be realistic for their industry and market position\n- All percentage values should be numeric (e.g. 0.72 not \"72%\")\n- Durations must be numeric integers, not strings\n- Focus on scenarios that would appear in business observability dashboards\n\nReturn the response in JSON code format that can be copied from this UI\n\n⚠️ BUSINESS EVENT TRACKING REQUIRED: Each step must produce measurable business outcomes ⚠️",
+  "journeyType": "",
+  "details": "",
+  "customSteps": "",
+  "lastJourney": {
+    "steps": [
+      {
+        "stepIndex": 1,
+        "stepName": "ProductDiscovery",
+        "serviceName": "ProductDiscoveryService",
+        "description": "Customer browses categories, performs searches, and views product detail pages.",
+        "category": "Discovery",
+        "timestamp": "2025-11-21T00:00:00.000Z",
+        "estimatedDuration": 6,
+        "businessRationale": "Retail browsing typically lasts 5–8 minutes as users compare toys, check stock, and evaluate prices.",
+        "substeps": [
+          {
+            "substepName": "CategoryBrowsing",
+            "duration": 2
+          },
+          {
+            "substepName": "SearchAndPDPViews",
+            "duration": 4
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": false
+        }
+      },
+      {
+        "stepIndex": 2,
+        "stepName": "BasketCreation",
+        "serviceName": "BasketCreationService",
+        "description": "Customer adds items to basket and reviews basket contents.",
+        "category": "Engagement",
+        "estimatedDuration": 3,
+        "businessRationale": "Basket formation is quick in toy retail; users add 1–3 items and review pricing.",
+        "substeps": [
+          {
+            "substepName": "AddToBasket",
+            "duration": 2
+          },
+          {
+            "substepName": "BasketReview",
+            "duration": 1
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": false
+        }
+      },
+      {
+        "stepIndex": 3,
+        "stepName": "CheckoutStart",
+        "serviceName": "CheckoutStartService",
+        "description": "Customer initiates checkout, selects delivery method, and enters address details.",
+        "category": "Conversion",
+        "estimatedDuration": 5,
+        "businessRationale": "Checkout initiation takes 4–6 minutes due to address entry and delivery option selection.",
+        "substeps": [
+          {
+            "substepName": "AddressEntry",
+            "duration": 3
+          },
+          {
+            "substepName": "DeliverySelection",
+            "duration": 2
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": true
+        }
+      },
+      {
+        "stepIndex": 4,
+        "stepName": "PaymentProcessing",
+        "serviceName": "PaymentProcessingService",
+        "description": "Customer enters payment details and completes payment.",
+        "category": "Transaction",
+        "estimatedDuration": 4,
+        "businessRationale": "Payment flows in retail average 3–5 minutes depending on card verification and 3DS checks.",
+        "substeps": [
+          {
+            "substepName": "PaymentDetailsEntry",
+            "duration": 2
+          },
+          {
+            "substepName": "PaymentAuthorization",
+            "duration": 2
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": false
+        }
+      },
+      {
+        "stepIndex": 5,
+        "stepName": "OrderFulfilment",
+        "serviceName": "OrderFulfilmentService",
+        "description": "Order is processed, packed, dispatched, and delivered to the customer.",
+        "category": "Fulfilment",
+        "estimatedDuration": 4320,
+        "businessRationale": "Typical UK toy retail delivery takes 2–4 days depending on warehouse load and courier performance.",
+        "substeps": [
+          {
+            "substepName": "WarehouseProcessing",
+            "duration": 1440
+          },
+          {
+            "substepName": "CourierDelivery",
+            "duration": 2880
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": false
+        }
+      },
+      {
+        "stepIndex": 6,
+        "stepName": "PostDeliveryFeedback",
+        "serviceName": "PostDeliveryFeedbackService",
+        "description": "Customer receives follow-up email and submits product/store feedback.",
+        "category": "Engagement",
+        "estimatedDuration": 10,
+        "businessRationale": "Feedback submission typically takes under 10 minutes and directly impacts NPS and retention.",
+        "substeps": [
+          {
+            "substepName": "EmailPromptRead",
+            "duration": 3
+          },
+          {
+            "substepName": "FeedbackSubmission",
+            "duration": 7
+          }
+        ],
+        "hasError": false,
+        "errorSimulationConfig": {
+          "enabled": true,
+          "errorType": "generic_error",
+          "httpStatus": 500,
+          "likelihood": 0.1,
+          "shouldSimulateError": false
+        }
+      }
+    ],
+    "journeyId": "journey_1771363133021",
+    "companyName": "Smyths",
+    "domain": "https://www.smythstoys.com/uk/en-gb",
+    "industryType": "E-commerce",
+    "journeyType": "Purchase Journey",
+    "description": "Smyths journey",
+    "additionalFields": {
+      "sessionId": "session_1771363133021",
+      "deviceType": "desktop",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "campaignSource": "organic_search",
+      "customerSegment": "premium",
+      "behaviorScore": 8.5,
+      "abandonmentRisk": "low",
+      "timestamp": "2026-02-17T21:18:53.021Z",
+      "simulationMode": true
+    },
+    "customerProfile": {
+      "customerId": "customer_1771363133021",
+      "age": 32,
+      "gender": "F",
+      "loyaltyTier": "gold",
+      "previousPurchases": 15,
+      "avgOrderValue": 125.5,
+      "preferredChannel": "mobile",
+      "registrationDate": "2025-02-17T21:18:53.021Z",
+      "lastLoginDate": "2026-02-17T21:18:53.021Z"
+    },
+    "traceMetadata": {
+      "experimentId": "exp_2025_q4",
+      "testVariant": "control",
+      "featureFlags": [
+        "checkout_v2",
+        "ai_recommendations"
+      ],
+      "abTestGroup": "A",
+      "correlationId": "journey_1771363133021",
+      "parentSpanId": null,
+      "traceId": "trace_1771363133021"
+    },
+    "formContext": {
+      "customSteps": "",
+      "journeyType": "",
+      "details": "",
+      "generationMethod": "copilot"
+    },
+    "userDefinedFields": {},
+    "businessMetadata": {
+      "timestamp": "2026-02-17T21:18:53.022Z",
+      "sessionId": "session_1771363133022",
+      "deviceType": "desktop",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "campaignSource": "simulation",
+      "customerSegment": "standard",
+      "behaviorScore": 4,
+      "abandonmentRisk": "low",
+      "experimentId": "exp_1771363133022",
+      "testVariant": "simulation",
+      "featureFlags": [
+        "simulation_mode"
+      ],
+      "abTestGroup": "simulation",
+      "region": "us-east-1",
+      "environment": "simulation"
+    }
+  },
+  "currentJourneyData": {
+    "journey": {
+      "steps": [
+        {
+          "stepIndex": 1,
+          "stepName": "ProductDiscovery",
+          "serviceName": "ProductDiscoveryService",
+          "description": "Customer browses categories, performs searches, and views product detail pages.",
+          "category": "Discovery",
+          "timestamp": "2025-11-21T00:00:00.000Z",
+          "estimatedDuration": 6,
+          "businessRationale": "Retail browsing typically lasts 5–8 minutes as users compare toys, check stock, and evaluate prices.",
+          "substeps": [
+            {
+              "substepName": "CategoryBrowsing",
+              "duration": 2
+            },
+            {
+              "substepName": "SearchAndPDPViews",
+              "duration": 4
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": false
+          }
+        },
+        {
+          "stepIndex": 2,
+          "stepName": "BasketCreation",
+          "serviceName": "BasketCreationService",
+          "description": "Customer adds items to basket and reviews basket contents.",
+          "category": "Engagement",
+          "estimatedDuration": 3,
+          "businessRationale": "Basket formation is quick in toy retail; users add 1–3 items and review pricing.",
+          "substeps": [
+            {
+              "substepName": "AddToBasket",
+              "duration": 2
+            },
+            {
+              "substepName": "BasketReview",
+              "duration": 1
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": false
+          }
+        },
+        {
+          "stepIndex": 3,
+          "stepName": "CheckoutStart",
+          "serviceName": "CheckoutStartService",
+          "description": "Customer initiates checkout, selects delivery method, and enters address details.",
+          "category": "Conversion",
+          "estimatedDuration": 5,
+          "businessRationale": "Checkout initiation takes 4–6 minutes due to address entry and delivery option selection.",
+          "substeps": [
+            {
+              "substepName": "AddressEntry",
+              "duration": 3
+            },
+            {
+              "substepName": "DeliverySelection",
+              "duration": 2
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": true
+          }
+        },
+        {
+          "stepIndex": 4,
+          "stepName": "PaymentProcessing",
+          "serviceName": "PaymentProcessingService",
+          "description": "Customer enters payment details and completes payment.",
+          "category": "Transaction",
+          "estimatedDuration": 4,
+          "businessRationale": "Payment flows in retail average 3–5 minutes depending on card verification and 3DS checks.",
+          "substeps": [
+            {
+              "substepName": "PaymentDetailsEntry",
+              "duration": 2
+            },
+            {
+              "substepName": "PaymentAuthorization",
+              "duration": 2
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": false
+          }
+        },
+        {
+          "stepIndex": 5,
+          "stepName": "OrderFulfilment",
+          "serviceName": "OrderFulfilmentService",
+          "description": "Order is processed, packed, dispatched, and delivered to the customer.",
+          "category": "Fulfilment",
+          "estimatedDuration": 4320,
+          "businessRationale": "Typical UK toy retail delivery takes 2–4 days depending on warehouse load and courier performance.",
+          "substeps": [
+            {
+              "substepName": "WarehouseProcessing",
+              "duration": 1440
+            },
+            {
+              "substepName": "CourierDelivery",
+              "duration": 2880
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": false
+          }
+        },
+        {
+          "stepIndex": 6,
+          "stepName": "PostDeliveryFeedback",
+          "serviceName": "PostDeliveryFeedbackService",
+          "description": "Customer receives follow-up email and submits product/store feedback.",
+          "category": "Engagement",
+          "estimatedDuration": 10,
+          "businessRationale": "Feedback submission typically takes under 10 minutes and directly impacts NPS and retention.",
+          "substeps": [
+            {
+              "substepName": "EmailPromptRead",
+              "duration": 3
+            },
+            {
+              "substepName": "FeedbackSubmission",
+              "duration": 7
+            }
+          ],
+          "hasError": false,
+          "errorSimulationConfig": {
+            "enabled": true,
+            "errorType": "generic_error",
+            "httpStatus": 500,
+            "likelihood": 0.1,
+            "shouldSimulateError": false
+          }
+        }
+      ],
+      "journeyId": "journey_1771363382677",
+      "companyName": "Smyths",
+      "domain": "https://www.smythstoys.com/uk/en-gb",
+      "industryType": "E-commerce",
+      "journeyType": "Purchase Journey",
+      "description": "Smyths journey",
+      "additionalFields": {
+        "sessionId": "session_1771363133021",
+        "deviceType": "desktop",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "campaignSource": "organic_search",
+        "customerSegment": "premium",
+        "behaviorScore": 8.5,
+        "abandonmentRisk": "low",
+        "timestamp": "2026-02-17T21:18:53.021Z",
+        "simulationMode": true
+      },
+      "customerProfile": {
+        "customerId": "customer_1771363133021",
+        "age": 32,
+        "gender": "F",
+        "loyaltyTier": "gold",
+        "previousPurchases": 15,
+        "avgOrderValue": 125.5,
+        "preferredChannel": "mobile",
+        "registrationDate": "2025-02-17T21:18:53.021Z",
+        "lastLoginDate": "2026-02-17T21:18:53.021Z"
+      },
+      "traceMetadata": {
+        "experimentId": "exp_2025_q4",
+        "testVariant": "control",
+        "featureFlags": [
+          "checkout_v2",
+          "ai_recommendations"
+        ],
+        "abTestGroup": "A",
+        "correlationId": "journey_1771363133021",
+        "parentSpanId": null,
+        "traceId": "trace_1771363133021"
+      },
+      "formContext": {
+        "customSteps": "",
+        "journeyType": "",
+        "details": "",
+        "generationMethod": "copilot"
+      },
+      "userDefinedFields": {},
+      "businessMetadata": {
+        "timestamp": "2026-02-17T21:23:02.677Z",
+        "sessionId": "session_1771363382677",
+        "deviceType": "desktop",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+        "campaignSource": "simulation",
+        "customerSegment": "standard",
+        "behaviorScore": 6,
+        "abandonmentRisk": "low",
+        "experimentId": "exp_1771363382677",
+        "testVariant": "simulation",
+        "featureFlags": [
+          "simulation_mode"
+        ],
+        "abTestGroup": "simulation",
+        "region": "us-east-1",
+        "environment": "simulation"
+      }
+    },
+    "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+    "executionResult": {
+      "success": true,
+      "journey": {
+        "journeyId": "journey_1771363382677",
+        "customerId": "customer_1771363382677",
+        "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+        "status": "completed",
+        "totalSteps": 6,
+        "completedSteps": 6,
+        "stepNames": [
+          "ProductDiscovery",
+          "BasketCreation",
+          "CheckoutStart",
+          "PaymentProcessing",
+          "OrderFulfilment",
+          "PostDeliveryFeedback"
+        ],
+        "steps": [
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "ProductDiscovery",
+            "stepIndex": 1,
+            "totalSteps": 6,
+            "stepDescription": "Customer browses categories, performs searches, and views product detail pages.",
+            "stepCategory": "Discovery",
+            "estimatedDuration": 6,
+            "businessRationale": "Retail browsing typically lasts 5–8 minutes as users compare toys, check stock, and evaluate prices.",
+            "substeps": [
+              {
+                "substepName": "CategoryBrowsing",
+                "duration": 2
+              },
+              {
+                "substepName": "SearchAndPDPViews",
+                "duration": 4
+              }
+            ],
+            "estimatedDurationMs": 360000,
+            "subSteps": [
+              {
+                "substepName": "CategoryBrowsing",
+                "duration": 2
+              },
+              {
+                "substepName": "SearchAndPDPViews",
+                "duration": 4
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "checkout_v2",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "ProductDiscoveryService",
+            "status": "completed",
+            "processingTime": 266,
+            "pid": 478015,
+            "timestamp": "2026-02-17T21:23:08.448Z",
+            "metadata": {
+              "itemsDiscovered": 136,
+              "touchpointsAnalyzed": 21,
+              "dataSourcesConnected": 5
+            },
+            "journeyTrace": [
+              {
+                "stepName": "ProductDiscovery",
+                "serviceName": "ProductDiscoveryService",
+                "timestamp": "2026-02-17T21:23:08.176Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "4adb874f..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;0;0;0;1c3;c28a;2h02;3h199f7141;4h153b;5h01;7h52ef58b48c73ee78;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-4adb874fbbb34400-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 1,
+            "serviceName": "ProductDiscoveryService"
+          },
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "BasketCreation",
+            "stepIndex": 2,
+            "totalSteps": 6,
+            "stepDescription": "Customer adds items to basket and reviews basket contents.",
+            "stepCategory": "Engagement",
+            "estimatedDuration": 3,
+            "businessRationale": "Basket formation is quick in toy retail; users add 1–3 items and review pricing.",
+            "substeps": [
+              {
+                "substepName": "AddToBasket",
+                "duration": 2
+              },
+              {
+                "substepName": "BasketReview",
+                "duration": 1
+              }
+            ],
+            "estimatedDurationMs": 180000,
+            "subSteps": [
+              {
+                "substepName": "AddToBasket",
+                "duration": 2
+              },
+              {
+                "substepName": "BasketReview",
+                "duration": 1
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "checkout_v2",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "BasketCreationService",
+            "status": "completed",
+            "processingTime": 218,
+            "pid": 478039,
+            "timestamp": "2026-02-17T21:23:08.931Z",
+            "metadata": {
+              "itemsProcessed": 66,
+              "processingEfficiency": "0.809",
+              "qualityScore": "9.4"
+            },
+            "journeyTrace": [
+              {
+                "stepName": "BasketCreation",
+                "serviceName": "BasketCreationService",
+                "timestamp": "2026-02-17T21:23:08.706Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "7ffb16fa..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;1;0;0;1c3;73b8;2h02;3h199f7141;4h153b;5h01;7h26facda35b986495;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-7ffb16fac3ad4e00-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 2,
+            "serviceName": "BasketCreationService"
+          },
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "CheckoutStart",
+            "stepIndex": 3,
+            "totalSteps": 6,
+            "stepDescription": "Customer initiates checkout, selects delivery method, and enters address details.",
+            "stepCategory": "Conversion",
+            "estimatedDuration": 5,
+            "businessRationale": "Checkout initiation takes 4–6 minutes due to address entry and delivery option selection.",
+            "substeps": [
+              {
+                "substepName": "AddressEntry",
+                "duration": 3
+              },
+              {
+                "substepName": "DeliverySelection",
+                "duration": 2
+              }
+            ],
+            "estimatedDurationMs": 300000,
+            "subSteps": [
+              {
+                "substepName": "AddressEntry",
+                "duration": 3
+              },
+              {
+                "substepName": "DeliverySelection",
+                "duration": 2
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "checkout_v2",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "CheckoutStartService",
+            "status": "completed",
+            "processingTime": 202,
+            "pid": 478063,
+            "timestamp": "2026-02-17T21:23:09.401Z",
+            "metadata": {
+              "transactionValue": 676,
+              "processingMethod": "manual",
+              "conversionRate": "0.026"
+            },
+            "journeyTrace": [
+              {
+                "stepName": "CheckoutStart",
+                "serviceName": "CheckoutStartService",
+                "timestamp": "2026-02-17T21:23:09.189Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "e00f16c7..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;2;0;0;1c3;38ee;2h02;3h199f7141;4h153b;5h01;7h7fd766d0ff7e068e;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-e00f16c70e644f00-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 3,
+            "serviceName": "CheckoutStartService"
+          },
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "PaymentProcessing",
+            "stepIndex": 4,
+            "totalSteps": 6,
+            "stepDescription": "Customer enters payment details and completes payment.",
+            "stepCategory": "Transaction",
+            "estimatedDuration": 4,
+            "businessRationale": "Payment flows in retail average 3–5 minutes depending on card verification and 3DS checks.",
+            "substeps": [
+              {
+                "substepName": "PaymentDetailsEntry",
+                "duration": 2
+              },
+              {
+                "substepName": "PaymentAuthorization",
+                "duration": 2
+              }
+            ],
+            "estimatedDurationMs": 240000,
+            "subSteps": [
+              {
+                "substepName": "PaymentDetailsEntry",
+                "duration": 2
+              },
+              {
+                "substepName": "PaymentAuthorization",
+                "duration": 2
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "ai_recommendations",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "PaymentProcessingService",
+            "status": "completed",
+            "processingTime": 199,
+            "pid": 478087,
+            "timestamp": "2026-02-17T21:23:09.861Z",
+            "metadata": {
+              "transactionValue": 293,
+              "processingMethod": "manual",
+              "conversionRate": "0.048"
+            },
+            "journeyTrace": [
+              {
+                "stepName": "PaymentProcessing",
+                "serviceName": "PaymentProcessingService",
+                "timestamp": "2026-02-17T21:23:09.657Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "b0320703..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;3;0;0;1c3;6f7a;2h02;3h199f7141;4h153b;5h01;7hcee076d798ba10db;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-b03207039c0d4f00-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 4,
+            "serviceName": "PaymentProcessingService"
+          },
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "OrderFulfilment",
+            "stepIndex": 5,
+            "totalSteps": 6,
+            "stepDescription": "Order is processed, packed, dispatched, and delivered to the customer.",
+            "stepCategory": "Fulfilment",
+            "estimatedDuration": 4320,
+            "businessRationale": "Typical UK toy retail delivery takes 2–4 days depending on warehouse load and courier performance.",
+            "substeps": [
+              {
+                "substepName": "WarehouseProcessing",
+                "duration": 1440
+              },
+              {
+                "substepName": "CourierDelivery",
+                "duration": 2880
+              }
+            ],
+            "estimatedDurationMs": 259200000,
+            "subSteps": [
+              {
+                "substepName": "WarehouseProcessing",
+                "duration": 1440
+              },
+              {
+                "substepName": "CourierDelivery",
+                "duration": 2880
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "ai_recommendations",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "OrderFulfilmentService",
+            "status": "completed",
+            "processingTime": 264,
+            "pid": 478112,
+            "timestamp": "2026-02-17T21:23:10.386Z",
+            "metadata": {
+              "itemsProcessed": 34,
+              "processingEfficiency": "0.868",
+              "qualityScore": "8.3"
+            },
+            "journeyTrace": [
+              {
+                "stepName": "OrderFulfilment",
+                "serviceName": "OrderFulfilmentService",
+                "timestamp": "2026-02-17T21:23:10.116Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "a8ae90d8..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;4;0;0;1c3;8d71;2h02;3h199f7141;4h153b;5h01;7h30b20a1bdf4c40b6;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-a8ae90d8442b4800-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 5,
+            "serviceName": "OrderFulfilmentService"
+          },
+          {
+            "journeyId": "journey_1771363382677",
+            "customerId": "customer_1771363382677",
+            "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+            "startTime": "2026-02-17T21:23:03.170Z",
+            "companyName": "Smyths",
+            "domain": "https://www.smythstoys.com/uk/en-gb",
+            "journeyType": "Purchase Journey",
+            "industryType": "E-commerce",
+            "stepName": "PostDeliveryFeedback",
+            "stepIndex": 6,
+            "totalSteps": 6,
+            "stepDescription": "Customer receives follow-up email and submits product/store feedback.",
+            "stepCategory": "Engagement",
+            "estimatedDuration": 10,
+            "businessRationale": "Feedback submission typically takes under 10 minutes and directly impacts NPS and retention.",
+            "substeps": [
+              {
+                "substepName": "EmailPromptRead",
+                "duration": 3
+              },
+              {
+                "substepName": "FeedbackSubmission",
+                "duration": 7
+              }
+            ],
+            "estimatedDurationMs": 600000,
+            "subSteps": [
+              {
+                "substepName": "EmailPromptRead",
+                "duration": 3
+              },
+              {
+                "substepName": "FeedbackSubmission",
+                "duration": 7
+              }
+            ],
+            "hasError": false,
+            "additionalFields": {
+              "sessionId": "session_1771363133021",
+              "deviceType": "desktop",
+              "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+              "campaignSource": "organic_search",
+              "customerSegment": "premium",
+              "behaviorScore": 8.5,
+              "abandonmentRisk": "low",
+              "timestamp": "2026-02-17T21:18:53.021Z",
+              "simulationMode": true,
+              "browser": "Chrome",
+              "location": "London, UK",
+              "entryChannel": "organic",
+              "customerIntent": "purchase",
+              "loyaltyStatus": "new",
+              "conversionProbability": 0.6,
+              "sessionDuration": 300,
+              "pageViews": 3,
+              "Productname": "Standard Product",
+              "ProductId": "SKU1001",
+              "ProductType": "Home & Garden",
+              "Price": 29.99,
+              "transactionValue": 135.3,
+              "orderTotal": 220.75,
+              "averageOrderValue": 85,
+              "customerLifetimeValue": 1449.22,
+              "revenuePerCustomer": 200,
+              "profitMargin": 0.15,
+              "discountApplied": 9.53,
+              "taxAmount": 17.66,
+              "shippingCost": 19.48,
+              "pricingTier": "Bronze",
+              "subscriptionLevel": "Basic",
+              "membershipStatus": "Regular",
+              "contractValue": 4204.19,
+              "annualRevenue": 3623.05,
+              "acquisitionCost": 36.33,
+              "retentionProbability": 0.7,
+              "churnRisk": "high",
+              "upsellPotential": 434.77,
+              "crossSellOpportunity": "high",
+              "customerSegmentValue": "High-Value",
+              "marketSegment": "Enterprise",
+              "conversionRate": 0.05,
+              "engagementScore": 75.62,
+              "satisfactionRating": 3.5,
+              "netPromoterScore": 40,
+              "purchaseFrequency": 2,
+              "timeToConversion": 6.85,
+              "competitiveAdvantage": "Price",
+              "marketShare": 0.05,
+              "brandLoyalty": "Low",
+              "competitorComparison": "Better",
+              "processingTime": 22.2,
+              "operationalCost": 80,
+              "efficiencyRating": 70,
+              "resourceUtilization": 0.6,
+              "costPerAcquisition": 43.6,
+              "riskLevel": "Low",
+              "complianceScore": 85,
+              "fraudRisk": "high",
+              "securityRating": "A",
+              "growthPotential": 362.31,
+              "futureValue": 2173.83,
+              "expansionOpportunity": "Limited",
+              "marketTrend": "Declining",
+              "seasonalImpact": 0.1,
+              "hasError": false
+            },
+            "customerProfile": {
+              "customerId": "customer_1771363133021",
+              "age": 32,
+              "gender": "F",
+              "loyaltyTier": "gold",
+              "previousPurchases": 15,
+              "avgOrderValue": 125.5,
+              "preferredChannel": "mobile",
+              "registrationDate": "2025-02-17T21:18:53.021Z",
+              "lastLoginDate": "2026-02-17T21:18:53.021Z"
+            },
+            "traceMetadata": {
+              "experimentId": "exp_2025_q4",
+              "testVariant": "control",
+              "featureFlags": "checkout_v2",
+              "abTestGroup": "A",
+              "correlationId": "journey_1771363133021",
+              "parentSpanId": null,
+              "traceId": "trace_1771363133021"
+            },
+            "sources": [],
+            "provider": "unknown",
+            "service": "PostDeliveryFeedbackService",
+            "status": "completed",
+            "processingTime": 104,
+            "pid": 478136,
+            "timestamp": "2026-02-17T21:23:10.751Z",
+            "metadata": {
+              "followUpActions": 11,
+              "referralsGenerated": 8,
+              "engagementScore": 10
+            },
+            "journeyTrace": [
+              {
+                "stepName": "PostDeliveryFeedback",
+                "serviceName": "PostDeliveryFeedbackService",
+                "timestamp": "2026-02-17T21:23:10.642Z",
+                "correlationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b",
+                "success": true,
+                "traceId": "1062cedd...",
+                "spanId": "5a6ecd36..."
+              }
+            ],
+            "error_occurred": false,
+            "traceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+            "tracestate": "36dc43a0-493cdc6f@dt=fw4;8;637436f8;aa1d;5;0;0;1c3;b111;2h02;3h199f7141;4h153b;5h01;7hc0f761c89f7ef9aa;8h0101",
+            "x_dynatrace_trace_id": null,
+            "x_dynatrace_parent_span_id": null,
+            "httpStatus": 200,
+            "_traceInfo": {
+              "requestTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-74383fdc1736a4d9-01",
+              "requestTracestate": "36dc43a0-493cdc6f@dt=fw4;8;199f7141;153b;3;0;0;1c3;a51e;2h01;3h199f7141;4h153b;5h01;7h74383fdc1736a4d9;8h0101",
+              "responseTraceparent": "00-1062ceddcb8555f3b23d226b8efd0b36-5a6ecd3605f64b00-01",
+              "requestCorrelationId": "ee85a4a1-acf7-4b3f-a1e7-2bb79adcc30b"
+            },
+            "stepNumber": 6,
+            "serviceName": "PostDeliveryFeedbackService"
+          }
+        ],
+        "additionalFields": {
+          "sessionId": "session_1771363133021",
+          "deviceType": "desktop",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "campaignSource": "organic_search",
+          "customerSegment": "premium",
+          "behaviorScore": 8.5,
+          "abandonmentRisk": "low",
+          "timestamp": "2026-02-17T21:18:53.021Z",
+          "simulationMode": true,
+          "browser": "Chrome",
+          "location": "London, UK",
+          "entryChannel": "organic",
+          "customerIntent": "purchase",
+          "loyaltyStatus": "new",
+          "conversionProbability": 0.6,
+          "sessionDuration": 300,
+          "pageViews": 3,
+          "Productname": "Standard Product",
+          "ProductId": "SKU1001",
+          "ProductType": "Home & Garden",
+          "Price": 29.99,
+          "transactionValue": 135.3,
+          "orderTotal": 220.75,
+          "averageOrderValue": 85,
+          "customerLifetimeValue": 1449.22,
+          "revenuePerCustomer": 200,
+          "profitMargin": 0.15,
+          "discountApplied": 9.53,
+          "taxAmount": 17.66,
+          "shippingCost": 19.48,
+          "pricingTier": "Bronze",
+          "subscriptionLevel": "Basic",
+          "membershipStatus": "Regular",
+          "contractValue": 4204.19,
+          "annualRevenue": 3623.05,
+          "acquisitionCost": 36.33,
+          "retentionProbability": 0.7,
+          "churnRisk": "high",
+          "upsellPotential": 434.77,
+          "crossSellOpportunity": "high",
+          "customerSegmentValue": "High-Value",
+          "marketSegment": "Enterprise",
+          "conversionRate": 0.05,
+          "engagementScore": 75.62,
+          "satisfactionRating": 3.5,
+          "netPromoterScore": 40,
+          "purchaseFrequency": 2,
+          "timeToConversion": 6.85,
+          "competitiveAdvantage": "Price",
+          "marketShare": 0.05,
+          "brandLoyalty": "Low",
+          "competitorComparison": "Better",
+          "processingTime": 22.2,
+          "operationalCost": 80,
+          "efficiencyRating": 70,
+          "resourceUtilization": 0.6,
+          "costPerAcquisition": 43.6,
+          "riskLevel": "Low",
+          "complianceScore": 85,
+          "fraudRisk": "high",
+          "securityRating": "A",
+          "growthPotential": 362.31,
+          "futureValue": 2173.83,
+          "expansionOpportunity": "Limited",
+          "marketTrend": "Declining",
+          "seasonalImpact": 0.1
+        },
+        "customerProfile": {
+          "customerId": "customer_1771363133021",
+          "age": 32,
+          "gender": "F",
+          "loyaltyTier": "gold",
+          "previousPurchases": 15,
+          "avgOrderValue": 125.5,
+          "preferredChannel": "mobile",
+          "registrationDate": "2025-02-17T21:18:53.021Z",
+          "lastLoginDate": "2026-02-17T21:18:53.021Z"
+        },
+        "traceMetadata": {
+          "experimentId": "exp_2025_q4",
+          "testVariant": "control",
+          "featureFlags": [
+            "checkout_v2",
+            "ai_recommendations"
+          ],
+          "abTestGroup": "A",
+          "correlationId": "journey_1771363133021",
+          "parentSpanId": null,
+          "traceId": "trace_1771363133021"
+        },
+        "sources": [],
+        "provider": "unknown"
+      },
+      "continuousGeneration": {
+        "active": true,
+        "company": "Smyths",
+        "method": "LoadRunner",
+        "scenario": "light-load",
+        "ratePerMinute": "10-20 requests"
+      }
+    }
+  },
+  "timestamp": "2026-02-17T21:29:31.625Z",
+  "name": "Smyths - 17/02/2026, 21:29:31",
+  "id": "1771363771625",
+  "serverTimestamp": "2026-02-17T21:29:31.675Z",
+  "version": "1.0"
+}

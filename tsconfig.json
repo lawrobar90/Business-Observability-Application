@@ -29,7 +29,9 @@
     "utils/**/*.ts",
     "routes/gremlin.ts",
     "routes/fixit.ts",
-    "routes/librarian.ts"
+    "routes/librarian.ts",
+    "routes/autonomous.ts",
+    "routes/workflow-webhook.ts"
   ],
   "exclude": [
     "node_modules",

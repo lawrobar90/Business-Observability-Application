@@ -1,26 +1,140 @@
 {
   "companyName": "Retail",
-  "industryType": "Retail",
+  "domain": "https://www.retail.com",
+  "industryType": "E-commerce",
   "steps": [
     {
-      "stepName": "BasketCreation",
-      "serviceName": "BasketCreationService",
       "stepIndex": 1,
-      "totalSteps": 3
+      "stepName": "OrderPlacement",
+      "serviceName": "OrderPlacementService",
+      "description": "Customer browses the retailer catalogue (e.g., TESCO_1L_MILK, TESCO_500G_PASTA), adds items to basket, selects Click and Collect as fulfilment, and places the order. Business events emitted: cart_created, line_item_added, collection_option_selected, order_placed with order_id and estimated_collection_slot.",
+      "category": "Acquisition",
+      "timestamp": "2025-11-21T00:00:00.000Z",
+      "estimatedDuration": 7,
+      "businessRationale": "Typical click-and-collect order placement for a weekly shop is quick but involves product discovery and selecting collection options; faster placement reduces abandonment and increases orders per session.",
+      "substeps": [
+        {
+          "substepName": "SearchAndBrowse",
+          "duration": 4
+        },
+        {
+          "substepName": "ProductViewAndAddToCart",
+          "duration": 2
+        },
+        {
+          "substepName": "ConfirmCollectionOption",
+          "duration": 1
+        }
+      ]
     },
     {
+      "stepIndex": 2,
       "stepName": "SlotSelection",
       "serviceName": "SlotSelectionService",
-      "stepIndex": 2,
-      "totalSteps": 3
+      "description": "Customer selects an available in-store pickup slot; system validates store capacity and shows any collection fees or time windows. Business events: slot_availability_checked, slot_selected, slot_unavailable with slot_id and store_id.",
+      "category": "FulfilmentPreparation",
+      "estimatedDuration": 2,
+      "businessRationale": "Slot selection is a short, high-impact decision point; inability to find a slot or slow availability checks leads to abandonment or switching to delivery, directly affecting revenue and store workload.",
+      "substeps": [
+        {
+          "substepName": "AvailabilityCheck",
+          "duration": 1
+        },
+        {
+          "substepName": "SlotConfirmation",
+          "duration": 1
+        }
+      ]
     },
     {
-      "stepName": "Checkout",
-      "serviceName": "CheckoutService",
       "stepIndex": 3,
-      "totalSteps": 3
+      "stepName": "PaymentAndConfirmation",
+      "serviceName": "PaymentAndConfirmationService",
+      "description": "Customer completes payment (card, saved payment, or voucher) and receives order confirmation and collection instructions. Business events: payment_attempted, payment_succeeded, payment_failed, order_confirmation_sent with payment_provider and amount.",
+      "category": "Purchase",
+      "estimatedDuration": 2,
+      "businessRationale": "Payment must be fast and reliable; payment failures cause immediate revenue loss and increase support costs. Confirmation messaging reduces no-shows and improves collection rates.",
+      "substeps": [
+        {
+          "substepName": "PaymentAuthorization",
+          "duration": 1
+        },
+        {
+          "substepName": "SendOrderConfirmation",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "OrderRoutingToStore",
+      "serviceName": "OrderRoutingToStoreService",
+      "description": "Order is routed to the selected store's fulfilment queue; inventory is reserved and a pick list is generated for store colleagues. Business events: order_routed, inventory_reserved, picklist_created with store_id and reserved_SKUs.",
+      "category": "Fulfilment",
+      "estimatedDuration": 30,
+      "businessRationale": "Routing and inventory reservation include synchronous checks and asynchronous store notifications; delays increase risk of inventory conflicts and reduce on-time readiness for collection windows.",
+      "substeps": [
+        {
+          "substepName": "RouteOrderToStore",
+          "duration": 10
+        },
+        {
+          "substepName": "ReserveInventory",
+          "duration": 10
+        },
+        {
+          "substepName": "GeneratePickListAndNotify",
+          "duration": 10
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "PickingAndPackingAtStore",
+      "serviceName": "PickingAndPackingAtStoreService",
+      "description": "Store colleagues pick items from shelves, handle substitutions if items are out of stock, pack the order and mark it ready for collection. Business events: picking_started, substitution_offered, substitution_accepted, order_ready_for_collection with pick_time and substitution_rate.",
+      "category": "Fulfilment",
+      "estimatedDuration": 120,
+      "businessRationale": "In-store picking is labour-intensive and subject to store load; timely picking ensures orders are ready within the selected slot and reduces customer complaints and refunds. Substitution handling affects customer satisfaction and retention.",
+      "substeps": [
+        {
+          "substepName": "Picking",
+          "duration": 80
+        },
+        {
+          "substepName": "PackingAndQualityCheck",
+          "duration": 30
+        },
+        {
+          "substepName": "ReadyForCollectionNotification",
+          "duration": 10
+        }
+      ]
+    },
+    {
+      "stepIndex": 6,
+      "stepName": "CustomerArrivalAndCollection",
+      "serviceName": "CustomerArrivalAndCollectionService",
+      "description": "Customer arrives at store, checks in via app or kiosk, staff verify order and hand over items; post-collection feedback and refunds are processed if needed. Business events: customer_checked_in, order_collected, collection_failed, refund_initiated, feedback_submitted.",
+      "category": "PostPurchase",
+      "estimatedDuration": 20,
+      "businessRationale": "Collection experience is the final touchpoint; delays or verification failures cause immediate dissatisfaction and potential refunds. Smooth handover preserves retention and encourages repeat click-and-collect usage.",
+      "substeps": [
+        {
+          "substepName": "ArrivalCheckIn",
+          "duration": 5
+        },
+        {
+          "substepName": "StaffVerifyAndHandOver",
+          "duration": 10
+        },
+        {
+          "substepName": "FeedbackAndReceipt",
+          "duration": 5
+        }
+      ]
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-12T18:45:25.975Z"
+  "timestamp": "2026-02-20T14:42:02.935Z"
 }

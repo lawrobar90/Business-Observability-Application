@@ -1,0 +1,186 @@
+{
+  "title": "BizObs Fix-It AI Agent with Davis Intelligence",
+  "description": "On-demand Fix-It Agent trigger for autonomous problem remediation",
+  "isPrivate": false,
+  "trigger": {},
+  "schemaVersion": "3",
+  "ownerType": "USER",
+  "inputParameters": {
+    "problemId": {
+      "type": "string",
+      "defaultValue": "P-2602106"
+    }
+  },
+  "tasks": {
+    "get_problem_details": {
+      "name": "Get Problem Details via DQL",
+      "description": "Query problem context using DQL from events",
+      "action": "dynatrace.automations:run-javascript",
+      "active": true,
+      "input": {
+        "script": "import { execution } from '@dynatrace-sdk/automation-utils';\nimport { queryExecutionClient } from '@dynatrace-sdk/client-query';\n\nexport default async function ({ execution_id }) {\n  const ex = await execution(execution_id);\n  const problemId = ex.params.problemId || 'P-2602106';\n  \n  const query = `fetch events\n| filter event.kind == \"DAVIS_PROBLEM\"\n| filter display_id == \"${problemId}\"\n| fields event.id, display_id, event.name, event.status, event.description, event.start, event.category, affected_entity_ids, host.name`;\n  \n  try {\n    const response = await queryExecutionClient.queryExecute({ body: { query } });\n    const record = response?.result?.records?.[0];\n    if (record) {\n      const affectedEntities = record.affected_entity_ids || [];\n      return {\n        event_id: record['event.id'],\n        display_id: record.display_id,\n        event_name: record['event.name'],\n        event_status: record['event.status'],\n        event_description: record['event.description'],\n        event_start: record['event.start'],\n        event_category: record['event.category'],\n        entity_id: affectedEntities[0] || '',\n        host_name: record['host.name']?.[0] || ''\n      };\n    }\n  } catch (e) {\n    console.log('DQL query failed:', e);\n  }\n  \n  return { display_id: problemId, event_name: 'Problem ' + problemId, entity_id: '' };\n}"
+      },
+      "position": {
+        "x": 0,
+        "y": 1
+      },
+      "predecessors": []
+    },
+    "trigger_fixit_agent": {
+      "name": "Trigger Fix-It AI Agent with Davis Intelligence",
+      "description": "Send problem to Fix-It agent - it will query Davis AI via MCP server",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "http://3.209.41.33:8080/api/workflow-webhook/problem",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Dynatrace-Workflow": "true"
+        },
+        "payload": {
+          "event_type": "PROBLEM",
+          "event_id": "{{ result('get_problem_details').event_id | default('') }}",
+          "title": "{{ result('get_problem_details').event_name | default('Problem Remediation') }}",
+          "description": "{{ result('get_problem_details').event_description | default('') }}",
+          "problem_id": "{{ _.problemId }}",
+          "display_id": "{{ result('get_problem_details').display_id or _.problemId }}",
+          "entity_id": "{{ result('get_problem_details').entity_id | default('') }}",
+          "entity_name": "{{ result('get_problem_details').host_name | default('') }}",
+          "severity": "{{ result('get_problem_details').event_category | default('RESOURCE_CONTENTION') }}",
+          "status": "{{ result('get_problem_details').event_status | default('ACTIVE') }}",
+          "start_time": "{{ result('get_problem_details').event_start | default('') }}",
+          "workflow_id": "{{ execution().id }}",
+          "workflow_name": "BizObs Fix-It AI Agent with Davis Intelligence"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 2
+      },
+      "predecessors": [
+        "get_problem_details"
+      ],
+      "conditions": {
+        "states": {
+          "get_problem_details": "OK"
+        }
+      }
+    },
+    "log_fixit_started": {
+      "name": "Log Fix-It Agent Started",
+      "description": "Send event to Dynatrace showing Fix-It agent activation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "https://bko67471.sprint.apps.dynatracelabs.com/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_INFO",
+          "title": "Fix-It AI Agent Activated: {{ _.problemId }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "event.category": "autonomous_remediation",
+            "problem.id": "{{ _.problemId }}",
+            "problem.title": "{{ result('get_problem_details').event_name | default('Problem Remediation') }}",
+            "fixit.runId": "{{ result('trigger_fixit_agent').body.runId | default('pending') }}",
+            "remediation.status": "started",
+            "workflow.id": "{{ execution().id }}",
+            "workflow.name": "Fix-It AI with Davis (MCP)",
+            "ai.stack": "Fix-It → Davis AI (MCP) → Ollama"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 3
+      },
+      "predecessors": [
+        "trigger_fixit_agent"
+      ],
+      "conditions": {
+        "states": {
+          "trigger_fixit_agent": "OK"
+        }
+      }
+    },
+    "wait_for_remediation": {
+      "name": "Wait for Fix-It Completion",
+      "description": "Poll Fix-It agent status until remediation completes",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "http://3.209.41.33:8080/api/autonomous/status",
+        "method": "GET",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 4
+      },
+      "predecessors": [
+        "log_fixit_started"
+      ],
+      "conditions": {
+        "states": {
+          "log_fixit_started": "OK"
+        }
+      },
+      "retry": {
+        "count": 6,
+        "delay": 10,
+        "failedLoopIterationsOnly": true
+      }
+    },
+    "log_remediation_complete": {
+      "name": "Log Remediation Complete",
+      "description": "Send deployment event showing Davis + Fix-It completed remediation",
+      "action": "dynatrace.automations:http-function",
+      "active": true,
+      "input": {
+        "url": "https://bko67471.sprint.apps.dynatracelabs.com/api/v2/events/ingest",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Api-Token {{ DT_API_TOKEN }}",
+          "Content-Type": "application/json"
+        },
+        "payload": {
+          "eventType": "CUSTOM_DEPLOYMENT",
+          "title": "Autonomous Remediation Complete: {{ _.problemId }}",
+          "entitySelector": "type(\"PROCESS_GROUP_INSTANCE\"),entityName.equals(\"BizObs-MainServer\")",
+          "properties": {
+            "deployment.name": "Davis + Fix-It Autonomous Remediation",
+            "deployment.version": "{{ now() | toDate('2006-01-02T15:04:05Z') }}",
+            "deployment.source": "Dynatrace Intelligence + Fix-It AI",
+            "problem.id": "{{ _.problemId }}",
+            "problem.title": "{{ result('get_problem_details').event_name | default('Problem Remediation') }}",
+            "fixit.status": "{{ result('wait_for_remediation').body.fixit.status | default('completed') }}",
+            "fixit.lastRun": "{{ result('wait_for_remediation').body.fixit.lastRun | default('') }}",
+            "remediation.type": "davis_copilot_enhanced",
+            "ai.stack": "Davis CoPilot → Fix-It Agent → Ollama",
+            "workflow.id": "{{ execution().id }}",
+            "workflow.name": "Davis Intelligence + Fix-It"
+          }
+        }
+      },
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "predecessors": [
+        "wait_for_remediation"
+      ],
+      "conditions": {
+        "states": {
+          "wait_for_remediation": "OK"
+        }
+      }
+    }
+  }
+}

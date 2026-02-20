@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type AgentName = 'gremlin' | 'fixit' | 'librarian' | 'system' | 'otel';
+export type AgentName = 'gremlin' | 'fixit' | 'librarian' | 'system' | 'otel' | 'gremlin-scheduler' | 'problem-detector' | 'dt-events' | 'workflow-webhook';
 
 interface LogEntry {
   timestamp: string;
@@ -47,6 +47,10 @@ const AGENT_ICONS: Record<AgentName, string> = {
   librarian: '📚',
   system: '⚙️',
   otel: '📡',
+  'gremlin-scheduler': '🤖',
+  'problem-detector': '🔍',
+  'dt-events': '📊',
+  'workflow-webhook': '🔗',
 };
 
 function formatConsole(entry: LogEntry): string {

@@ -1,0 +1,20 @@
+{
+  "companyName": "StopTest",
+  "domain": "stoptest.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Alpha",
+      "serviceName": "AlphaService",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/a",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T21:53:12.320Z"
+}

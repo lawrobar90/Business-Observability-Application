@@ -1,0 +1,31 @@
+{
+  "companyName": "Omega",
+  "domain": "omega.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Xray",
+      "serviceName": "XrayService",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/x",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "stepName": "Yank",
+      "serviceName": "YankService",
+      "port": 8082,
+      "endpoints": [
+        {
+          "path": "/y",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T22:07:54.797Z"
+}

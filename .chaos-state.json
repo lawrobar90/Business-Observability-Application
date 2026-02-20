@@ -1,0 +1,23 @@
+{
+  "serviceFeatureFlags": {
+    "ProductDiscoveryService": {
+      "errors_per_transaction": 0.5,
+      "errors_per_visit": 0,
+      "errors_per_minute": 0,
+      "regenerate_every_n_transactions": 100
+    },
+    "SelectRoomAndRateService": {
+      "errors_per_transaction": 0.6,
+      "errors_per_visit": 0,
+      "errors_per_minute": 0,
+      "regenerate_every_n_transactions": 100
+    }
+  },
+  "globalFeatureFlags": {
+    "errors_per_transaction": 0.3,
+    "errors_per_visit": 0.001,
+    "errors_per_minute": 0.5,
+    "regenerate_every_n_transactions": 100
+  },
+  "savedAt": "2026-02-20T15:13:46.026Z"
+}

@@ -5,173 +5,120 @@
   "steps": [
     {
       "stepIndex": 1,
-      "stepName": "TransferRequestInitiation",
-      "serviceName": "TransferRequestInitiationService",
-      "description": "Customer initiates an ISA transfer request by selecting the provider, entering account details, and confirming transfer type.",
-      "category": "TransferStart",
+      "stepName": "UserRegistration",
+      "serviceName": "UserRegistrationService",
+      "description": "Customer registers for an HL account, providing email, password, and initial personal details.",
+      "category": "Registration",
       "timestamp": "2025-11-21T00:00:00.000Z",
-      "estimatedDuration": 7,
-      "businessRationale": "Initiation requires regulatory disclosures, provider lookup, and validation of ISA eligibility. Smooth UX reduces abandonment and increases transfer completion likelihood.",
+      "estimatedDuration": 5,
+      "businessRationale": "Registration is typically fast but must include secure validation. A smooth experience increases onboarding conversion and reduces abandonment.",
       "substeps": [
         {
-          "substepName": "ProviderSelection",
-          "duration": 3
+          "substepName": "EmailEntryAndValidation",
+          "duration": 2
         },
         {
-          "substepName": "AccountDetailsEntryAndValidation",
-          "duration": 4
+          "substepName": "PasswordCreationAndSecurityChecks",
+          "duration": 3
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 2,
-      "stepName": "TransferAuthorisation",
-      "serviceName": "TransferAuthorisationService",
-      "description": "Customer signs digital transfer authority forms and HL submits the request to the existing ISA provider.",
+      "stepName": "IdentityVerification",
+      "serviceName": "IdentityVerificationService",
+      "description": "Customer completes KYC/AML checks using document verification and personal data validation.",
       "category": "Compliance",
-      "timestamp": "2026-02-16T16:06:02.733Z",
-      "estimatedDuration": 6,
-      "businessRationale": "Digital signatures and regulatory confirmations require secure workflows. This step is critical for legal compliance and transfer acceptance.",
+      "estimatedDuration": 10,
+      "businessRationale": "KYC is mandatory for regulated investment platforms. Automated checks typically take 5–10 minutes depending on provider response times.",
       "substeps": [
         {
-          "substepName": "DigitalSignatureCapture",
-          "duration": 2
+          "substepName": "DocumentUpload",
+          "duration": 4
         },
         {
-          "substepName": "TransferFormSubmission",
-          "duration": 4
+          "substepName": "AutomatedKYCCheck",
+          "duration": 6
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 3,
-      "stepName": "ProviderProcessing",
-      "serviceName": "ProviderProcessingService",
-      "description": "The existing ISA provider processes the transfer request, validates holdings, and prepares funds for movement.",
-      "category": "ExternalProcessing",
-      "timestamp": "2026-02-16T16:06:02.733Z",
-      "estimatedDuration": 1440,
-      "businessRationale": "ISA transfers typically take 1–2 weeks depending on provider responsiveness. HL must track SLAs and notify customers of delays.",
+      "stepName": "AccountCreation",
+      "serviceName": "AccountCreationService",
+      "description": "HL creates the investment account (ISA, SIPP, or General Investment Account) and links it to the user profile.",
+      "category": "AccountSetup",
+      "estimatedDuration": 4,
+      "businessRationale": "Account provisioning involves backend orchestration, eligibility checks, and account number assignment.",
       "substeps": [
         {
-          "substepName": "ProviderValidation",
-          "duration": 720
+          "substepName": "AccountTypeSelection",
+          "duration": 1
         },
         {
-          "substepName": "FundsPreparation",
-          "duration": 720
+          "substepName": "BackendProvisioning",
+          "duration": 3
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 4,
-      "stepName": "FundsMovement",
-      "serviceName": "FundsMovementService",
-      "description": "Funds are transferred from the old provider to HL, either as cash or re-registered assets.",
-      "category": "Settlement",
-      "timestamp": "2026-02-16T16:06:02.733Z",
-      "estimatedDuration": 180,
-      "businessRationale": "Settlement and reconciliation require coordination between custodians. Delays directly impact customer satisfaction and AUM growth.",
+      "stepName": "InitialFunding",
+      "serviceName": "InitialFundingService",
+      "description": "Customer deposits funds via debit card or bank transfer to enable first investment.",
+      "category": "Payments",
+      "estimatedDuration": 8,
+      "businessRationale": "Funding is a revenue-critical step. Payment provider latency and bank authentication influence duration.",
       "substeps": [
         {
-          "substepName": "FundsTransferExecution",
-          "duration": 120
-        },
-        {
-          "substepName": "ReconciliationAndAllocation",
-          "duration": 60
-        }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
-    },
-    {
-      "stepIndex": 5,
-      "stepName": "TransferCompletionConfirmation",
-      "serviceName": "TransferCompletionConfirmationService",
-      "description": "HL confirms transfer completion, updates the customer’s ISA balance, and sends notifications.",
-      "category": "Notification",
-      "timestamp": "2026-02-16T16:06:02.733Z",
-      "estimatedDuration": 5,
-      "businessRationale": "Timely confirmation improves trust and reduces support queries. This step triggers AUM recognition for HL.",
-      "substeps": [
-        {
-          "substepName": "BalanceUpdate",
+          "substepName": "PaymentMethodSelection",
           "duration": 2
         },
         {
-          "substepName": "CustomerNotification",
+          "substepName": "PaymentProcessing",
+          "duration": 6
+        }
+      ]
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "FundPurchase",
+      "serviceName": "FundPurchaseService",
+      "description": "Customer selects a fund and executes their first investment order.",
+      "category": "Trading",
+      "estimatedDuration": 6,
+      "businessRationale": "Fund purchase involves price retrieval, order validation, and execution routing. This step directly generates trading fees and future AUM-based revenue.",
+      "substeps": [
+        {
+          "substepName": "FundSelectionAndQuote",
+          "duration": 3
+        },
+        {
+          "substepName": "OrderSubmissionAndExecution",
           "duration": 3
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     },
     {
       "stepIndex": 6,
-      "stepName": "PortfolioReview",
-      "serviceName": "PortfolioReviewService",
-      "description": "Customer reviews transferred funds, explores investment options, and may set up recurring investments.",
+      "stepName": "PortfolioSetup",
+      "serviceName": "PortfolioSetupService",
+      "description": "Customer reviews holdings, configures recurring investments, and sets portfolio preferences.",
       "category": "PortfolioManagement",
-      "timestamp": "2026-02-16T16:06:02.733Z",
-      "estimatedDuration": 9,
-      "businessRationale": "Portfolio review is a high‑value engagement moment that drives future trades, recurring investments, and long-term retention.",
+      "estimatedDuration": 7,
+      "businessRationale": "Portfolio setup increases long-term retention and recurring investment revenue. UX clarity is essential to reduce drop-off.",
       "substeps": [
         {
-          "substepName": "HoldingsReview",
-          "duration": 4
+          "substepName": "PortfolioReview",
+          "duration": 3
         },
         {
-          "substepName": "InvestmentOptionExploration",
-          "duration": 5
+          "substepName": "RecurringInvestmentSetup",
+          "duration": 4
         }
-      ],
-      "hasError": false,
-      "errorSimulationConfig": {
-        "enabled": true,
-        "errorType": "generic_error",
-        "httpStatus": 500,
-        "likelihood": 0.1,
-        "shouldSimulateError": false
-      }
+      ]
     }
   ],
   "scenario": "light-load",
-  "timestamp": "2026-02-16T16:06:25.012Z"
+  "timestamp": "2026-02-19T10:46:33.597Z"
 }

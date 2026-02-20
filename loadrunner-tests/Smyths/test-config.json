@@ -1,0 +1,139 @@
+{
+  "companyName": "Smyths",
+  "domain": "https://www.smythstoys.com/uk/en-gb",
+  "industryType": "E-commerce",
+  "steps": [
+    {
+      "stepIndex": 1,
+      "stepName": "ProductDiscovery",
+      "serviceName": "ProductDiscoveryService",
+      "description": "ProductDiscovery step for Smyths",
+      "category": "Acquisition",
+      "estimatedDuration": 6,
+      "substeps": [
+        {
+          "substepName": "ProductDiscoveryStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "ProductDiscoveryStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 2,
+      "stepName": "BasketCreation",
+      "serviceName": "BasketCreationService",
+      "description": "BasketCreation step for Smyths",
+      "category": "Fulfilment",
+      "estimatedDuration": 6,
+      "substeps": [
+        {
+          "substepName": "BasketCreationStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "BasketCreationStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 3,
+      "stepName": "CheckoutStart",
+      "serviceName": "CheckoutStartService",
+      "description": "CheckoutStart step for Smyths",
+      "category": "Fulfilment",
+      "estimatedDuration": 6,
+      "substeps": [
+        {
+          "substepName": "CheckoutStartStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "CheckoutStartStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 4,
+      "stepName": "PaymentProcessing",
+      "serviceName": "PaymentProcessingService",
+      "description": "PaymentProcessing step for Smyths",
+      "category": "Fulfilment",
+      "estimatedDuration": 2,
+      "substeps": [
+        {
+          "substepName": "PaymentProcessingStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "PaymentProcessingStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    },
+    {
+      "stepIndex": 5,
+      "stepName": "OrderFulfilment",
+      "serviceName": "OrderFulfilmentService",
+      "description": "OrderFulfilment step for Smyths",
+      "category": "Revenue",
+      "estimatedDuration": 4,
+      "substeps": [
+        {
+          "substepName": "OrderFulfilmentStep1",
+          "duration": 2
+        },
+        {
+          "substepName": "OrderFulfilmentStep2",
+          "duration": 2
+        }
+      ],
+      "hasError": false,
+      "errorSimulationConfig": {
+        "enabled": true,
+        "errorType": "generic_error",
+        "httpStatus": 500,
+        "likelihood": 0.1,
+        "shouldSimulateError": false
+      }
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T21:00:22.272Z"
+}

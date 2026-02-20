@@ -1,0 +1,20 @@
+{
+  "companyName": "StopVerify",
+  "domain": "stopverify.com",
+  "industryType": "tech",
+  "steps": [
+    {
+      "stepName": "Check",
+      "serviceName": "CheckService",
+      "port": 8081,
+      "endpoints": [
+        {
+          "path": "/c",
+          "method": "GET"
+        }
+      ]
+    }
+  ],
+  "scenario": "light-load",
+  "timestamp": "2026-02-18T22:03:17.651Z"
+}

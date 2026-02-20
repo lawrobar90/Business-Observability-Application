@@ -65,12 +65,20 @@ export function initTracing(): void {
   const token = getDTToken();
 
   if (!endpoint || !token) {
-    log.warn('OTel tracing NOT enabled — DT_ENVIRONMENT or DT_PLATFORM_TOKEN not set');
-    log.info('To enable: set DT_ENVIRONMENT and DT_PLATFORM_TOKEN env vars');
+    log.warn('⚠️  OTel tracing NOT enabled — DT_ENVIRONMENT or DT_PLATFORM_TOKEN not set');
+    log.info('📋 Current environment variables:');
+    log.info(`   DT_ENVIRONMENT: ${process.env.DT_ENVIRONMENT ? '✓ set' : '✗ not set'}`);
+    log.info(`   DYNATRACE_URL: ${process.env.DYNATRACE_URL ? '✓ set' : '✗ not set'}`);
+    log.info(`   DT_PLATFORM_TOKEN: ${process.env.DT_PLATFORM_TOKEN ? '✓ set (hidden)' : '✗ not set'}`);
+    log.info(`   DYNATRACE_TOKEN: ${process.env.DYNATRACE_TOKEN ? '✓ set (hidden)' : '✗ not set'}`);
+    log.info(`   DT_API_TOKEN: ${process.env.DT_API_TOKEN ? '✓ set (hidden)' : '✗ not set'}`);
+    log.info('💡 To enable AI Observability: set DT_ENVIRONMENT and DT_PLATFORM_TOKEN');
     return;
   }
 
-  log.info(`Initializing OTel tracing → ${endpoint}`);
+  log.info(`✅ Initializing OTel tracing for AI Observability`);
+  log.info(`   Endpoint: ${endpoint}`);
+  log.info(`   Service: bizobs-ai-agents v1.0.0`);
 
   const resource = createResource({
     'service.name': 'bizobs-ai-agents',
@@ -91,7 +99,8 @@ export function initTracing(): void {
   });
   _provider.register();
 
-  log.info('OTel tracing initialized — GenAI spans will appear in Dynatrace');
+  log.info('🎯 OTel tracing initialized — GenAI spans for Ollama calls will appear in Dynatrace');
+  log.info('📊 View in Dynatrace: Notebooks > Davis AI > AI Observability');
 }
 
 export function getTracer() {
