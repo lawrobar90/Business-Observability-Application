@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { ensureServiceRunning, getServicePort, getServiceNameFromStep, stopServicesForCompany, stopAllServices } from '../services/service-manager.js';
 import loadRunnerManager from '../scripts/continuous-loadrunner.js';
+import { startAutoLoadWatcher } from '../services/auto-load.js';
 // Import transaction tracking for volume-based chaos triggering
 import { recordTransaction } from '../dist/agents/gremlin/autonomousScheduler.js';
 
@@ -1418,6 +1419,13 @@ router.post('/simulate-journey', async (req, res) => {
     let continuousGeneration = { active: false, reason: 'called_from_loadrunner' };
     
     if (!isFromLoadRunner && !alreadyRunning) {
+      // Clear stop flags from previous "stop everything" so new journeys can generate load
+      global.stoppingEverything = false;
+      loadRunnerManager._clearStopFlag(loadRunnerManager._stopAllFlagPath());
+      
+      // Restart auto-load watcher if it was stopped by a previous stop-all
+      startAutoLoadWatcher();
+      
       const journeyConfig = req.body.journey || req.body.aiJourney || req.body;
       try {
         await loadRunnerManager.startLoadTest(journeyConfig, 'light-load');
