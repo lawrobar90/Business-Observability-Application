@@ -746,6 +746,20 @@ function createStepService(serviceName, stepName) {
           
           console.log(`🔧 [${properServiceName}] Error isolated to THIS service — chain will continue to downstream services`);
         }
+        
+        // 🎯 BIZEVENT hasError: When error is injected by feature flag, update req.body so
+        // OneAgent's bizevent capture (from the HTTP request) includes hasError = true
+        if (errorInjected) {
+          req.body.hasError = true;
+          req.body.error_occurred = true;
+          if (req.body.additionalFields) {
+            req.body.additionalFields.hasError = true;
+            req.body.additionalFields.errorType = errorInjected.error_type;
+            req.body.additionalFields.errorMessage = errorInjected.message;
+            req.body.additionalFields.httpStatus = errorInjected.http_status || 500;
+          }
+        }
+        
         // Generate dynamic metadata based on step name
         const metadata = generateStepMetadata(currentStepName);
 
@@ -786,6 +800,7 @@ function createStepService(serviceName, stepName) {
           metadata,
           journeyTrace,
           error_occurred: !!errorInjected,
+          hasError: !!errorInjected,
           // Include error details if error was injected (for bizevent capture)
           ...(errorInjected ? {
             error: errorInjected,
