@@ -34,10 +34,17 @@ const DEFAULT_ERROR_CONFIG = {
 
 // Fetch error config from main server — passes service name for per-service targeting
 // If this service has a targeted override (from Gremlin chaos), only IT gets the elevated rate
-async function fetchGlobalErrorConfig(myServiceName) {
+// Checks BOTH compound name (e.g., "PaymentService-SmythcsShoes") AND base name (e.g., "PaymentService")
+async function fetchGlobalErrorConfig(myFullServiceName, myBaseServiceName) {
   return new Promise((resolve) => {
-    // Build query string with service name so server returns per-service override if any
-    const queryParams = myServiceName ? `?service=${encodeURIComponent(myServiceName)}` : '';
+    // Build query string with BOTH service names so server can check either
+    const params = [];
+    if (myFullServiceName) params.push(`service=${encodeURIComponent(myFullServiceName)}`);
+    if (myBaseServiceName && myBaseServiceName !== myFullServiceName) {
+      params.push(`baseService=${encodeURIComponent(myBaseServiceName)}`);
+    }
+    const queryParams = params.length > 0 ? `?${params.join('&')}` : '';
+    
     const options = {
       hostname: '127.0.0.1',
       port: process.env.MAIN_SERVER_PORT || 8080,
@@ -576,9 +583,10 @@ function createStepService(serviceName, stepName) {
       let errorInjected = null;
       
       // Fetch error config for THIS service (per-service targeting from Gremlin)
-      // Use the full service name with company suffix from env, since that's what Gremlin targets
-      const dtServiceName = process.env.FULL_SERVICE_NAME || process.env.SERVICE_NAME || process.env.DT_SERVICE_NAME || properServiceName;
-      const globalConfig = await fetchGlobalErrorConfig(dtServiceName);
+      // Check BOTH full service name (compound) AND base service name (clean)
+      const fullServiceName = process.env.FULL_SERVICE_NAME || properServiceName;
+      const baseServiceName = process.env.SERVICE_NAME || process.env.DT_SERVICE_NAME || properServiceName;
+      const globalConfig = await fetchGlobalErrorConfig(fullServiceName, baseServiceName);
       
       // Extract error configuration from payload (allows override) or use global
       const errorConfig = {
@@ -653,24 +661,29 @@ function createStepService(serviceName, stepName) {
         Math.floor(Math.random() * 2000) + 3000 : // 3-5s for errors
         Math.floor(Math.random() * 200) + 100;    // 100-300ms normal
 
-      // 🚨 If error injected by feature flag, THROW a real exception so Dynatrace captures it
-      // This produces a real HTTP 5xx/4xx + exception in the Purepath (not just metadata)
-      if (errorInjected) {
-        setTimeout(() => {
-          const httpStatus = errorInjected.http_status || 500;
+      // � ERROR ISOLATION: Error reporting is now handled inside finish() so the chain
+      // continues even when an error is injected on this service. This prevents error
+      // cascade where targeting ONE service makes ALL services appear to have errors.
+      // The targeted service still returns HTTP 4xx (so Dynatrace captures the error on
+      // THIS service), but the chain continues first — all downstream services still run.
+
+      const finish = async () => {
+        // 🚨 If error was injected by feature flag, report it to Dynatrace BEFORE chaining
+        // This ensures the error is captured on THIS service's span, not cascaded upstream
+        if (errorInjected) {
+          const errorHttpStatus = errorInjected.http_status || 500;
           const errorMessage = errorInjected.message || `Feature flag error in ${currentStepName}`;
           
           // Create a real Error that OneAgent will capture as an exception
           const realError = new Error(errorMessage);
           realError.name = `FeatureFlagError_${errorInjected.error_type}`;
-          realError.status = httpStatus;
-          realError.httpStatus = httpStatus;
+          realError.status = errorHttpStatus;
+          realError.httpStatus = errorHttpStatus;
           
-          // Add rich context so it shows up in Dynatrace exception details
           console.error(`🚨 [${properServiceName}] FEATURE FLAG EXCEPTION: ${errorMessage}`);
-          console.error(`🚨 [${properServiceName}] Error Type: ${errorInjected.error_type} | HTTP ${httpStatus} | Flag: ${errorInjected.feature_flag}`);
+          console.error(`🚨 [${properServiceName}] Error Type: ${errorInjected.error_type} | HTTP ${errorHttpStatus} | Flag: ${errorInjected.feature_flag}`);
           
-          // Add custom attributes BEFORE the error response so OneAgent captures them on the span
+          // Add error-specific custom attributes for Dynatrace
           addCustomAttributes({
             'journey.step': currentStepName,
             'journey.service': properServiceName,
@@ -682,7 +695,7 @@ function createStepService(serviceName, stepName) {
             'error.occurred': true,
             'error.feature_flag': errorInjected.feature_flag,
             'error.type': errorInjected.error_type,
-            'error.http_status': httpStatus,
+            'error.http_status': errorHttpStatus,
             'error.remediation_action': errorInjected.remediation_action || 'unknown'
           });
           
@@ -691,7 +704,7 @@ function createStepService(serviceName, stepName) {
             'journey.step': currentStepName,
             'service.name': properServiceName,
             'correlation.id': correlationId,
-            'http.status': httpStatus,
+            'http.status': errorHttpStatus,
             'error.category': 'feature_flag_injection',
             'error.feature_flag': errorInjected.feature_flag,
             'error.type': errorInjected.error_type
@@ -702,7 +715,7 @@ function createStepService(serviceName, stepName) {
             'journey.step': currentStepName,
             'service.name': properServiceName,
             'correlation.id': correlationId,
-            'http.status': httpStatus,
+            'http.status': errorHttpStatus,
             'error.category': 'feature_flag_injection'
           });
           
@@ -711,7 +724,7 @@ function createStepService(serviceName, stepName) {
             stepName: currentStepName,
             serviceName: properServiceName,
             correlationId,
-            httpStatus,
+            httpStatus: errorHttpStatus,
             featureFlag: errorInjected.feature_flag,
             errorType: errorInjected.error_type,
             remediationAction: errorInjected.remediation_action
@@ -723,7 +736,7 @@ function createStepService(serviceName, stepName) {
             stepName: currentStepName,
             featureFlag: errorInjected.feature_flag,
             errorType: errorInjected.error_type,
-            httpStatus,
+            httpStatus: errorHttpStatus,
             correlationId,
             errorRate: errorConfig.errors_per_transaction,
             domain: processedPayload.domain || '',
@@ -731,47 +744,8 @@ function createStepService(serviceName, stepName) {
             companyName: processedPayload.companyName || ''
           });
           
-          // Set error headers for trace propagation
-          res.setHeader('x-trace-error', 'true');
-          res.setHeader('x-error-type', realError.name);
-          res.setHeader('x-journey-failed', 'true');
-          res.setHeader('x-http-status', httpStatus.toString());
-          res.setHeader('x-correlation-id', correlationId);
-          res.setHeader('x-dynatrace-trace-id', traceId);
-          res.setHeader('x-dynatrace-span-id', spanId);
-          const traceId32 = traceId.substring(0, 32).padEnd(32, '0');
-          const spanId16 = spanId.substring(0, 16).padEnd(16, '0');
-          res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
-          
-          // Return REAL HTTP error status code (not 200!)
-          res.status(httpStatus).json({
-            ...processedPayload,
-            stepName: currentStepName,
-            service: properServiceName,
-            status: 'error',
-            correlationId,
-            processingTime,
-            pid: process.pid,
-            timestamp: new Date().toISOString(),
-            error_occurred: true,
-            error: errorInjected,
-            journeyTrace,
-            traceError: true,
-            httpStatus,
-            _traceInfo: {
-              failed: true,
-              errorMessage,
-              errorType: realError.name,
-              httpStatus,
-              featureFlag: errorInjected.feature_flag,
-              requestCorrelationId: correlationId
-            }
-          });
-        }, processingTime);
-        return; // Don't fall through to the normal success path
-      }
-
-      const finish = async () => {
+          console.log(`🔧 [${properServiceName}] Error isolated to THIS service — chain will continue to downstream services`);
+        }
         // Generate dynamic metadata based on step name
         const metadata = generateStepMetadata(currentStepName);
 
@@ -797,7 +771,7 @@ function createStepService(serviceName, stepName) {
           ...processedPayload,
           stepName: currentStepName,
           service: properServiceName,
-          status: 'completed',
+          status: errorInjected ? 'error' : 'completed',
           correlationId,
           processingTime,
           pid: process.pid,
@@ -811,7 +785,21 @@ function createStepService(serviceName, stepName) {
           substeps: substeps,
           metadata,
           journeyTrace,
-          error_occurred: false
+          error_occurred: !!errorInjected,
+          // Include error details if error was injected (for bizevent capture)
+          ...(errorInjected ? {
+            error: errorInjected,
+            traceError: true,
+            httpStatus: errorInjected.http_status || 500,
+            _traceInfo: {
+              failed: true,
+              errorMessage: errorInjected.message,
+              errorType: `FeatureFlagError_${errorInjected.error_type}`,
+              httpStatus: errorInjected.http_status || 500,
+              featureFlag: errorInjected.feature_flag,
+              requestCorrelationId: correlationId
+            }
+          } : {})
         };
 
         // No flattened fields duplication - the processedPayload already contains clean data
@@ -976,7 +964,19 @@ function createStepService(serviceName, stepName) {
         res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
         res.setHeader('x-correlation-id', correlationId);
         
-        res.json(response);
+        // 🔧 ERROR ISOLATION: If error was injected, set error headers and return HTTP 4xx/5xx
+        // ONLY for THIS service's response — the chain has already continued to downstream services
+        if (errorInjected) {
+          const errorHttpStatus = errorInjected.http_status || 500;
+          res.setHeader('x-trace-error', 'true');
+          res.setHeader('x-error-type', `FeatureFlagError_${errorInjected.error_type}`);
+          res.setHeader('x-journey-step-failed', 'true');
+          res.setHeader('x-http-status', errorHttpStatus.toString());
+          // Return HTTP error status so Dynatrace captures failure rate on THIS service only
+          res.status(errorHttpStatus).json(response);
+        } else {
+          res.json(response);
+        }
       };
 
       setTimeout(finish, processingTime);
