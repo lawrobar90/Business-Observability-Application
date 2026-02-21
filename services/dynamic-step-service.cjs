@@ -880,7 +880,10 @@ function createStepService(serviceName, stepName) {
                     companyName: payload.companyName,
                     domain: payload.domain,
                     industryType: payload.industryType,
-                    stepName: nextStepName
+                    journeyType: payload.journeyType,
+                    stepName: nextStepName,
+                    serviceName: nextServiceName,
+                    category: nextStepData?.category || ''
                   }
                 }));
               });
@@ -900,7 +903,7 @@ function createStepService(serviceName, stepName) {
 
             const nextPayload = {
               ...processedPayload,  // Use flattened payload instead of original
-              // 🔒 CLEAN THE CHAIN: Ensure no error contamination from this service passes downstream
+              // 🔒 CLEAN THE CHAIN v2.6.3: Ensure no error contamination passes downstream
               hasError: false,
               error_occurred: false,
               status: 'completed',
@@ -908,6 +911,14 @@ function createStepService(serviceName, stepName) {
               traceError: undefined,
               httpStatus: undefined,
               _traceInfo: undefined,
+              // 🔧 v2.6.3: Also deep-clean additionalFields.hasError to prevent bizevent contamination
+              additionalFields: {
+                ...(processedPayload.additionalFields || {}),
+                hasError: false,
+                errorType: undefined,
+                errorMessage: undefined,
+                errorSeverity: undefined
+              },
               stepName: nextStepName,
               serviceName: nextServiceName,
               // Add step-specific fields for the next step
@@ -921,8 +932,11 @@ function createStepService(serviceName, stepName) {
               parentStep: currentStepName,
               correlationId,
               journeyId: payload.journeyId,
+              // 🔧 v2.6.3: Explicitly propagate ALL environment values for downstream services
               domain: payload.domain,
               companyName: payload.companyName,
+              industryType: payload.industryType,
+              journeyType: payload.journeyType,
               thinkTimeMs,
               steps: payload.steps,
               traceId,
@@ -960,7 +974,32 @@ function createStepService(serviceName, stepName) {
               const hasCurrent = next.trace.some(s => s.spanId === spanId);
               response.trace = hasCurrent ? next.trace : [...next.trace, { traceId, spanId, parentSpanId, stepName: currentStepName }];
             }
-            response.next = next;
+            // 🔧 ERROR ISOLATION v2.6.3: Sanitize downstream response before nesting.
+            // Strip error indicators so upstream services' response bodies don't contain
+            // nested error fields that OneAgent bizevent capture rules might detect.
+            if (next && typeof next === 'object') {
+              const sanitizedNext = { ...next };
+              delete sanitizedNext.error_occurred;
+              delete sanitizedNext.hasError;
+              delete sanitizedNext.error;
+              delete sanitizedNext.traceError;
+              delete sanitizedNext._traceInfo;
+              delete sanitizedNext.httpStatus;
+              // Also sanitize deeper nested responses
+              if (sanitizedNext.next && typeof sanitizedNext.next === 'object') {
+                const sanitizedDeep = { ...sanitizedNext.next };
+                delete sanitizedDeep.error_occurred;
+                delete sanitizedDeep.hasError;
+                delete sanitizedDeep.error;
+                delete sanitizedDeep.traceError;
+                delete sanitizedDeep._traceInfo;
+                delete sanitizedDeep.httpStatus;
+                sanitizedNext.next = sanitizedDeep;
+              }
+              response.next = sanitizedNext;
+            } else {
+              response.next = next;
+            }
           } catch (e) {
             response.nextError = e.message;
             console.error(`[${properServiceName}] Error calling next service:`, e.message);
@@ -983,17 +1022,13 @@ function createStepService(serviceName, stepName) {
         // doesn't propagate 500s to upstream callers (OneAgent captures outbound 500s as failures
         // on the calling service). Error is already captured via reportError/markSpanAsFailed
         // custom attributes above — DT sees the error on THIS service's PurePath only.
-        if (errorInjected) {
-          const errorHttpStatus = errorInjected.http_status || 500;
-          res.setHeader('x-trace-error', 'true');
-          res.setHeader('x-error-type', `FeatureFlagError_${errorInjected.error_type}`);
-          res.setHeader('x-journey-step-failed', 'true');
-          res.setHeader('x-http-status', errorHttpStatus.toString());
-          // Return HTTP 200 to keep chain clean — error is captured via OneAgent SDK attributes
-          res.json(response);
-        } else {
-          res.json(response);
-        }
+        // 🔧 ERROR ISOLATION v2.6.3: Always return clean HTTP 200 with NO error-indicating
+        // headers. Previously we set x-trace-error, x-error-type, x-journey-step-failed, and
+        // x-http-status headers which OneAgent on the CALLING service could detect as failure
+        // indicators, making ALL upstream services appear to have errors.
+        // Error is already captured via reportError/markSpanAsFailed custom attributes on
+        // THIS service's PurePath only.
+        res.json(response);
       };
 
       setTimeout(finish, processingTime);
@@ -1076,16 +1111,15 @@ function createStepService(serviceName, stepName) {
         }
       };
       
-      // Set comprehensive error headers for trace propagation
-      res.setHeader('x-trace-error', 'true');
-      res.setHeader('x-error-type', error.constructor.name);
-      res.setHeader('x-journey-failed', 'true');
-      res.setHeader('x-http-status', httpStatus.toString());
+      // 🔧 ERROR ISOLATION v2.6.3: Do NOT set error-indicating headers or use non-200 status codes.
+      // OneAgent on calling services monitors outbound response headers and status codes.
+      // Setting x-trace-error, x-journey-failed, or returning HTTP 500 causes ALL upstream
+      // services in the distributed trace to show failure rates in Dynatrace.
+      // Error is already captured via reportError/markSpanAsFailed on THIS service's PurePath.
       res.setHeader('x-correlation-id', correlationId);
       
-      // Return with appropriate HTTP status code
-      console.log(`[${properServiceName}] Returning error response with HTTP ${httpStatus}`);
-      res.status(httpStatus).json(errorResponse);
+      console.log(`[${properServiceName}] Returning error response with HTTP 200 (error isolated to this service)`);
+      res.json(errorResponse);
     }
     });
   });

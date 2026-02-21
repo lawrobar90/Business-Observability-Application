@@ -225,12 +225,11 @@ const errorHandlingMiddleware = (serviceName) => {
       stepName: req.body?.stepName
     });
     
-    // Add error headers for trace propagation
-    res.setHeader('x-trace-error', 'true');
-    res.setHeader('x-error-type', error.constructor.name);
-    res.setHeader('x-error-message', error.message);
+    // 🔧 ERROR ISOLATION v2.6.3: Do NOT set error-indicating headers.
+    // OneAgent on calling services monitors outbound response headers.
+    // Error is captured via reportError/markSpanAsFailed on THIS service's PurePath.
     
-    // Return standardized error response
+    // Return standardized error response with HTTP 200 — error captured via PurePath attributes
     const errorResponse = {
       status: 'error',
       error: error.message,
@@ -241,7 +240,7 @@ const errorHandlingMiddleware = (serviceName) => {
       traceError: true
     };
     
-    res.status(error.status || 500).json(errorResponse);
+    res.json(errorResponse);
   };
 };
 
