@@ -111,7 +111,7 @@ function fireJourney(journey, companyName, iterationCount) {
     },
     chained: false,
     thinkTimeMs: 250,
-    errorSimulationEnabled: true,
+    errorSimulationEnabled: false,
     loadRunnerTest: true
   };
 

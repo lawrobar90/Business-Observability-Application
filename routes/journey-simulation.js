@@ -943,8 +943,15 @@ router.post('/simulate-journey', async (req, res) => {
       customerId = `customer_${Date.now()}`,
       chained = true,
       thinkTimeMs = 250,
-      errorSimulationEnabled = false
+      errorSimulationEnabled: _errorSimFlag = false
     } = req.body || {};
+    
+    // v2.6.6: Force-disable legacy error simulation. Error injection is now EXCLUSIVELY
+    // handled by the feature flag system in dynamic-step-service.cjs. Ignore any caller
+    // sending errorSimulationEnabled:true (e.g. auto-load, AppEngine, LoadRunner).
+    // This prevents computeCustomerError from randomly injecting hasError:true into
+    // bizevent payloads for non-targeted services.
+    const errorSimulationEnabled = false;
     
     const correlationId = req.correlationId;
     
@@ -1481,8 +1488,11 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
       thinkTimeMs = 250,
       aiJourney,
       journey,
-      errorSimulationEnabled = false
+      errorSimulationEnabled: _errorSimFlag2 = false
     } = req.body || {};
+
+    // v2.6.6: Force-disable legacy error simulation (see simulate-journey handler for details)
+    const errorSimulationEnabled = false;
 
     // Enforce customer limit of 5
     const requestedCustomers = Number(customers || 1);
@@ -2261,8 +2271,11 @@ router.post('/simulate-batch-chained', async (req, res) => {
       companyName: bodyCompany,
       domain: bodyDomain,
       industryType: bodyIndustry,
-      errorSimulationEnabled = false
+      errorSimulationEnabled: _errorSimFlag3 = false
     } = req.body || {};
+
+    // v2.6.6: Force-disable legacy error simulation (see simulate-journey handler for details)
+    const errorSimulationEnabled = false;
 
     // Enforce customer limit of 5
     const requestedCustomers = Number(customers || 1);
