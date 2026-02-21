@@ -617,7 +617,7 @@ router.post('/start-test', async (req, res) => {
       testProfile = 'medium',
       durationMinutes = 5,
       customConfig = null,
-      errorSimulationEnabled = true
+      errorSimulationEnabled = false
     } = req.body;
 
     if (!journeyConfig || !journeyConfig.steps || journeyConfig.steps.length === 0) {

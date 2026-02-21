@@ -98,6 +98,25 @@ function checkAndRegenerateFeatureFlags(journeyData, errorConfig = DEFAULT_ERROR
     }
   }
   
+  // 🔧 v2.6.5 FIX: When there are no journey steps (e.g. independent service calls, non-chained),
+  // create a DIRECT flag targeting the current step using the error config rate.
+  // Previously, no flags were ever generated without steps, so errors_per_transaction was ignored.
+  if (journeySteps.length === 0 && errorConfig.errors_per_transaction > 0) {
+    const currentStepName = journeyData?.stepName || journeyData?.step?.stepName || 'UnknownStep';
+    const directFlag = {
+      name: 'Direct Error Injection',
+      errorType: 'service_unavailable',
+      errorRate: errorConfig.errors_per_transaction,
+      affectedSteps: [currentStepName],
+      severity: 'CRITICAL',
+      remediation: 'restart_service',
+      enabled: true
+    };
+    const flagId = 'direct_error_injection';
+    console.log(`🎯 [Feature Flags] No steps array — using DIRECT error injection for ${currentStepName} at rate ${errorConfig.errors_per_transaction}`);
+    return { [flagId]: directFlag };
+  }
+  
   // Calculate if we should regenerate based on transaction volume
   const transactionsSinceRegen = correlationIdCounter - lastRegenerationCount;
   const shouldRegenerate = transactionsSinceRegen >= errorConfig.regenerate_every_n_transactions;

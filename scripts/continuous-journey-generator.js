@@ -54,7 +54,7 @@ async function simulateJourney(template, customer) {
         },
         chained: true,
         thinkTimeMs: 250,
-        errorSimulationEnabled: true
+        errorSimulationEnabled: false
       })
     });
 
