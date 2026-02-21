@@ -472,12 +472,13 @@ function createStepService(serviceName, stepName) {
       req.body = processedPayload;
       
       try {
-        // Check for step errors first (both explicit and simulated)
-        const stepError = checkForStepError(payload, null); // You can pass error profile here
-        if (stepError) {
-          console.error(`[${properServiceName}] Step error detected:`, stepError.message);
-          throw stepError;
-        }
+        // 🔧 v2.6.5 ARCHITECTURAL FIX: Removed checkForStepError(payload) call.
+        // checkForStepError reads payload.hasError (set by journey-sim's computeCustomerError)
+        // and throws TracedError → HTTP 500 on RANDOM services, conflicting with the feature
+        // flag system (below, line ~600) which properly handles per-service error targeting.
+        // Error injection is now SINGLE-PATH: only the feature flag system at fetchGlobalErrorConfig()
+        // controls which services get errors. payload.hasError is treated as metadata only.
+        // This eliminates the dual error injection that caused untargeted services to show failures.
         
         // Extract trace context from incoming request headers
         const incomingTraceParent = req.headers['traceparent'];

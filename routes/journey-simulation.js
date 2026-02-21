@@ -943,7 +943,7 @@ router.post('/simulate-journey', async (req, res) => {
       customerId = `customer_${Date.now()}`,
       chained = true,
       thinkTimeMs = 250,
-      errorSimulationEnabled = true
+      errorSimulationEnabled = false
     } = req.body || {};
     
     const correlationId = req.correlationId;
@@ -1147,8 +1147,12 @@ router.post('/simulate-journey', async (req, res) => {
         
         return { ...s, ...plan };
       } else if (errorSimulationEnabled) {
-        // 🔧 Runtime error injection: When errorSimulationEnabled is true (e.g. from LoadRunner),
-        // use computeCustomerError to probabilistically inject errors even without journey data hints
+        // 🔧 v2.6.5: Runtime error injection via computeCustomerError is now DISABLED by default.
+        // errorSimulationEnabled defaults to false. Error injection is controlled exclusively by
+        // the feature flag system in dynamic-step-service.cjs (per-service targeting via
+        // /api/feature_flag). This prevents random errors on untargeted services.
+        // When explicitly enabled (e.g. from LoadRunner with errorSimulationEnabled:true),
+        // computeCustomerError will still work for backward compatibility.
         let plan = computeCustomerError(currentPayload.companyName, s.stepName);
         if (plan.hasError) {
           console.log(`[journey-sim] 🔴 Runtime error injected for step: ${s.stepName} (errorSimulationEnabled=true, type: ${plan.errorType}, status: ${plan.httpStatus})`);
@@ -1477,7 +1481,7 @@ router.post('/simulate-multiple-journeys', async (req, res) => {
       thinkTimeMs = 250,
       aiJourney,
       journey,
-      errorSimulationEnabled = true
+      errorSimulationEnabled = false
     } = req.body || {};
 
     // Enforce customer limit of 5
@@ -2257,7 +2261,7 @@ router.post('/simulate-batch-chained', async (req, res) => {
       companyName: bodyCompany,
       domain: bodyDomain,
       industryType: bodyIndustry,
-      errorSimulationEnabled = true
+      errorSimulationEnabled = false
     } = req.body || {};
 
     // Enforce customer limit of 5

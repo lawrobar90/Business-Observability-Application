@@ -5,6 +5,12 @@
       "errors_per_visit": 0,
       "errors_per_minute": 0,
       "regenerate_every_n_transactions": 100
+    },
+    "CheckoutAndSignupService": {
+      "errors_per_transaction": 0.7,
+      "errors_per_visit": 0,
+      "errors_per_minute": 0,
+      "regenerate_every_n_transactions": 100
     }
   },
   "globalFeatureFlags": {
@@ -13,5 +19,5 @@
     "errors_per_minute": 0,
     "regenerate_every_n_transactions": 100
   },
-  "savedAt": "2026-02-21T09:14:59.119Z"
+  "savedAt": "2026-02-21T09:17:44.681Z"
 }
