@@ -225,11 +225,8 @@ const errorHandlingMiddleware = (serviceName) => {
       stepName: req.body?.stepName
     });
     
-    // 🔧 ERROR ISOLATION v2.6.3: Do NOT set error-indicating headers.
-    // OneAgent on calling services monitors outbound response headers.
-    // Error is captured via reportError/markSpanAsFailed on THIS service's PurePath.
-    
-    // Return standardized error response with HTTP 200 — error captured via PurePath attributes
+    // 🔧 ERROR ISOLATION v2.6.4: Return the actual HTTP error status so OneAgent captures
+    // it on THIS service. Chain contamination is fixed separately (nextPayload cleaning).
     const errorResponse = {
       status: 'error',
       error: error.message,
@@ -240,7 +237,7 @@ const errorHandlingMiddleware = (serviceName) => {
       traceError: true
     };
     
-    res.json(errorResponse);
+    res.status(error.status || 500).json(errorResponse);
   };
 };
 

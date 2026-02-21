@@ -1018,17 +1018,21 @@ function createStepService(serviceName, stepName) {
         res.setHeader('traceparent', `00-${traceId32}-${spanId16}-01`);
         res.setHeader('x-correlation-id', correlationId);
         
-        // 🔧 ERROR ISOLATION: Always return HTTP 200 on the /process endpoint so the chain
-        // doesn't propagate 500s to upstream callers (OneAgent captures outbound 500s as failures
-        // on the calling service). Error is already captured via reportError/markSpanAsFailed
-        // custom attributes above — DT sees the error on THIS service's PurePath only.
-        // 🔧 ERROR ISOLATION v2.6.3: Always return clean HTTP 200 with NO error-indicating
-        // headers. Previously we set x-trace-error, x-error-type, x-journey-step-failed, and
-        // x-http-status headers which OneAgent on the CALLING service could detect as failure
-        // indicators, making ALL upstream services appear to have errors.
-        // Error is already captured via reportError/markSpanAsFailed custom attributes on
-        // THIS service's PurePath only.
-        res.json(response);
+        // 🔧 ERROR ISOLATION v2.6.4: Return the actual HTTP error status on the TARGETED
+        // service so OneAgent captures it as a failure. The original "all services show errors"
+        // bug was caused by chain contamination (hasError:true spreading to every downstream
+        // service), NOT by the HTTP status code. Now that the chain is clean (nextPayload has
+        // hasError:false, additionalFields.hasError:false, response.next is sanitized), it's
+        // safe to return HTTP 500 here — only THIS service's failure rate increases.
+        // The caller sees an outbound 500 but its OWN inbound failure rate stays 0% because
+        // it still returns HTTP 200 to its upstream caller.
+        if (errorInjected) {
+          const errorHttpStatus = errorInjected.http_status || 500;
+          console.log(`[${properServiceName}] Returning HTTP ${errorHttpStatus} for error isolation (only THIS service shows failure)`);
+          res.status(errorHttpStatus).json(response);
+        } else {
+          res.json(response);
+        }
       };
 
       setTimeout(finish, processingTime);
@@ -1111,15 +1115,13 @@ function createStepService(serviceName, stepName) {
         }
       };
       
-      // 🔧 ERROR ISOLATION v2.6.3: Do NOT set error-indicating headers or use non-200 status codes.
-      // OneAgent on calling services monitors outbound response headers and status codes.
-      // Setting x-trace-error, x-journey-failed, or returning HTTP 500 causes ALL upstream
-      // services in the distributed trace to show failure rates in Dynatrace.
-      // Error is already captured via reportError/markSpanAsFailed on THIS service's PurePath.
+      // 🔧 ERROR ISOLATION v2.6.4: Return the actual HTTP error status so OneAgent captures
+      // it on THIS service. Chain contamination is fixed (nextPayload has hasError:false),
+      // so only this service's failure rate increases.
       res.setHeader('x-correlation-id', correlationId);
       
-      console.log(`[${properServiceName}] Returning error response with HTTP 200 (error isolated to this service)`);
-      res.json(errorResponse);
+      console.log(`[${properServiceName}] Returning error response with HTTP ${httpStatus}`);
+      res.status(httpStatus).json(errorResponse);
     }
     });
   });
